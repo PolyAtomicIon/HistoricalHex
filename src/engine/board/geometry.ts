@@ -13,8 +13,8 @@ export interface HexCoord {
   r: number;
 }
 
-/** Углы гекса по часовой стрелке, начиная с верхнего. */
-const CORNERS: ReadonlyArray<readonly [number, number]> = [
+/** Углы гекса по часовой стрелке, начиная с верхнего (смещения в сетке от центра). */
+export const HEX_CORNERS: ReadonlyArray<readonly [number, number]> = [
   [0, -2],
   [1, -1],
   [1, 1],
@@ -107,7 +107,7 @@ export function buildTopology(coords: readonly HexCoord[]): Topology {
     const id = hexId(q, r);
     const x = 2 * q + r;
     const y = 3 * r;
-    const corner = CORNERS.map(([dx, dy]) => ensureVertex(x + dx, y + dy));
+    const corner = HEX_CORNERS.map(([dx, dy]) => ensureVertex(x + dx, y + dy));
     const hexEdges: EdgeId[] = [];
     corner.forEach((v, i) => {
       v.hexes.push(id);

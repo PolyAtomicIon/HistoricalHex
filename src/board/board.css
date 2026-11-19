@@ -1,0 +1,129 @@
+.board {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.board text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.board .sea polygon {
+  fill: var(--sea, #2a7fbf);
+  stroke: var(--sea-line, #3a90cf);
+  stroke-width: 2;
+}
+
+.board .hex polygon {
+  stroke: #f6ecd2;
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.board .terrain-icon {
+  font-size: 30px;
+  opacity: 0.9;
+}
+.board .terrain-icon.big {
+  font-size: 56px;
+}
+
+.board .token circle:first-child {
+  fill: #f8efd8;
+  stroke: #8a6b3d;
+  stroke-width: 3;
+}
+.board .token-number {
+  font-size: 30px;
+  font-weight: 800;
+  fill: #2b2118;
+}
+.board .token .pip {
+  fill: #2b2118;
+}
+.board .token.red .token-number,
+.board .token.red .pip {
+  fill: #c62d23;
+}
+
+.board .harbor line {
+  stroke: #c9a46a;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.board .harbor circle {
+  fill: #fff7e6;
+  stroke: #8a6b3d;
+  stroke-width: 3;
+}
+.board .harbor-icon {
+  font-size: 22px;
+}
+.board .harbor-ratio {
+  font-size: 15px;
+  font-weight: 800;
+  fill: #2b2118;
+}
+
+.board .road line {
+  stroke-linecap: round;
+}
+
+.board .robber path,
+.board .robber circle {
+  fill: #2a2522;
+  stroke: #0d0b0a;
+  stroke-width: 0.025;
+}
+.board .robber-shadow {
+  fill: rgba(0, 0, 0, 0.35);
+}
+
+.board .recent {
+  animation: board-pop 1.6s ease-out;
+}
+@keyframes board-pop {
+  0% {
+    opacity: 0;
+    filter: drop-shadow(0 0 0 #fff);
+  }
+  20% {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px #fff);
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+  }
+}
+
+/* Подсветка доступных мест (экран игрока) */
+.board .vertex-target {
+  fill: rgba(255, 255, 255, 0.85);
+  stroke: #1d1d1d;
+  stroke-width: 4;
+  cursor: pointer;
+  animation: board-pulse 1.2s ease-in-out infinite;
+}
+.board .edge-target {
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 22;
+  stroke-linecap: round;
+  cursor: pointer;
+  animation: board-pulse 1.2s ease-in-out infinite;
+}
+.board .hex-target {
+  fill: rgba(255, 255, 255, 0.18);
+  stroke: #fff;
+  stroke-width: 6;
+  cursor: pointer;
+  animation: board-pulse 1.2s ease-in-out infinite;
+}
+@keyframes board-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}

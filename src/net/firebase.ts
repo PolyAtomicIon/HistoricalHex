@@ -106,6 +106,17 @@ export async function connect(options: ConnectOptions = {}): Promise<Connection>
   };
 }
 
+let shared: Promise<Connection> | undefined;
+
+/** Одно подключение на страницу (React в режиме разработки запускает эффекты дважды). */
+export function connectOnce(): Promise<Connection> {
+  shared ??= connect().catch((e) => {
+    shared = undefined;
+    throw e;
+  });
+  return shared;
+}
+
 /** Убирает undefined (Firebase их не принимает), null оставляет (это удаление). */
 export function clean<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
