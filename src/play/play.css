@@ -568,3 +568,30 @@ body {
     align-content: start;
   }
 }
+
+/* ── арт ── */
+.res-img {
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+img.res-icon {
+  width: 30px;
+  height: 30px;
+}
+img.step-icon {
+  width: 26px;
+  height: 26px;
+}
+img.pick-icon {
+  width: 34px;
+  height: 34px;
+}
+.dev-thumb {
+  width: 54px;
+  height: 81px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  flex: none;
+}

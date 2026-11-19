@@ -1,6 +1,6 @@
 // Экран игры на телевизоре: карта по центру, игроки слева, ход/кубики/обмен/лог справа.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { GameState, PlayerColor, PlayerId, PublicPlayer, PublicState } from '../engine';
 import { toPublicView } from '../engine';
 import type { HostRoom, HostSnapshot, Presence } from '../net';
@@ -10,7 +10,8 @@ import { BOT_LEVEL_NAME } from '../bots';
 import { Dice } from '../ui/Dice';
 import { formatClock, useNow } from '../ui/hooks';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
-import { GAME_TITLE, cards, eventText, namesFrom, phaseText, points, resourcesText } from '../i18n/ru';
+import { DEV_CARD_ART, art } from '../ui/art';
+import { DEV_CARD_NAME, GAME_TITLE, cards, eventText, namesFrom, phaseText, points, resourcesText } from '../i18n/ru';
 
 interface Props {
   room: HostRoom;
@@ -34,6 +35,7 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
   const current = pub.order[pub.current];
   const recent = useMemo(() => recentBuilt(pub), [pub]);
   const rollSeq = [...pub.log].reverse().find((e) => e.type === 'diceRolled')?.seq;
+  const played = usePlayedCard(pub);
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     p.then((r) => setError(r.ok ? '' : (r.error ?? ''))).catch((e) => setError(describeError(e)));
@@ -129,6 +131,15 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
           </div>
         )}
 
+        {played && (
+          <div className="card played-card" key={played.seq}>
+            {art(DEV_CARD_ART[played.card]) && <img src={art(DEV_CARD_ART[played.card])} alt="" />}
+            <p>
+              <b>{namesFrom(pub)(played.player)}</b> играет «{DEV_CARD_NAME[played.card]}»
+            </p>
+          </div>
+        )}
+
         {pub.trade && <TradeCard pub={pub} />}
 
         <div className="card log">
@@ -201,8 +212,8 @@ function PlayerPanel({
       </div>
       {(longestRoad || largestArmy) && (
         <div className="pp-badges">
-          {longestRoad && <span className="badge">Самая длинная дорога +2</span>}
-          {largestArmy && <span className="badge">Самая большая армия +2</span>}
+          {longestRoad && <BonusBadge img="bonus-road" text="Самая длинная дорога +2" />}
+          {largestArmy && <BonusBadge img="bonus-army" text="Самая большая армия +2" />}
         </div>
       )}
       {discard ? <div className="pp-note">сбрасывает {cards(discard)}…</div> : null}
@@ -218,6 +229,30 @@ function PlayerPanel({
       )}
     </div>
   );
+}
+
+function BonusBadge({ img, text }: { img: string; text: string }) {
+  const url = art(img);
+  return (
+    <span className={`badge ${url ? 'with-art' : ''}`}>
+      {url && <img src={url} alt="" />}
+      {text}
+    </span>
+  );
+}
+
+/** Последняя сыгранная карта развития — показываем её на телевизоре несколько секунд. */
+function usePlayedCard(pub: PublicState) {
+  const last = [...pub.log].reverse().find((e) => e.type === 'devCardPlayed');
+  const [shown, setShown] = useState<number | undefined>();
+  useEffect(() => {
+    if (!last) return;
+    setShown(last.seq);
+    const id = setTimeout(() => setShown(undefined), 6000);
+    return () => clearTimeout(id);
+  }, [last?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!last || last.type !== 'devCardPlayed' || shown !== last.seq) return null;
+  return last;
 }
 
 function TradeCard({ pub }: { pub: PublicState }) {

@@ -18,6 +18,7 @@ import { Dice } from '../ui/Dice';
 import { DEV_CARD_ICON, PLAYER_HEX, PLAYER_STROKE, RESOURCE_ICON } from '../ui/theme';
 import { DEV_CARD_NAME, RESOURCE_NAME, cards, eventText, myPhaseText, namesFrom, phaseText, points, resourcesText } from '../i18n/ru';
 import { ZoomPan } from './ZoomPan';
+import { DEV_CARD_ART, art } from '../ui/art';
 import { IncomingTrade, TradeSheet } from './trade';
 import { Modal, ResourceCards, ResourcePicker, ResourceStepper, sum, useSender } from './widgets';
 
@@ -453,7 +454,11 @@ function DevCards({ priv, busy, onPlay }: { priv: PrivateView; busy: boolean; on
     <ul className="dev-list">
       {priv.devCards.map((c, i) => (
         <li key={i}>
-          <span className="dev-icon">{DEV_CARD_ICON[c.type]}</span>
+          {art(DEV_CARD_ART[c.type]) ? (
+            <img className="dev-thumb" src={art(DEV_CARD_ART[c.type])} alt="" draggable={false} />
+          ) : (
+            <span className="dev-icon">{DEV_CARD_ICON[c.type]}</span>
+          )}
           <span className="dev-name">
             {DEV_CARD_NAME[c.type]}
             {c.isNew && <small> · куплена в этот ход</small>}

@@ -151,3 +151,10 @@
 .board.touch .edge-target {
   stroke-width: 34;
 }
+
+.board .robber-img {
+  filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.5));
+}
+.board .token circle:first-child {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}

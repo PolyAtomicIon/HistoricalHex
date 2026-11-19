@@ -4,7 +4,9 @@
 import { useMemo } from 'react';
 import type { EdgeId, HexId, PlayerColor, PlayerId, PublicState, VertexId } from '../engine';
 import { HEX_CORNERS, topologyFor } from '../engine';
+import type { HarborType, Terrain } from '../engine';
 import { PLAYER_HEX, PLAYER_STROKE, TERRAIN_FILL, TERRAIN_ICON, harborIcon } from '../ui/theme';
+import { art } from '../ui/art';
 import './board.css';
 
 /** Радиус гекса в единицах SVG. */
@@ -12,6 +14,11 @@ const S = 100;
 const SQ3 = Math.sqrt(3);
 
 const px = (x: number, y: number) => ({ x: (x * SQ3 * S) / 2, y: (y * S) / 2 });
+
+const TERRAINS: Terrain[] = ['forest', 'hills', 'pasture', 'fields', 'mountains', 'desert'];
+const tileArt = (t: Terrain | 'sea') => art(`tile-${t}`);
+const harborArt = (t: HarborType) => art(t === 'any' ? 'harbor-any' : `res-${t}`);
+const robberArt = art('robber');
 
 function hexPoints(cx: number, cy: number): string {
   return HEX_CORNERS.map(([dx, dy]) => {
@@ -73,10 +80,22 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
 
   return (
     <svg className={`board ${className ?? ''}`} viewBox={geo.viewBox} role="img" aria-label="Карта острова">
+      {/* Картинки местности: квадрат натягивается на гекс (лишнее по бокам обрезается) */}
+      <defs>
+        {[...TERRAINS, 'sea' as const].map((t) => {
+          const url = tileArt(t);
+          return url ? (
+            <pattern key={t} id={`hx-${t}`} patternContentUnits="objectBoundingBox" width="1" height="1">
+              <image href={url} width="1" height="1" preserveAspectRatio="xMidYMid slice" />
+            </pattern>
+          ) : null;
+        })}
+      </defs>
+
       {/* Море */}
       <g className="sea">
         {geo.sea.map((h) => (
-          <polygon key={h.key} points={hexPoints(h.x, h.y)} />
+          <polygon key={h.key} points={hexPoints(h.x, h.y)} style={tileArt('sea') ? { fill: 'url(#hx-sea)' } : undefined} />
         ))}
       </g>
 
@@ -98,9 +117,19 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
               <line x1={a.x} y1={a.y} x2={ox} y2={oy} />
               <line x1={b.x} y1={b.y} x2={ox} y2={oy} />
               <circle cx={ox} cy={oy} r={S * 0.3} />
-              <text x={ox} y={oy - S * 0.04} className="harbor-icon">
-                {harborIcon(h.type)}
-              </text>
+              {harborArt(h.type) ? (
+                <image
+                  href={harborArt(h.type)}
+                  x={ox - S * 0.17}
+                  y={oy - S * 0.24}
+                  width={S * 0.34}
+                  height={S * 0.34}
+                />
+              ) : (
+                <text x={ox} y={oy - S * 0.04} className="harbor-icon">
+                  {harborIcon(h.type)}
+                </text>
+              )}
               <text x={ox} y={oy + S * 0.19} className="harbor-ratio">
                 {h.type === 'any' ? '3:1' : '2:1'}
               </text>
@@ -118,16 +147,23 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
           const pips = h.number ? 6 - Math.abs(7 - h.number) : 0;
           return (
             <g key={h.id} className={`hex terrain-${h.terrain}`}>
-              <polygon points={hexPoints(t.x, t.y)} fill={TERRAIN_FILL[h.terrain]} />
+              <polygon
+                points={hexPoints(t.x, t.y)}
+                fill={tileArt(h.terrain) ? `url(#hx-${h.terrain})` : TERRAIN_FILL[h.terrain]}
+              />
               {h.number === undefined ? (
-                <text x={c.x} y={c.y} className="terrain-icon big">
-                  {TERRAIN_ICON[h.terrain]}
-                </text>
-              ) : (
-                <>
-                  <text x={c.x} y={c.y - S * 0.52} className="terrain-icon">
+                !tileArt(h.terrain) && (
+                  <text x={c.x} y={c.y} className="terrain-icon big">
                     {TERRAIN_ICON[h.terrain]}
                   </text>
+                )
+              ) : (
+                <>
+                  {!tileArt(h.terrain) && (
+                    <text x={c.x} y={c.y - S * 0.52} className="terrain-icon">
+                      {TERRAIN_ICON[h.terrain]}
+                    </text>
+                  )}
                   <g className={`token ${red ? 'red' : ''}`}>
                     <circle cx={c.x} cy={c.y} r={S * 0.3} />
                     <text x={c.x} y={c.y - S * 0.03} className="token-number">
@@ -215,6 +251,18 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
       {(() => {
         const c = geo.hexPos.get(view.robberHex);
         if (!c) return null;
+        if (robberArt) {
+          return (
+            <image
+              className="robber robber-img"
+              href={robberArt}
+              x={c.x - S * 0.78}
+              y={c.y - S * 0.42}
+              width={S * 0.56}
+              height={S * 0.56}
+            />
+          );
+        }
         return (
           <g className="robber" transform={`translate(${c.x - S * 0.5} ${c.y + S * 0.08}) scale(${S})`}>
             <ellipse cx={0} cy={0.24} rx={0.17} ry={0.05} className="robber-shadow" />

@@ -7,7 +7,8 @@ import { RESOURCES, totalResources } from '../engine';
 import type { PlayerRoom, PlayerSnapshot } from '../net';
 import { describeError } from '../net';
 import { RESOURCE_NAME } from '../i18n/ru';
-import { RESOURCE_ICON, TERRAIN_FILL } from '../ui/theme';
+import { TERRAIN_FILL } from '../ui/theme';
+import { ResIcon } from '../ui/ResIcon';
 
 export const RESOURCE_BG: Record<Resource, string> = {
   brick: TERRAIN_FILL.hills,
@@ -68,7 +69,7 @@ export function ResourceCards({ hand, onTap, dim }: { hand: ResourceMap; onTap?:
           onClick={onTap ? () => onTap(r) : undefined}
           disabled={!onTap}
         >
-          <span className="res-icon">{RESOURCE_ICON[r]}</span>
+          <ResIcon r={r} className="res-icon" />
           <span className="res-count">{hand[r]}</span>
           <span className="res-name">{RESOURCE_NAME[r]}</span>
         </button>
@@ -95,7 +96,7 @@ export function ResourceStepper({
           <button type="button" onClick={() => set(r, value[r] + 1)} disabled={value[r] >= (max?.[r] ?? 99)}>
             +
           </button>
-          <span className="step-icon">{RESOURCE_ICON[r]}</span>
+          <ResIcon r={r} className="step-icon" />
           <span className="step-n">{value[r]}</span>
           <button type="button" onClick={() => set(r, value[r] - 1)} disabled={value[r] <= 0}>
             −
@@ -117,7 +118,7 @@ export function ResourcePicker({ onPick, disabled }: { onPick: (r: Resource) => 
           onClick={() => onPick(r)}
           disabled={disabled?.(r)}
         >
-          <span>{RESOURCE_ICON[r]}</span>
+          <ResIcon r={r} className="pick-icon" />
           <small>{RESOURCE_NAME[r]}</small>
         </button>
       ))}

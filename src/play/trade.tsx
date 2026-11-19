@@ -6,6 +6,7 @@ import { RESOURCES, emptyResources, hasResources } from '../engine';
 import { RESOURCE_NAME, namesFrom, resourcesText } from '../i18n/ru';
 import { RESOURCE_ICON } from '../ui/theme';
 import { RESOURCE_BG, ResourcePicker, ResourceStepper, sum } from './widgets';
+import { ResIcon } from '../ui/ResIcon';
 
 type Send = (a: Action) => Promise<void>;
 
@@ -129,7 +130,7 @@ function BankTrade({ pub, priv, send, busy }: { pub: PublicState; priv: PrivateV
             disabled={priv.resources[r] < ratio(r)}
             onClick={() => setGive(r)}
           >
-            <span>{RESOURCE_ICON[r]}</span>
+            <ResIcon r={r} className="pick-icon" />
             <small>
               {ratio(r)}:1 · у тебя {priv.resources[r]}
             </small>
