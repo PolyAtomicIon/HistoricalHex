@@ -1,16 +1,18 @@
 // Экран игры на телевизоре: карта по центру, игроки слева, ход/кубики/обмен/лог справа.
 
-import { useEffect, useMemo, useState } from 'react';
-import type { GameState, PlayerColor, PlayerId, PublicPlayer, PublicState } from '../engine';
-import { toPublicView } from '../engine';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { GameState, HexId, PlayerColor, PlayerId, PublicPlayer, PublicState, Resource } from '../engine';
+import { TERRAIN_RESOURCE, toPublicView, topologyFor } from '../engine';
 import type { HostRoom, HostSnapshot, Presence } from '../net';
 import { describeError } from '../net';
 import { Board } from '../board/Board';
 import { BOT_LEVEL_NAME } from '../bots';
 import { Dice } from '../ui/Dice';
 import { formatClock, useNow } from '../ui/hooks';
-import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
-import { DEV_CARD_ART, art } from '../ui/art';
+import { PLAYER_HEX, PLAYER_STROKE, RESOURCE_ICON } from '../ui/theme';
+import { useMuted } from '../ui/sound';
+import { hostCues, useLogSounds } from '../ui/eventSounds';
+import { DEV_CARD_ART, art, resourceArt } from '../ui/art';
 import { DEV_CARD_NAME, GAME_TITLE, cards, eventText, namesFrom, phaseText, points, resourcesText } from '../i18n/ru';
 
 interface Props {
@@ -36,6 +38,10 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
   const recent = useMemo(() => recentBuilt(pub), [pub]);
   const rollSeq = [...pub.log].reverse().find((e) => e.type === 'diceRolled')?.seq;
   const played = usePlayedCard(pub);
+  const flash = useProductionFlash(pub);
+  const banner = useTurnBanner(pub);
+  const [muted, toggleMute] = useMuted();
+  useLogSounds(pub.log, hostCues);
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     p.then((r) => setError(r.ok ? '' : (r.error ?? ''))).catch((e) => setError(describeError(e)));
@@ -67,6 +73,9 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
         <span className="muted">
           {pub.phase === 'setup' ? 'Расстановка' : `Ход ${pub.turn}`} · PIN {room.pin}
         </span>
+        <button className="btn ghost icon" onClick={toggleMute} aria-label={muted ? 'Включить звук' : 'Выключить звук'}>
+          {muted ? '🔇' : '🔊'}
+        </button>
         <HostMenu
           onSkip={() => {
             if (confirm(`Пропустить ход игрока ${pub.players[current]?.name}?`)) run(room.hostAction({ type: 'skipTurn' }));
@@ -94,8 +103,18 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
       </aside>
 
       <section className="board-wrap">
-        <Board view={pub} colors={colors} recent={recent} />
+        <Board view={pub} colors={colors} recent={recent} flash={flash} />
       </section>
+
+      {banner && (
+        <div
+          className="turn-banner"
+          key={banner.seq}
+          style={{ ['--pc' as string]: PLAYER_HEX[pub.players[banner.player]?.color ?? 'white'] }}
+        >
+          Ходит {pub.players[banner.player]?.name}
+        </div>
+      )}
 
       <aside className="side">
         <div className="card dice-card">
@@ -192,7 +211,7 @@ function PlayerPanel({
   limitMs: number;
 }) {
   return (
-    <div className={`player-panel ${current ? 'current' : ''} ${offlineMs >= 0 ? 'is-offline' : ''}`}>
+    <div className={`player-panel ${current ? 'current' : ''} ${offlineMs >= 0 ? 'is-offline' : ''}`} data-player={p.id}>
       <div className="pp-head">
         <span className="chip" style={chipStyle(p.color)} />
         <span className="name">{p.name}</span>
@@ -229,6 +248,118 @@ function PlayerPanel({
       )}
     </div>
   );
+}
+
+const CONFETTI_COLORS = ['#ffd27a', '#e8792b', '#2f6fdb', '#2e9e5b', '#d94841', '#8a4fd1', '#fff'];
+
+function Confetti() {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 90 }, (_, i) => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 2.5,
+        dur: 2.8 + Math.random() * 2.5,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        rot: Math.random() * 360,
+        w: 6 + Math.random() * 8,
+      })),
+    [],
+  );
+  return (
+    <div className="confetti" aria-hidden>
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          style={{
+            left: `${p.left}%`,
+            background: p.color,
+            width: p.w,
+            height: p.w * 0.45,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.dur}s`,
+            transform: `rotate(${p.rot}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Плашка «Ходит …» на ~1,5 с при смене хода. */
+function useTurnBanner(pub: PublicState) {
+  const last = [...pub.log].reverse().find((e) => e.type === 'turnStarted');
+  const first = useRef(last?.seq);
+  const [shown, setShown] = useState<number>();
+  useEffect(() => {
+    if (!last || last.seq === first.current) return;
+    setShown(last.seq);
+    const id = setTimeout(() => setShown(undefined), 1600);
+    return () => clearTimeout(id);
+  }, [last?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  return last && last.type === 'turnStarted' && shown === last.seq ? last : null;
+}
+
+/**
+ * Доход: гексы с выпавшим числом вспыхивают, а значки ресурсов летят
+ * от гекса к панели игрока, который их получил.
+ */
+function useProductionFlash(pub: PublicState): { hexes: HexId[]; key: number } | undefined {
+  const last = [...pub.log].reverse().find((e) => e.type === 'produced');
+  const first = useRef(last?.seq);
+  const [flash, setFlash] = useState<{ hexes: HexId[]; key: number }>();
+
+  useEffect(() => {
+    if (!last || last.type !== 'produced' || last.seq === first.current) return;
+    const hexes = pub.board.hexes.filter((h) => h.number === last.total && h.id !== pub.robberHex && h.terrain !== 'desert');
+    setFlash({ hexes: hexes.map((h) => h.id), key: last.seq });
+
+    // Летящие значки — после того, как кубики докрутятся
+    const timer = setTimeout(() => {
+      const topo = topologyFor(pub.board.layout);
+      let n = 0;
+      for (const h of hexes) {
+        if (h.terrain === 'desert') continue;
+        const res = TERRAIN_RESOURCE[h.terrain];
+        const from = document.querySelector(`[data-hex="${h.id}"]`)?.getBoundingClientRect();
+        if (!from) continue;
+        for (const v of topo.hexes.get(h.id)!.vertices) {
+          const b = pub.buildings[v];
+          if (!b || !last.gains?.[b.owner]?.[res]) continue;
+          const to = document.querySelector(`[data-player="${b.owner}"]`)?.getBoundingClientRect();
+          if (!to) continue;
+          for (let k = 0; k < (b.kind === 'city' ? 2 : 1); k++) flyIcon(res, from, to, n++ * 110);
+        }
+      }
+    }, 750);
+    return () => clearTimeout(timer);
+  }, [last?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return flash;
+}
+
+function flyIcon(res: Resource, from: DOMRect, to: DOMRect, delay: number) {
+  const url = resourceArt(res);
+  const el = document.createElement(url ? 'img' : 'span');
+  el.className = 'fly-icon';
+  if (url) (el as HTMLImageElement).src = url;
+  else el.textContent = RESOURCE_ICON[res];
+  const x0 = from.left + from.width / 2 - 22;
+  const y0 = from.top + from.height / 2 - 22;
+  el.style.left = `${x0}px`;
+  el.style.top = `${y0}px`;
+  document.body.appendChild(el);
+  const dx = to.left + 40 - x0;
+  const dy = to.top + to.height / 2 - 22 - y0;
+  const anim = el.animate(
+    [
+      { transform: 'translate(0, 0) scale(0.4)', opacity: 0 },
+      { transform: 'translate(0, -30px) scale(1.15)', opacity: 1, offset: 0.25 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.7)`, opacity: 0.9 },
+    ],
+    { duration: 1000, delay, easing: 'cubic-bezier(0.5, 0, 0.4, 1)', fill: 'both' },
+  );
+  anim.onfinish = () => el.remove();
+  anim.oncancel = () => el.remove();
 }
 
 function BonusBadge({ img, text }: { img: string; text: string }) {
@@ -290,6 +421,7 @@ function WinnerOverlay({ pub, onNewGame, onClose }: { pub: PublicState; onNewGam
   const winner = pub.winner ? pub.players[pub.winner] : undefined;
   return (
     <div className="overlay">
+      <Confetti />
       <div className="card winner">
         <div className="trophy">🏆</div>
         <h1>{winner ? `${winner.name} побеждает!` : 'Игра окончена'}</h1>

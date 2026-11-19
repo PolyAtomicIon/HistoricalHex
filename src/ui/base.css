@@ -189,7 +189,40 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
-  animation: dice-in 0.5s ease-out;
+}
+.die.rolling {
+  animation: die-tumble 0.14s linear infinite;
+}
+.die.rolling:last-of-type {
+  animation-direction: reverse;
+}
+.dice.seven {
+  animation: dice-shake 0.5s ease-in-out;
+}
+@keyframes die-tumble {
+  0% {
+    transform: rotate(0deg) translateY(0);
+  }
+  50% {
+    transform: rotate(180deg) translateY(-4px);
+  }
+  100% {
+    transform: rotate(360deg) translateY(0);
+  }
+}
+@keyframes dice-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px) rotate(-3deg);
+  }
+  40%,
+  80% {
+    transform: translateX(6px) rotate(3deg);
+  }
 }
 .dice.empty {
   font-size: 40px;

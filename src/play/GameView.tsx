@@ -1,6 +1,6 @@
 // Игровой экран игрока: карта сверху, рука и кнопки снизу (на ПК — рядом).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, DevCardType, PlayerColor, PlayerId, PrivateView, PublicState, Resource, ResourceMap } from '../engine';
 import {
   COSTS,
@@ -18,6 +18,8 @@ import { Dice } from '../ui/Dice';
 import { DEV_CARD_ICON, PLAYER_HEX, PLAYER_STROKE, RESOURCE_ICON } from '../ui/theme';
 import { DEV_CARD_NAME, RESOURCE_NAME, cards, eventText, myPhaseText, namesFrom, phaseText, points, resourcesText } from '../i18n/ru';
 import { ZoomPan } from './ZoomPan';
+import { useMuted } from '../ui/sound';
+import { playerCues, useLogSounds } from '../ui/eventSounds';
 import { DEV_CARD_ART, art } from '../ui/art';
 import { IncomingTrade, TradeSheet } from './trade';
 import { Modal, ResourceCards, ResourcePicker, ResourceStepper, sum, useSender } from './widgets';
@@ -48,6 +50,9 @@ export function GameView({ room, snap, pub, priv, onLeave }: Props) {
   const [selected, setSelected] = useState<string>();
   const [sheet, setSheet] = useState<Sheet>(null);
   const toast = useToasts(pub, priv, me);
+  const [muted, toggleMute] = useMuted();
+  const cues = useCallback((e: Parameters<typeof playerCues>[0]) => playerCues(e, me), [me]);
+  useLogSounds(pub.log, cues);
 
   const current = pub.order[pub.current];
   const myTurn = current === me && pub.phase !== 'finished';
@@ -103,6 +108,9 @@ export function GameView({ room, snap, pub, priv, onLeave }: Props) {
         <span className="my-vp" title="Твои очки (вместе со скрытыми)">
           ⭐ {priv.points}
         </span>
+        <button className="btn ghost icon" onClick={toggleMute} aria-label={muted ? 'Включить звук' : 'Выключить звук'}>
+          {muted ? '🔇' : '🔊'}
+        </button>
         <button className="btn ghost icon" onClick={() => setSheet('costs')} aria-label="Цены">
           ?
         </button>
@@ -627,7 +635,8 @@ function useToasts(pub: PublicState, priv: PrivateView, me: PlayerId): string {
     if (myTurn && !wasMyTurn.current) {
       setMsg('Твой ход! 🎲');
       try {
-        navigator.vibrate?.(200);
+        // Браузер разрешает вибрацию только после того, как по странице уже нажимали
+        if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(200);
       } catch {
         /* не все телефоны умеют */
       }

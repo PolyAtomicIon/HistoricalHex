@@ -40,10 +40,12 @@ export interface BoardProps {
   recent?: string[];
   /** Выбранное игроком место (ждёт подтверждения). */
   selected?: string;
+  /** Вспышка гексов (доход при броске); key меняется — вспышка повторяется. */
+  flash?: { hexes: HexId[]; key: number };
   className?: string;
 }
 
-export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, className }: BoardProps) {
+export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, className }: BoardProps) {
   const topo = topologyFor(view.board.layout);
 
   const geo = useMemo(() => {
@@ -146,11 +148,14 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
           const red = h.number === 6 || h.number === 8;
           const pips = h.number ? 6 - Math.abs(7 - h.number) : 0;
           return (
-            <g key={h.id} className={`hex terrain-${h.terrain}`}>
+            <g key={h.id} className={`hex terrain-${h.terrain}`} data-hex={h.id}>
               <polygon
                 points={hexPoints(t.x, t.y)}
                 fill={tileArt(h.terrain) ? `url(#hx-${h.terrain})` : TERRAIN_FILL[h.terrain]}
               />
+              {flash?.hexes.includes(h.id) && (
+                <polygon key={`flash-${flash.key}`} points={hexPoints(t.x, t.y)} className="hex-flash" />
+              )}
               {h.number === undefined ? (
                 !tileArt(h.terrain) && (
                   <text x={c.x} y={c.y} className="terrain-icon big">
@@ -216,8 +221,8 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
           const y2 = b.y + (a.y - b.y) * k;
           return (
             <g key={eid} className={`road ${recentSet.has(eid) ? 'recent' : ''}`}>
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={PLAYER_STROKE[color]} strokeWidth={S * 0.17} />
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={PLAYER_HEX[color]} strokeWidth={S * 0.11} />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={PLAYER_STROKE[color]} strokeWidth={S * 0.17} pathLength={1} />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={PLAYER_HEX[color]} strokeWidth={S * 0.11} pathLength={1} />
             </g>
           );
         })}
@@ -235,13 +240,15 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
               transform={`translate(${p.x} ${p.y}) scale(${S})`}
               className={`building ${b.kind} ${recentSet.has(vid) ? 'recent' : ''}`}
             >
-              <path
-                d={b.kind === 'city' ? CITY_PATH : SETTLEMENT_PATH}
-                fill={PLAYER_HEX[color]}
-                stroke={PLAYER_STROKE[color]}
-                strokeWidth={0.035}
-                strokeLinejoin="round"
-              />
+              <g className="drop">
+                <path
+                  d={b.kind === 'city' ? CITY_PATH : SETTLEMENT_PATH}
+                  fill={PLAYER_HEX[color]}
+                  stroke={PLAYER_STROKE[color]}
+                  strokeWidth={0.035}
+                  strokeLinejoin="round"
+                />
+              </g>
             </g>
           );
         })}
@@ -251,23 +258,25 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
       {(() => {
         const c = geo.hexPos.get(view.robberHex);
         if (!c) return null;
-        if (robberArt) {
-          return (
-            <image
-              className="robber robber-img"
-              href={robberArt}
-              x={c.x - S * 0.78}
-              y={c.y - S * 0.42}
-              width={S * 0.56}
-              height={S * 0.56}
-            />
-          );
-        }
+        // Разбойник «шагает» на новый гекс: плавный переход transform
         return (
-          <g className="robber" transform={`translate(${c.x - S * 0.5} ${c.y + S * 0.08}) scale(${S})`}>
-            <ellipse cx={0} cy={0.24} rx={0.17} ry={0.05} className="robber-shadow" />
-            <path d="M -0.13 0.24 Q -0.15 -0.02 -0.07 -0.08 L 0.07 -0.08 Q 0.15 -0.02 0.13 0.24 Z" />
-            <circle cx={0} cy={-0.16} r={0.1} />
+          <g className="robber-move" style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
+            {robberArt ? (
+              <image
+                className="robber robber-img"
+                href={robberArt}
+                x={-S * 0.78}
+                y={-S * 0.42}
+                width={S * 0.56}
+                height={S * 0.56}
+              />
+            ) : (
+              <g className="robber" transform={`translate(${-S * 0.5} ${S * 0.08}) scale(${S})`}>
+                <ellipse cx={0} cy={0.24} rx={0.17} ry={0.05} className="robber-shadow" />
+                <path d="M -0.13 0.24 Q -0.15 -0.02 -0.07 -0.08 L 0.07 -0.08 Q 0.15 -0.02 0.13 0.24 Z" />
+                <circle cx={0} cy={-0.16} r={0.1} />
+              </g>
+            )}
           </g>
         );
       })()}

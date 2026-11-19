@@ -57,14 +57,32 @@ export function useSender(room: PlayerRoom, snap: PlayerSnapshot) {
   return { send, busy: pending !== null, error, clearError: () => setError('') };
 }
 
+/** Сколько каждого ресурса только что пришло — для «+1» на карточках. */
+function useGains(hand: ResourceMap) {
+  const prev = useRef(hand);
+  const [gains, setGains] = useState<{ key: number; delta: Partial<Record<Resource, number>> }>();
+  useEffect(() => {
+    const delta: Partial<Record<Resource, number>> = {};
+    for (const r of RESOURCES) if (hand[r] > prev.current[r]) delta[r] = hand[r] - prev.current[r];
+    prev.current = hand;
+    if (!Object.keys(delta).length) return;
+    const key = Date.now();
+    setGains({ key, delta });
+    const id = setTimeout(() => setGains((g) => (g?.key === key ? undefined : g)), 1400);
+    return () => clearTimeout(id);
+  }, [hand]);
+  return gains;
+}
+
 export function ResourceCards({ hand, onTap, dim }: { hand: ResourceMap; onTap?: (r: Resource) => void; dim?: boolean }) {
+  const gains = useGains(hand);
   return (
     <div className={`res-cards ${dim ? 'dim' : ''}`}>
       {RESOURCES.map((r) => (
         <button
-          key={r}
+          key={gains?.delta[r] ? `${r}-${gains.key}` : r}
           type="button"
-          className={`res-card ${hand[r] === 0 ? 'zero' : ''}`}
+          className={`res-card ${hand[r] === 0 ? 'zero' : ''} ${gains?.delta[r] ? 'bump' : ''}`}
           style={{ background: RESOURCE_BG[r] }}
           onClick={onTap ? () => onTap(r) : undefined}
           disabled={!onTap}
@@ -72,6 +90,7 @@ export function ResourceCards({ hand, onTap, dim }: { hand: ResourceMap; onTap?:
           <ResIcon r={r} className="res-icon" />
           <span className="res-count">{hand[r]}</span>
           <span className="res-name">{RESOURCE_NAME[r]}</span>
+          {gains?.delta[r] ? <span className="res-plus">+{gains.delta[r]}</span> : null}
         </button>
       ))}
     </div>
