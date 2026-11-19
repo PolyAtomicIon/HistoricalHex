@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { MAX_PLAYERS, MIN_PLAYERS } from '../engine';
+import type { BotLevel } from '../engine';
+import { BOT_LEVELS, MAX_PLAYERS, MIN_PLAYERS } from '../engine';
+import { BOT_LEVEL_NAME } from '../bots';
 import type { HostRoom, HostSnapshot } from '../net';
 import { describeError } from '../net';
 import { COLOR_NAME, GAME_TITLE, plural } from '../i18n/ru';
@@ -21,7 +23,11 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
   }, [joinUrl]);
 
   const players = snap.lobby;
-  const ready = players.length >= MIN_PLAYERS && players.length <= MAX_PLAYERS && players.every((p) => p.color);
+  const ready =
+    players.length >= MIN_PLAYERS &&
+    players.length <= MAX_PLAYERS &&
+    players.every((p) => p.color) &&
+    players.some((p) => !p.bot);
   const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
 
   const start = async () => {
@@ -35,9 +41,14 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
     }
   };
 
-  const kick = async (uid: string, name: string) => {
-    if (!confirm(`Убрать «${name}» из игры? Зайти снова он не сможет.`)) return;
+  const kick = async (uid: string, name: string, bot: boolean) => {
+    if (!bot && !confirm(`Убрать «${name}» из игры? Зайти снова он не сможет.`)) return;
     await room.kick(uid).catch((e) => setError(describeError(e)));
+  };
+
+  const addBot = async (level: BotLevel) => {
+    setError('');
+    await room.addBot(level).catch((e) => setError(describeError(e)));
   };
 
   let hint: string;
@@ -46,6 +57,7 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
     hint = `Ждём ещё ${need} ${plural(need, 'игрока', 'игроков', 'игроков')}`;
   } else if (players.length > MAX_PLAYERS) hint = `Максимум ${MAX_PLAYERS} игроков — нажми на имя лишнего`;
   else if (!players.every((p) => p.color)) hint = 'Ждём, пока все выберут цвет';
+  else if (players.every((p) => p.bot)) hint = 'Нужен хотя бы один живой игрок — нажми «Играть с этого устройства» или отсканируй QR';
   else hint = players.length >= 5 ? 'Будет большая карта на 5–6 игроков' : 'Можно начинать!';
 
   return (
@@ -73,7 +85,7 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
         </h2>
         <ul className="player-list">
           {players.map((p) => (
-            <li key={p.uid} className="lobby-player" onClick={() => kick(p.uid, p.name)} title="Нажми, чтобы убрать">
+            <li key={p.uid} className="lobby-player" onClick={() => kick(p.uid, p.name, !!p.bot)} title="Нажми, чтобы убрать">
               <span
                 className="chip"
                 style={
@@ -83,16 +95,28 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
                 }
               />
               <span className="name">{p.name}</span>
+              {p.bot && <span className={`bot-badge ${p.bot}`}>{BOT_LEVEL_NAME[p.bot]}</span>}
               <span className="muted">{p.color ? COLOR_NAME[p.color] : 'выбирает цвет…'}</span>
               {!p.online && <span className="offline">не в сети</span>}
             </li>
           ))}
           {players.length === 0 && <li className="muted empty">Пока никого…</li>}
         </ul>
+        <div className="add-bots">
+          <span>Добавить бота:</span>
+          {BOT_LEVELS.map((l) => (
+            <button key={l} className={`btn bot-btn ${l}`} disabled={players.length >= MAX_PLAYERS} onClick={() => addBot(l)}>
+              🤖 {BOT_LEVEL_NAME[l]}
+            </button>
+          ))}
+        </div>
         <p className="hint">{hint}</p>
         <div className="row">
           <button className="btn primary big" onClick={start} disabled={!ready || busy}>
             {busy ? 'Начинаем…' : 'Начать игру'}
+          </button>
+          <button className="btn" onClick={() => window.open(joinUrl, '_blank')}>
+            Играть с этого устройства
           </button>
           <button
             className="btn ghost"

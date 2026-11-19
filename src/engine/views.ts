@@ -1,7 +1,7 @@
 // Что видят все (public) и что видит только сам игрок (private).
 // Хост пишет public в rooms/<pin>/public, а private — в rooms/<pin>/private/<uid>.
 
-import type { DevCardType, PlayerColor, PlayerId, Resource, ResourceMap } from './types';
+import type { BotLevel, DevCardType, PlayerColor, PlayerId, Resource, ResourceMap } from './types';
 import { emptyResources, totalResources } from './types';
 import type { GameState } from './state';
 import { currentPlayerId } from './state';
@@ -20,6 +20,7 @@ export interface PublicPlayer {
   /** Очки, видимые всем (в конце игры — вместе со скрытыми). */
   points: number;
   roadLength: number;
+  bot?: BotLevel;
 }
 
 export type PublicState = Omit<GameState, 'players' | 'devDeck' | 'log'> & {
@@ -65,6 +66,7 @@ export function toPublicView(s: GameState): PublicState {
       pieces: { ...p.pieces },
       points: finished ? victoryPoints(s, pid) : publicVictoryPoints(s, pid),
       roadLength: longestRoadLength(s, pid),
+      ...(p.bot ? { bot: p.bot } : {}),
     };
   }
   return {

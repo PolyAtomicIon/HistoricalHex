@@ -22,6 +22,10 @@ export type HarborType = 'any' | Resource;
 export const PLAYER_COLORS = ['red', 'blue', 'white', 'orange', 'green', 'purple'] as const;
 export type PlayerColor = (typeof PLAYER_COLORS)[number];
 
+/** Уровень бота (у людей поля нет). */
+export type BotLevel = 'easy' | 'medium' | 'hard';
+export const BOT_LEVELS: readonly BotLevel[] = ['easy', 'medium', 'hard'];
+
 export type PlayerId = string;
 export type HexId = string;
 export type VertexId = string;

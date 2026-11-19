@@ -4,7 +4,7 @@
 // Поэтому необязательные поля помечены `?`, а после чтения из базы
 // состояние надо прогнать через normalizeState().
 
-import type { DevCardType, EdgeId, HexId, PlayerColor, PlayerId, ResourceMap, VertexId } from './types';
+import type { BotLevel, DevCardType, EdgeId, HexId, PlayerColor, PlayerId, ResourceMap, VertexId } from './types';
 import { DEV_CARD_TYPES, RESOURCES, emptyResources } from './types';
 import type { Board } from './board/generate';
 import { generateBoard } from './board/generate';
@@ -36,6 +36,8 @@ export interface Player {
   devCards: DevCardEntry[];
   knightsPlayed: number;
   pieces: { roads: number; settlements: number; cities: number };
+  /** Есть, если это бот (за него ходит хост). */
+  bot?: BotLevel;
 }
 
 export interface Building {
@@ -106,6 +108,7 @@ export interface NewPlayer {
   id: PlayerId;
   name: string;
   color: PlayerColor;
+  bot?: BotLevel;
 }
 
 export interface CreateGameOptions {
@@ -134,6 +137,7 @@ export function createGame(newPlayers: readonly NewPlayer[], rng: Rng, options: 
       devCards: [],
       knightsPlayed: 0,
       pieces: { ...PIECES },
+      ...(p.bot ? { bot: p.bot } : {}),
     };
   }
 

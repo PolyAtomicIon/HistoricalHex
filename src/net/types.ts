@@ -1,6 +1,6 @@
 // Что лежит в базе: rooms/<pin>/… (см. PLAN.md, раздел 5).
 
-import type { Action, PlayerColor, PlayerId } from '../engine';
+import type { Action, BotLevel, PlayerColor, PlayerId } from '../engine';
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
 
@@ -23,6 +23,8 @@ export interface LobbyEntry {
   name: string;
   color?: PlayerColor;
   joinedAt: number;
+  /** Есть у ботов, которых добавил хост. */
+  bot?: BotLevel;
 }
 
 export interface Presence {
@@ -56,6 +58,6 @@ export function lobbyList(
   presence: Record<PlayerId, Presence> | null | undefined,
 ): LobbyPlayer[] {
   return Object.entries(lobby ?? {})
-    .map(([uid, e]) => ({ uid, ...e, online: presence?.[uid]?.online ?? false }))
+    .map(([uid, e]) => ({ uid, ...e, online: e.bot ? true : (presence?.[uid]?.online ?? false) }))
     .sort((a, b) => a.joinedAt - b.joinedAt);
 }

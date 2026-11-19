@@ -41,7 +41,7 @@ export function PlayerApp() {
     let joined: PlayerRoom | null = null;
     (async () => {
       try {
-        const c = await connectOnce();
+        const c = await connectOnce({ name: 'player' });
         if (cancelled) return;
         setConn(c);
         // Автоматически возвращаемся, если это устройство уже в игре

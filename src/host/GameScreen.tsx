@@ -6,6 +6,7 @@ import { toPublicView } from '../engine';
 import type { HostRoom, HostSnapshot, Presence } from '../net';
 import { describeError } from '../net';
 import { Board } from '../board/Board';
+import { BOT_LEVEL_NAME } from '../bots';
 import { Dice } from '../ui/Dice';
 import { formatClock, useNow } from '../ui/hooks';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
@@ -39,7 +40,7 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
 
   // ── кто отвалился и от кого игра сейчас ждёт действия ──
   const limit = snap.settings.reconnectSeconds * 1000;
-  const offline = (uid: PlayerId) => snap.presence[uid]?.online !== true;
+  const offline = (uid: PlayerId) => !pub.players[uid]?.bot && snap.presence[uid]?.online !== true;
   const offlineFor = (uid: PlayerId) => {
     const p: Presence | undefined = snap.presence[uid];
     return p && !p.online ? t - p.changedAt : 0;
@@ -184,6 +185,7 @@ function PlayerPanel({
       <div className="pp-head">
         <span className="chip" style={chipStyle(p.color)} />
         <span className="name">{p.name}</span>
+        {p.bot && <span className={`bot-badge ${p.bot}`}>{BOT_LEVEL_NAME[p.bot]}</span>}
         <span className="vp" title="Очки">
           ⭐ {p.points}
         </span>
@@ -204,6 +206,7 @@ function PlayerPanel({
         </div>
       )}
       {discard ? <div className="pp-note">сбрасывает {cards(discard)}…</div> : null}
+      {current && p.bot && <div className="pp-note thinking">думает…</div>}
       {offlineMs >= 0 && (
         <div className="pp-offline">
           {offlineMs === 0

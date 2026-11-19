@@ -74,6 +74,7 @@ describe('сеть на Firebase (живой тест)', () => {
     expect(await denied(set(ref(c2.db, `rooms/${pin}/colors/red`), c2.uid))).toBe(true);
     await players[1].chooseColor('blue');
     await players[1].chooseColor('orange'); // смена цвета освобождает старый
+    await waitFor(players[2], (s: PlayerSnapshot) => !s.colors.blue && s.colors.orange === c2.uid, 'синий освободился');
     await players[2].chooseColor('blue');
     const lobby = await waitFor(host, (s: HostSnapshot) => s.lobby.every((p) => p.color), 'все выбрали цвет');
     expect(lobby.lobby.map((p) => p.color).sort()).toEqual(['blue', 'orange', 'red']);

@@ -31,6 +31,9 @@
             "joinedAt": {
               ".validate": "newData.isNumber()"
             },
+            "bot": {
+              ".validate": "newData.isString() && newData.val().matches(/^(easy|medium|hard)$/)"
+            },
             "$other": {
               ".validate": false
             }
@@ -41,7 +44,7 @@
           ".read": "auth != null",
           "$color": {
             ".write": "auth != null && root.child('rooms').child($pin).child('meta/status').val() === 'lobby' && !root.child('rooms').child($pin).child('kicked').child(auth.uid).exists() && ((!data.exists() && newData.val() === auth.uid) || (data.val() === auth.uid && !newData.exists()))",
-            ".validate": "$color.matches(/^(red|blue|white|orange|green|purple)$/) && newData.parent().parent().child('lobby').child(auth.uid).exists()"
+            ".validate": "$color.matches(/^(red|blue|white|orange|green|purple)$/) && newData.isString() && newData.parent().parent().child('lobby').child(newData.val()).exists()"
           }
         },
 

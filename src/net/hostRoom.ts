@@ -3,10 +3,11 @@
 
 import type { DatabaseReference, Unsubscribe } from 'firebase/database';
 import { get, onChildAdded, onDisconnect, onValue, ref, remove, serverTimestamp, set, update } from 'firebase/database';
-import type { GameState, HostAction, PlayerId, PublicState } from '../engine';
+import type { BotLevel, GameState, HostAction, PlayerColor, PlayerId, PublicState } from '../engine';
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
+  PLAYER_COLORS,
   applyAction,
   applyHostAction,
   createGame,
@@ -16,6 +17,8 @@ import {
   toPublicView,
 } from '../engine';
 import type { ActionResult } from '../engine';
+import type { BotMemory } from '../bots';
+import { BOT_NAMES, botsToAct, decide } from '../bots';
 import type { Connection } from './firebase';
 import { clean, describeError } from './firebase';
 import type { LobbyEntry, LobbyPlayer, Presence, QueuedAction, RoomMeta, RoomSettings, RoomStatus } from './types';
@@ -35,6 +38,11 @@ export interface HostSnapshot {
 
 type Listener = (snap: HostSnapshot) => void;
 
+/** Пауза перед ходом бота (чтобы на телевизоре было видно, что он делает). */
+const BOT_DELAY_MS = 1300;
+/** Пауза перед ответом бота на обмен / сбросом на 7. */
+const BOT_REPLY_MS = 900;
+
 export class HostRoom {
   private readonly room: DatabaseReference;
   private listeners = new Set<Listener>();
@@ -46,6 +54,9 @@ export class HostRoom {
   private lastPublic: Partial<Record<keyof PublicState, string>> = {};
   private lastPrivate: Record<PlayerId, string> = {};
   private snap: HostSnapshot;
+  private disposed = false;
+  private botTimer?: ReturnType<typeof setTimeout>;
+  private botMemory: Record<PlayerId, BotMemory> = {};
 
   private constructor(
     private readonly conn: Connection,
@@ -127,10 +138,32 @@ export class HostRoom {
     this.emit({ settings: next });
   }
 
-  /** Выгнать игрока из лобби (повторно войти он не сможет). */
+  /** Добавить бота в лобби: имя и свободный цвет выбираются сами. */
+  async addBot(level: BotLevel): Promise<void> {
+    if (this.snap.status !== 'lobby') throw new Error('Ботов можно добавлять только в лобби');
+    if (Object.keys(this.lobbyRaw).length >= MAX_PLAYERS) throw new Error(`Уже ${MAX_PLAYERS} игроков`);
+    const colors = ((await get(ref(this.conn.db, `${roomPath(this.pin)}/colors`))).val() ?? {}) as Partial<
+      Record<PlayerColor, string>
+    >;
+    const color = PLAYER_COLORS.find((c) => !colors[c]);
+    if (!color) throw new Error('Свободных цветов не осталось');
+    const used = new Set(Object.values(this.lobbyRaw).map((e) => e.name));
+    const base = BOT_NAMES.find((n) => !used.has(`🤖 ${n}`)) ?? `Бот ${Object.keys(this.lobbyRaw).length + 1}`;
+    const id = `bot-${Math.floor(cryptoRng() * 1e9).toString(36)}`;
+    await update(this.room, {
+      [`lobby/${id}`]: { name: `🤖 ${base}`, color, joinedAt: serverTimestamp(), bot: level },
+      [`colors/${color}`]: id,
+    });
+  }
+
+  /** Выгнать игрока из лобби (повторно войти он не сможет). Бота — просто убрать. */
   async kick(uid: PlayerId): Promise<void> {
     if (this.snap.status !== 'lobby') throw new Error('Выгнать игрока можно только в лобби');
     const color = this.lobbyRaw[uid]?.color;
+    if (this.lobbyRaw[uid]?.bot) {
+      await update(this.room, { [`lobby/${uid}`]: null, ...(color ? { [`colors/${color}`]: null } : {}) });
+      return;
+    }
     await update(this.room, {
       [`kicked/${uid}`]: true,
       [`lobby/${uid}`]: null,
@@ -148,8 +181,9 @@ export class HostRoom {
     const noColor = players.filter((p) => !p.color);
     if (noColor.length) throw new Error('Не все выбрали цвет: ' + noColor.map((p) => p.name).join(', '));
 
+    if (players.every((p) => p.bot)) throw new Error('Нужен хотя бы один живой игрок');
     const state = createGame(
-      players.map((p) => ({ id: p.uid, name: p.name, color: p.color! })),
+      players.map((p) => ({ id: p.uid, name: p.name, color: p.color!, ...(p.bot ? { bot: p.bot } : {}) })),
       cryptoRng,
       { vpToWin: this.snap.settings.vpToWin },
     );
@@ -157,6 +191,7 @@ export class HostRoom {
     this.snap = { ...this.snap, status: 'playing', state };
     this.listenActions();
     this.emit({});
+    this.scheduleBots();
   }
 
   /** Кнопки хоста: пропустить ход, сбросить карты за игрока. */
@@ -177,6 +212,9 @@ export class HostRoom {
   }
 
   dispose(): void {
+    this.disposed = true;
+    clearTimeout(this.botTimer);
+    this.botTimer = undefined;
     this.unsubs.forEach((u) => u());
     this.unsubs = [];
     this.actionsUnsub?.();
@@ -220,7 +258,10 @@ export class HostRoom {
         this.emit({ presence: this.presence, lobby: lobbyList(this.lobbyRaw, this.presence) });
       }),
     );
-    if (this.snap.status === 'playing') this.listenActions();
+    if (this.snap.status === 'playing') {
+      this.listenActions();
+      this.scheduleBots();
+    }
   }
 
   private listenActions(): void {
@@ -270,6 +311,64 @@ export class HostRoom {
     const status: RoomStatus = state.phase === 'finished' ? 'finished' : 'playing';
     if (status !== this.snap.status) void this.write({ 'meta/status': status });
     this.emit({ state, status });
+    this.scheduleBots();
+  }
+
+  // ───────────────────────── боты ─────────────────────────
+  // За ботов решает хост: они видят только публичное состояние и свою руку (честная игра).
+
+  private isBot = (id: PlayerId) => !!this.snap.state?.players[id]?.bot;
+
+  /** Поставить таймер на следующий ход бота, если от какого-то бота сейчас ждут действия. */
+  private scheduleBots(delay?: number): void {
+    if (this.botTimer || this.disposed) return;
+    const state = this.snap.state;
+    if (!state || state.phase === 'finished') return;
+    const pub = toPublicView(state);
+    const actors = botsToAct(pub, this.isBot);
+    if (!actors.length) return;
+    const isTurn = actors[0] === pub.order[pub.current] && pub.phase !== 'discard';
+    this.botTimer = setTimeout(
+      () => {
+        this.botTimer = undefined;
+        void this.enqueue(() => this.runBots());
+      },
+      delay ?? (isTurn ? BOT_DELAY_MS : BOT_REPLY_MS),
+    );
+  }
+
+  private async runBots(): Promise<void> {
+    if (this.disposed) return;
+    const state = this.snap.state;
+    if (!state || state.phase === 'finished') return;
+    const pub = toPublicView(state);
+    for (const id of botsToAct(pub, this.isBot)) {
+      const ctx = {
+        level: state.players[id].bot!,
+        pub,
+        priv: toPrivateView(state, id),
+        me: id,
+        rng: cryptoRng,
+        memory: (this.botMemory[id] ??= {}),
+        now: this.conn.now(),
+      };
+      const action = decide(ctx);
+      if (!action) continue; // бот ждёт (например, ответов людей на свой обмен)
+      let res = applyAction(state, id, action, cryptoRng);
+      if (!res.ok) {
+        // Подстраховка: если бот ошибся — делаем ход за него как лёгкий бот, потом — действием хоста
+        const fallback = decide({ ...ctx, level: 'easy', memory: {} });
+        if (fallback) res = applyAction(state, id, fallback, cryptoRng);
+        if (!res.ok && pub.phase === 'discard') res = applyHostAction(state, { type: 'forceDiscard', player: id }, cryptoRng);
+        else if (!res.ok && pub.order[pub.current] === id) res = applyHostAction(state, { type: 'skipTurn' }, cryptoRng);
+      }
+      if (res.ok) {
+        await this.commit(res.state); // commit → setState → scheduleBots
+        return;
+      }
+    }
+    // Никто из ботов не сделал ход — проверим ещё раз чуть позже
+    this.scheduleBots(1500);
   }
 
   /**

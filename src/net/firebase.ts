@@ -106,15 +106,24 @@ export async function connect(options: ConnectOptions = {}): Promise<Connection>
   };
 }
 
-let shared: Promise<Connection> | undefined;
+const shared = new Map<string, Promise<Connection>>();
 
-/** Одно подключение на страницу (React в режиме разработки запускает эффекты дважды). */
-export function connectOnce(): Promise<Connection> {
-  shared ??= connect().catch((e) => {
-    shared = undefined;
-    throw e;
-  });
-  return shared;
+/**
+ * Одно подключение на страницу (React в режиме разработки запускает эффекты дважды).
+ * У страницы игрока своё имя приложения — так на одном устройстве хост и игрок
+ * получают разные анонимные входы (можно играть с того же ноутбука).
+ */
+export function connectOnce(options: ConnectOptions = {}): Promise<Connection> {
+  const key = options.name ?? '[DEFAULT]';
+  let p = shared.get(key);
+  if (!p) {
+    p = connect(options).catch((e) => {
+      shared.delete(key);
+      throw e;
+    });
+    shared.set(key, p);
+  }
+  return p;
 }
 
 /** Убирает undefined (Firebase их не принимает), null оставляет (это удаление). */
