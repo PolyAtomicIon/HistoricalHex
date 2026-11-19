@@ -127,3 +127,27 @@
     opacity: 0.45;
   }
 }
+
+.board .vertex-target.selected {
+  fill: #ffd27a;
+  stroke: #8a4d16;
+  stroke-width: 7;
+  animation: none;
+}
+.board .edge-target.selected {
+  stroke: #ffd27a;
+  animation: none;
+}
+.board .hex-target.selected {
+  fill: rgba(255, 210, 122, 0.45);
+  stroke: #ffd27a;
+  stroke-width: 9;
+  animation: none;
+}
+/* На телефоне цели крупнее, чтобы попадать пальцем */
+.board.touch .vertex-target {
+  stroke-width: 6;
+}
+.board.touch .edge-target {
+  stroke-width: 34;
+}

@@ -87,6 +87,26 @@ export function phaseText(pub: PublicState): string {
   }
 }
 
+/** Подсказка «что делать» для игрока, чей сейчас ход. */
+export function myPhaseText(pub: PublicState): string {
+  switch (pub.phase) {
+    case 'setup':
+      return pub.setup?.step === 'road' ? 'Поставь дорогу' : 'Поставь поселение';
+    case 'roll':
+      return 'Брось кубики';
+    case 'discard':
+      return 'Ждём сброса карт';
+    case 'moveRobber':
+      return 'Переставь разбойника';
+    case 'main':
+      return 'Торгуй и строй';
+    case 'roadBuilding':
+      return 'Ставь бесплатные дороги';
+    case 'finished':
+      return 'Игра окончена';
+  }
+}
+
 /** Одна строка лога. Поля могут отсутствовать (Firebase выбрасывает пустые), поэтому везде значения по умолчанию. */
 export function eventText(e: GameEvent, name: Names): string | null {
   switch (e.type) {

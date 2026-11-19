@@ -31,10 +31,12 @@ export interface BoardProps {
   onHex?: (h: HexId) => void;
   /** Что подсветить как «только что построено» (вершина или ребро). */
   recent?: string[];
+  /** Выбранное игроком место (ждёт подтверждения). */
+  selected?: string;
   className?: string;
 }
 
-export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent = [], className }: BoardProps) {
+export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, className }: BoardProps) {
   const topo = topologyFor(view.board.layout);
 
   const geo = useMemo(() => {
@@ -157,7 +159,7 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
             <polygon
               key={id}
               points={hexPoints(t.x, t.y)}
-              className="hex-target"
+              className={`hex-target ${id === selected ? 'selected' : ''}`}
               onClick={onHex ? () => onHex(id) : undefined}
             />
           );
@@ -235,7 +237,7 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
               y1={a.y}
               x2={b.x}
               y2={b.y}
-              className="edge-target"
+              className={`edge-target ${id === selected ? 'selected' : ''}`}
               onClick={onEdge ? () => onEdge(id) : undefined}
             />
           );
@@ -250,8 +252,8 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
               key={id}
               cx={p.x}
               cy={p.y}
-              r={S * 0.17}
-              className="vertex-target"
+              r={S * (id === selected ? 0.22 : 0.17)}
+              className={`vertex-target ${id === selected ? 'selected' : ''}`}
               onClick={onVertex ? () => onVertex(id) : undefined}
             />
           );
