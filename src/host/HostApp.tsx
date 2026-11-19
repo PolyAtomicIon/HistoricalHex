@@ -6,6 +6,7 @@ import { DEFAULT_ROOM_SETTINGS, HostRoom, connectOnce, describeError } from '../
 import { useSnapshot, storage } from '../ui/hooks';
 import { GAME_TITLE } from '../i18n/ru';
 import { Lobby } from './Lobby';
+import { Emblem } from '../ui/Logo';
 import { GameScreen } from './GameScreen';
 
 const PIN_KEY = 'hexland.hostPin';
@@ -128,6 +129,7 @@ function Menu({ onCreate }: { onCreate: (s: RoomSettings) => Promise<void> }) {
 
   return (
     <main className="screen center menu">
+      <Emblem className="big" />
       <h1 className="logo">{GAME_TITLE}</h1>
       <p className="tagline">Ресурсы, торговля и стройка на острове из шестиугольников</p>
       <div className="card settings">
@@ -163,6 +165,7 @@ function Menu({ onCreate }: { onCreate: (s: RoomSettings) => Promise<void> }) {
 export function Centered({ title, text, spin }: { title: string; text?: string; spin?: boolean }) {
   return (
     <main className="screen center">
+      <Emblem />
       <h1 className="logo">{title}</h1>
       {text && <p className="tagline">{text}</p>}
       {spin && <div className="spinner" />}

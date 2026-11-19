@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NAME_MAX, describeError } from '../net';
 import { GAME_TITLE } from '../i18n/ru';
+import { Emblem } from '../ui/Logo';
 
 export function JoinScreen({
   initialPin,
@@ -35,6 +36,7 @@ export function JoinScreen({
 
   return (
     <main className="screen center join">
+      <Emblem className="big" />
       <h1 className="logo">{GAME_TITLE}</h1>
       <form className="card join-form" onSubmit={submit}>
         <label>

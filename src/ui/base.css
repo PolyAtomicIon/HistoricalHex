@@ -275,3 +275,41 @@ select {
   z-index: 50;
   padding: 16px;
 }
+
+/* Эмблема */
+.emblem {
+  width: clamp(120px, 18vw, 220px);
+  height: auto;
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
+  animation: emblem-float 4s ease-in-out infinite;
+  margin-bottom: -8px;
+}
+.emblem.big {
+  width: clamp(160px, 26vw, 300px);
+}
+.emblem.small {
+  width: clamp(56px, 6vw, 84px);
+  animation: none;
+  margin: 0;
+}
+.emblem.tiny {
+  width: 40px;
+  animation: none;
+  margin: 0;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4));
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+@keyframes emblem-float {
+  50% {
+    transform: translateY(-8px) rotate(-1.5deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .emblem {
+    animation: none;
+  }
+}

@@ -9,6 +9,7 @@ import type { HostRoom, HostSnapshot } from '../net';
 import { describeError } from '../net';
 import { COLOR_NAME, GAME_TITLE, plural } from '../i18n/ru';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
+import { Emblem } from '../ui/Logo';
 
 export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnapshot; onClose: () => void }) {
   const joinUrl = room.joinUrl(window.location.href);
@@ -63,7 +64,10 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
   return (
     <main className="screen lobby">
       <section className="lobby-join">
-        <h1 className="logo small">{GAME_TITLE}</h1>
+        <div className="brand">
+          <Emblem className="small" />
+          <h1 className="logo small">{GAME_TITLE}</h1>
+        </div>
         <p className="join-label">Сканируй QR или открой сайт и введи PIN</p>
         <div className="qr" dangerouslySetInnerHTML={{ __html: qr }} />
         <div className="pin-box">

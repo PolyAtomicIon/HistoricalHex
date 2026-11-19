@@ -8,6 +8,7 @@ import { GAME_TITLE } from '../i18n/ru';
 import { JoinScreen } from './JoinScreen';
 import { LobbyScreen } from './LobbyScreen';
 import { GameView } from './GameView';
+import { Emblem } from '../ui/Logo';
 
 const SAVED_KEY = 'hexland.player';
 
@@ -134,6 +135,7 @@ export function Splash({
 }) {
   return (
     <main className="screen center">
+      <Emblem />
       <h1 className="logo">{title}</h1>
       {text && <p className="tagline">{text}</p>}
       {spin && <div className="spinner" />}

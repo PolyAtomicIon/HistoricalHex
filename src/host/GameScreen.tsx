@@ -11,6 +11,7 @@ import { Dice } from '../ui/Dice';
 import { formatClock, useNow } from '../ui/hooks';
 import { PLAYER_HEX, PLAYER_STROKE, RESOURCE_ICON } from '../ui/theme';
 import { useMuted } from '../ui/sound';
+import { Emblem } from '../ui/Logo';
 import { hostCues, useLogSounds } from '../ui/eventSounds';
 import { DEV_CARD_ART, art, resourceArt } from '../ui/art';
 import { DEV_CARD_NAME, GAME_TITLE, cards, eventText, namesFrom, phaseText, points, resourcesText } from '../i18n/ru';
@@ -67,6 +68,7 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
   return (
     <main className="screen game">
       <header className="game-header">
+        <Emblem className="tiny" />
         <span className="logo small">{GAME_TITLE}</span>
         <span className="turn-chip" style={chipStyle(pub.players[current]?.color)} />
         <h1 className="phase">{phaseText(pub)}</h1>
