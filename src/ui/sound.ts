@@ -27,6 +27,18 @@ function audio(): AudioContext | null {
   return ctx;
 }
 
+// Кнопка 🔊/🔇 действует на все вкладки игры на этом устройстве
+// (например, экран игрока и экран хоста, открытые на одном телефоне)
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== MUTE_KEY) return;
+    muted = e.newValue === '1';
+    if (muted) void ctx?.suspend(); // обрываем уже запущенные звуки
+    else if (ctx?.state === 'suspended') void ctx.resume();
+    subscribers.forEach((f) => f());
+  });
+}
+
 // Разблокировка звука первым касанием / нажатием
 if (typeof window !== 'undefined') {
   const unlock = () => {
@@ -45,6 +57,8 @@ export function isMuted(): boolean {
 export function setMuted(value: boolean): void {
   muted = value;
   storage.set(MUTE_KEY, value ? '1' : '0');
+  if (value) void ctx?.suspend(); // обрываем уже запущенные звуки
+  else if (ctx?.state === 'suspended') void ctx.resume();
   subscribers.forEach((f) => f());
 }
 

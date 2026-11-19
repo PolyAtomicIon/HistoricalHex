@@ -1,5 +1,5 @@
 /* Экран игрока: сначала телефон, на широком экране — две колонки. */
-body {
+body.player-page {
   font-size: 16px;
   overscroll-behavior: none;
 }

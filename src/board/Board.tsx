@@ -1,7 +1,7 @@
 // Карта Хексленда в SVG. Общая для экрана хоста и экрана игрока.
 // Пока всё нарисовано заглушками (цвета + значки); арт подставим на Этапе 6.
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import type { EdgeId, HexId, PlayerColor, PlayerId, PublicState, VertexId } from '../engine';
 import { HEX_CORNERS, topologyFor } from '../engine';
 import type { HarborType, Terrain } from '../engine';
@@ -47,6 +47,9 @@ export interface BoardProps {
 
 export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, className }: BoardProps) {
   const topo = topologyFor(view.board.layout);
+  // Свои id узоров у каждой карты: на странице их может быть две (экран игрока + общая карта)
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const pat = (t: string) => `hx-${uid}-${t}`;
 
   const geo = useMemo(() => {
     const vertexPos = new Map<VertexId, { x: number; y: number }>();
@@ -87,7 +90,7 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
         {[...TERRAINS, 'sea' as const].map((t) => {
           const url = tileArt(t);
           return url ? (
-            <pattern key={t} id={`hx-${t}`} patternContentUnits="objectBoundingBox" width="1" height="1">
+            <pattern key={t} id={pat(t)} patternContentUnits="objectBoundingBox" width="1" height="1">
               <image href={url} width="1" height="1" preserveAspectRatio="xMidYMid slice" />
             </pattern>
           ) : null;
@@ -97,7 +100,7 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
       {/* Море */}
       <g className="sea">
         {geo.sea.map((h) => (
-          <polygon key={h.key} points={hexPoints(h.x, h.y)} style={tileArt('sea') ? { fill: 'url(#hx-sea)' } : undefined} />
+          <polygon key={h.key} points={hexPoints(h.x, h.y)} style={tileArt('sea') ? { fill: `url(#${pat('sea')})` } : undefined} />
         ))}
       </g>
 
@@ -151,7 +154,7 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
             <g key={h.id} className={`hex terrain-${h.terrain}`} data-hex={h.id}>
               <polygon
                 points={hexPoints(t.x, t.y)}
-                fill={tileArt(h.terrain) ? `url(#hx-${h.terrain})` : TERRAIN_FILL[h.terrain]}
+                fill={tileArt(h.terrain) ? `url(#${pat(h.terrain)})` : TERRAIN_FILL[h.terrain]}
               />
               {flash?.hexes.includes(h.id) && (
                 <polygon key={`flash-${flash.key}`} points={hexPoints(t.x, t.y)} className="hex-flash" />

@@ -11,7 +11,17 @@ import { COLOR_NAME, GAME_TITLE, plural } from '../i18n/ru';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
 import { Emblem } from '../ui/Logo';
 
-export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnapshot; onClose: () => void }) {
+export function Lobby({
+  room,
+  snap,
+  onClose,
+  onSolo,
+}: {
+  room: HostRoom;
+  snap: HostSnapshot;
+  onClose: () => void;
+  onSolo: () => void;
+}) {
   const joinUrl = room.joinUrl(window.location.href);
   const [qr, setQr] = useState('');
   const [error, setError] = useState('');
@@ -119,7 +129,7 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
           <button className="btn primary big" onClick={start} disabled={!ready || busy}>
             {busy ? 'Начинаем…' : 'Начать игру'}
           </button>
-          <button className="btn" onClick={() => window.open(joinUrl, '_blank')}>
+          <button className="btn" onClick={onSolo} title="Экран игрока откроется здесь же, а хост и боты продолжат работать в этой вкладке">
             Играть с этого устройства
           </button>
           <button
@@ -131,6 +141,13 @@ export function Lobby({ room, snap, onClose }: { room: HostRoom; snap: HostSnaps
             Закрыть комнату
           </button>
         </div>
+        <p className="muted small">
+          Ноутбук у телевизора? Открой{' '}
+          <a href={joinUrl} target="_blank" rel="noreferrer" className="link">
+            экран игрока в отдельном окне
+          </a>
+          .
+        </p>
         <p className="muted small">
           Победа: {snap.settings.vpToWin} очков · ждём отвалившихся {Math.round(snap.settings.reconnectSeconds / 60)} мин
         </p>

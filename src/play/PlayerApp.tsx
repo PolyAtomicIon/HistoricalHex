@@ -31,10 +31,14 @@ type Stage =
   | { kind: 'join'; message?: string }
   | { kind: 'room'; room: PlayerRoom };
 
-export function PlayerApp() {
+/**
+ * fixedPin — экран игрока встроен в страницу хоста (режим «играю с этого устройства»):
+ * PIN берётся оттуда, а не из адреса, и если имя уже известно — входим сразу.
+ */
+export function PlayerApp({ fixedPin }: { fixedPin?: string } = {}) {
   const [conn, setConn] = useState<Connection>();
   const [stage, setStage] = useState<Stage>({ kind: 'connecting' });
-  const urlPin = new URLSearchParams(window.location.search).get('pin') ?? '';
+  const urlPin = fixedPin ?? new URLSearchParams(window.location.search).get('pin') ?? '';
   const saved = loadSaved();
 
   useEffect(() => {
@@ -50,6 +54,10 @@ export function PlayerApp() {
         const pin = urlPin || s?.pin;
         if (pin && s && s.pin === pin && (await PlayerRoom.isMember(c, pin))) {
           joined = await PlayerRoom.join(c, pin, s.name).catch(() => null);
+        } else if (fixedPin && s?.name) {
+          // На своём устройстве имя уже вводили — сразу в лобби
+          joined = await PlayerRoom.join(c, fixedPin, s.name).catch(() => null);
+          if (joined) storage.set(SAVED_KEY, JSON.stringify({ pin: fixedPin, name: s.name }));
         }
         if (cancelled) {
           joined?.dispose();
@@ -63,7 +71,7 @@ export function PlayerApp() {
     return () => {
       cancelled = true;
     };
-  }, [urlPin]);
+  }, [urlPin, fixedPin]);
 
   const join = useCallback(
     async (pin: string, name: string) => {
@@ -77,11 +85,13 @@ export function PlayerApp() {
 
   const leave = useCallback(async (room: PlayerRoom, message?: string) => {
     await room.leave();
-    storage.del(SAVED_KEY);
-    // Убираем ?pin= из адреса, чтобы не войти обратно автоматически
-    window.history.replaceState(null, '', window.location.pathname);
+    const name = loadSaved()?.name;
+    // Имя помним (чтобы не вводить заново), а PIN забываем — чтобы не войти обратно автоматически
+    if (name) storage.set(SAVED_KEY, JSON.stringify({ pin: '', name }));
+    else storage.del(SAVED_KEY);
+    if (!fixedPin) window.history.replaceState(null, '', window.location.pathname);
     setStage({ kind: 'join', message });
-  }, []);
+  }, [fixedPin]);
 
   switch (stage.kind) {
     case 'connecting':

@@ -1,6 +1,6 @@
 // Экран хоста (ноутбук → телевизор): меню → лобби → игра → итоги.
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import type { Connection, RoomSettings } from '../net';
 import { DEFAULT_ROOM_SETTINGS, HostRoom, connectOnce, describeError } from '../net';
 import { useSnapshot, storage } from '../ui/hooks';
@@ -10,12 +10,22 @@ import { Emblem } from '../ui/Logo';
 import { GameScreen } from './GameScreen';
 
 const PIN_KEY = 'hexland.hostPin';
+const SOLO_KEY = 'hexland.solo';
+
+// Экран игрока на странице хоста грузим только когда он нужен (режим «играю с этого устройства»)
+const SoloView = lazy(() => import('./SoloView'));
 
 type Stage = { kind: 'connecting' } | { kind: 'error'; message: string } | { kind: 'menu' } | { kind: 'room'; room: HostRoom };
 
 export function HostApp() {
   const [conn, setConn] = useState<Connection>();
   const [stage, setStage] = useState<Stage>({ kind: 'connecting' });
+  const [solo, setSoloState] = useState(storage.get(SOLO_KEY) === '1');
+  const setSolo = useCallback((on: boolean) => {
+    if (on) storage.set(SOLO_KEY, '1');
+    else storage.del(SOLO_KEY);
+    setSoloState(on);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +45,8 @@ export function HostApp() {
         if (resumed) setStage({ kind: 'room', room: resumed });
         else {
           storage.del(PIN_KEY);
+          storage.del(SOLO_KEY);
+          setSoloState(false);
           setStage({ kind: 'menu' });
         }
       } catch (e) {
@@ -47,27 +59,32 @@ export function HostApp() {
   }, []);
 
   const createRoom = useCallback(
-    async (settings: RoomSettings) => {
+    async (settings: RoomSettings, keepSolo = false) => {
       if (!conn) return;
       const room = await HostRoom.create(conn, settings);
       storage.set(PIN_KEY, room.pin);
+      if (!keepSolo) setSolo(false);
       setStage({ kind: 'room', room });
     },
-    [conn],
+    [conn, setSolo],
   );
 
-  const closeRoom = useCallback(async (room: HostRoom) => {
-    storage.del(PIN_KEY);
-    await room.close().catch(() => undefined);
-    setStage({ kind: 'menu' });
-  }, []);
+  const closeRoom = useCallback(
+    async (room: HostRoom) => {
+      storage.del(PIN_KEY);
+      setSolo(false);
+      await room.close().catch(() => undefined);
+      setStage({ kind: 'menu' });
+    },
+    [setSolo],
+  );
 
   /** Новая игра с теми же настройками: старую комнату закрываем. */
   const newGame = useCallback(
     async (room: HostRoom) => {
       const settings = room.snapshot.settings;
       await room.close().catch(() => undefined);
-      await createRoom(settings);
+      await createRoom(settings, true); // в режиме «играю с этого устройства» остаёмся в нём
     },
     [createRoom],
   );
@@ -80,24 +97,52 @@ export function HostApp() {
     case 'menu':
       return <Menu onCreate={createRoom} />;
     case 'room':
-      return <RoomView key={stage.room.pin} room={stage.room} conn={conn!} onClose={closeRoom} onNewGame={newGame} />;
+      return (
+        <RoomView
+          key={stage.room.pin}
+          room={stage.room}
+          conn={conn!}
+          solo={solo}
+          setSolo={setSolo}
+          onClose={closeRoom}
+          onNewGame={newGame}
+        />
+      );
   }
 }
 
 function RoomView({
   room,
   conn,
+  solo,
+  setSolo,
   onClose,
   onNewGame,
 }: {
   room: HostRoom;
   conn: Connection;
+  solo: boolean;
+  setSolo: (on: boolean) => void;
   onClose: (room: HostRoom) => void;
   onNewGame: (room: HostRoom) => void;
 }) {
   const snap = useSnapshot(room);
   if (!snap) return null;
-  if (snap.status === 'lobby') return <Lobby room={room} snap={snap} onClose={() => onClose(room)} />;
+  if (solo) {
+    return (
+      <Suspense fallback={<Centered title={GAME_TITLE} text="Открываем экран игрока…" spin />}>
+        <SoloView
+          room={room}
+          snap={snap}
+          conn={conn}
+          onExitSolo={() => setSolo(false)}
+          onClose={() => onClose(room)}
+          onNewGame={() => onNewGame(room)}
+        />
+      </Suspense>
+    );
+  }
+  if (snap.status === 'lobby') return <Lobby room={room} snap={snap} onClose={() => onClose(room)} onSolo={() => setSolo(true)} />;
   if (!snap.state) return <Centered title={GAME_TITLE} text="Загружаем игру…" spin />;
   return (
     <GameScreen

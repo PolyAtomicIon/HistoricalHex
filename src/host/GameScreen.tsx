@@ -23,9 +23,13 @@ interface Props {
   now: () => number;
   onClose: () => void;
   onNewGame: () => void;
+  /** false — без звуков (в режиме «играю с этого устройства» звучит экран игрока). */
+  sounds?: boolean;
 }
 
-export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props) {
+const NO_CUES = () => [];
+
+export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds = true }: Props) {
   const pub = useMemo(() => toPublicView(state), [state]);
   const colors = useMemo(
     () => Object.fromEntries(pub.order.map((id) => [id, pub.players[id].color])) as Record<PlayerId, PlayerColor>,
@@ -42,7 +46,7 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame }: Props
   const flash = useProductionFlash(pub);
   const banner = useTurnBanner(pub);
   const [muted, toggleMute] = useMuted();
-  useLogSounds(pub.log, hostCues);
+  useLogSounds(pub.log, sounds ? hostCues : NO_CUES);
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     p.then((r) => setError(r.ok ? '' : (r.error ?? ''))).catch((e) => setError(describeError(e)));
