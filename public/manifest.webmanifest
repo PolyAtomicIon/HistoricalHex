@@ -1,15 +1,16 @@
 {
-  "name": "Хексленд",
-  "short_name": "Хексленд",
-  "description": "Ресурсы, торговля и стройка на острове из шестиугольников",
+  "name": "HistoricalHex",
+  "short_name": "HistoricalHex",
+  "description": "Стройся, торгуй и узнавай историю — каждая партия в своей эпохе",
   "lang": "ru",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0f2a3d",
-  "theme_color": "#0f2a3d",
+  "background_color": "#07131d",
+  "theme_color": "#07131d",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

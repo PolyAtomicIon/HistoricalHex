@@ -1,0 +1,1108 @@
+// Экран игрока: карта на весь экран, поверх — стеклянные панели и шторки.
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Action, DevCardType, PlayerColor, PlayerId, PrivateView, PublicState, Resource, ResourceMap } from '../engine';
+import {
+  BOT_LEVELS,
+  COSTS,
+  RESOURCES,
+  canBuildRoad,
+  canBuildSettlement,
+  emptyResources,
+  hasResources,
+  legalCityVertices,
+  legalRoadEdges,
+  legalSettlementVertices,
+  playersAtHex,
+  topologyFor,
+} from '../engine';
+import type { RoomView } from '../proto';
+import { REACTIONS } from '../proto';
+import { conn } from '../client/conn';
+import type { LorePack } from '../lore';
+import { PLAYER_HEX } from '../ui/theme';
+import { RESOURCE_ICON } from '../ui/theme';
+import { DEV_CARD_NAME, RESOURCE_NAME, myPhaseText, phaseText, resourcesText } from '../i18n/ru';
+import { Cinematic, DiceOverlay, GainToast, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
+import { Sheet } from './Sheet';
+import { IncomingTrade, TradeSheet } from './trade';
+import { ResourcePicker, ResourceStepper, sum } from './widgets';
+import { ResIcon } from './ResIcon';
+import { useGameFx } from './useGameFx';
+import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
+import type { PlanStep } from './planner';
+import { STEP_ICON, STEP_LABEL, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction, stepText } from './planner';
+import { FactsList } from './Facts';
+
+type BuildMode = 'road' | 'settlement' | 'city';
+type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react';
+type PlanPick = null | 'road' | 'settlement' | 'city';
+
+interface Targets {
+  kind: 'vertex' | 'edge' | 'hex';
+  ids: string[];
+  hint: string;
+  confirm: string;
+  action: (id: string, victim?: PlayerId) => Action;
+}
+
+const AUTO_ROLL_KEY = 'hh.autoroll';
+const readAuto = () => {
+  try {
+    return localStorage.getItem(AUTO_ROLL_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+
+export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
+  const pub = room.public!;
+  const priv = room.private!;
+  const me = room.me;
+  const meP = pub.players[me];
+  const current = pub.order[pub.current];
+  const myTurn = current === me && pub.phase !== 'finished';
+  const fx = useGameFx(pub, pack, me);
+  const [mode, setMode] = useBoardMode();
+  const [muted, setMuted] = useMuted();
+  const [sheet, setSheet] = useState<SheetId>(null);
+  const [build, setBuild] = useState<BuildMode | null>(null);
+  const [selected, setSelected] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [plan, setPlanState] = useState<PlanStep[]>(() => loadPlan(room.pin, me));
+  const [planPick, setPlanPick] = useState<PlanPick>(null);
+  const [autoRoll, setAutoRoll] = useState(readAuto);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const physical = room.settings.dice === 'physical';
+
+  const setPlan = (p: PlanStep[]) => {
+    setPlanState(p);
+    savePlan(room.pin, me, p);
+  };
+
+  const send = async (a: Action, dice?: [number, number]): Promise<boolean> => {
+    if (busy) return false;
+    setBusy(true);
+    const res = await conn.act(a, dice);
+    setBusy(false);
+    if (!res.ok) {
+      sfx.play('error');
+      haptic('error');
+    }
+    return res.ok;
+  };
+  const sendVoid = async (a: Action) => {
+    await send(a);
+  };
+
+  // Новая фаза / ход — сбрасываем выбор
+  useEffect(() => {
+    setSelected(undefined);
+    setBuild(null);
+  }, [pub.phase, pub.current, pub.turn, pub.setup?.step, pub.roadBuildingLeft]);
+
+  // Входящее предложение обмена — открываем шторку
+  const tradeId = pub.trade?.id;
+  useEffect(() => {
+    if (tradeId !== undefined && !myTurn && pub.phase === 'main') setSheet('incoming');
+    if (tradeId === undefined) setSheet((s) => (s === 'incoming' || s === 'trade' ? null : s));
+  }, [tradeId, myTurn, pub.phase]);
+
+  // Обязательный сброс на 7
+  const mustDiscard = pub.phase === 'discard' && priv.mustDiscard > 0;
+
+  // Авто-бросок в свой ход
+  const playable = priv.devCards.filter((c) => c.playable);
+  useEffect(() => {
+    if (!(myTurn && pub.phase === 'roll')) {
+      setCountdown(null);
+      return;
+    }
+    if (physical) {
+      setSheet('dice');
+      return;
+    }
+    if (!autoRoll) return;
+    setCountdown(playable.length ? 4 : 2);
+  }, [myTurn, pub.phase, pub.turn, physical, autoRoll]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      setCountdown(null);
+      void send({ type: 'rollDice' });
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const targets = useMemo(() => computeTargets(pub, me, myTurn, build), [pub, me, myTurn, build]);
+
+  // Планирование: куда можно поставить с учётом уже запланированного
+  const planTargets = useMemo(() => {
+    if (!planPick) return null;
+    const view = { board: pub.board, buildings: { ...pub.buildings }, roads: { ...pub.roads } };
+    for (const s of plan) {
+      if (s.kind === 'road') view.roads[s.at] = me;
+      if (s.kind === 'settlement') view.buildings[s.at] = { owner: me, kind: 'settlement' };
+      if (s.kind === 'city') view.buildings[s.at] = { owner: me, kind: 'city' };
+    }
+    const topo = topologyFor(pub.board.layout);
+    if (planPick === 'road') return { kind: 'edge' as const, ids: [...topo.edges.keys()].filter((e) => canBuildRoad(view, me, e)) };
+    if (planPick === 'settlement') return { kind: 'vertex' as const, ids: [...topo.vertices.keys()].filter((v) => canBuildSettlement(view, me, v)) };
+    return {
+      kind: 'vertex' as const,
+      ids: Object.entries(view.buildings)
+        .filter(([, b]) => b.owner === me && b.kind === 'settlement')
+        .map(([v]) => v),
+    };
+  }, [planPick, plan, pub, me]);
+
+  const checked = useMemo(() => checkPlan(plan, pub, priv, me), [plan, pub, priv, me]);
+  const broken = checked.filter((c) => c.status === 'broken').length;
+  const prevBroken = useRef(broken);
+  useEffect(() => {
+    if (broken > prevBroken.current) {
+      conn.notify('⚠️ Твой план сломался — загляни в 📋');
+      haptic('error');
+    }
+    prevBroken.current = broken;
+  }, [broken]);
+
+  const victims =
+    targets?.kind === 'hex' && selected ? playersAtHex(pub, selected, me).filter((p) => pub.players[p].resourceCount > 0) : [];
+
+  const colors = useMemo(
+    () => Object.fromEntries(pub.order.map((id) => [id, pub.players[id].color])) as Record<PlayerId, PlayerColor>,
+    [pub],
+  );
+
+  const tap = (id: string) => {
+    sfx.play('tick');
+    if (planPick) {
+      const step: PlanStep =
+        planPick === 'road' ? { id: newStepId(), kind: 'road', at: id } : { id: newStepId(), kind: planPick, at: id };
+      setPlan([...plan, step]);
+      setPlanPick(null);
+      setSheet('plan');
+      haptic('tap');
+      return;
+    }
+    setSelected(id === selected ? undefined : id);
+  };
+
+  const runPlan = async () => {
+    for (const c of checkPlan(plan, pub, priv, me)) {
+      if (c.status !== 'ready') break;
+      const ok = await send(stepAction(c.step));
+      if (!ok) break;
+      setPlan((loadPlan(room.pin, me) as PlanStep[]).filter((s) => s.id !== c.step.id));
+      if (c.step.kind === 'offer') break; // ждём ответов
+      await new Promise((r) => setTimeout(r, 350));
+    }
+  };
+
+  const highlight = planTargets
+    ? { vertices: planTargets.kind === 'vertex' ? planTargets.ids : [], edges: planTargets.kind === 'edge' ? planTargets.ids : [] }
+    : targets
+      ? {
+          vertices: targets.kind === 'vertex' ? targets.ids : [],
+          edges: targets.kind === 'edge' ? targets.ids : [],
+          hexes: targets.kind === 'hex' ? targets.ids : [],
+        }
+      : undefined;
+
+  const ghosts = checked
+    .filter((c) => c.step.kind === 'road' || c.step.kind === 'settlement' || c.step.kind === 'city')
+    .map((c) => {
+      const s = c.step as Extract<PlanStep, { at: string }>;
+      return {
+        ...(s.kind === 'road' ? { edge: s.at } : { vertex: s.at }),
+        kind: s.kind,
+        color: meP.color,
+        broken: c.status === 'broken',
+      };
+    });
+
+  const status = myTurn ? myPhaseText(pub) : phaseText(pub);
+  const deadline = room.deadlines[current];
+  const hints = goalHints(pub, priv, me);
+
+  return (
+    <main className={`screen game ${myTurn ? 'my-turn' : ''}`} style={{ ['--me' as string]: PLAYER_HEX[meP.color] }}>
+      <div className="stage" data-drawer-no-drag>
+        <GameBoard
+          pub={pub}
+          colors={colors}
+          mode={mode}
+          palette={pack.palette}
+          highlight={highlight}
+          onVertex={tap}
+          onEdge={tap}
+          onHex={tap}
+          selected={selected}
+          fx={fx}
+          ghosts={ghosts}
+        />
+      </div>
+
+      <header className="hud-top">
+        <PlayersStrip pub={pub} room={room} />
+        <button className="fab glass" onClick={() => setSheet('menu')} aria-label="Меню">
+          ☰
+        </button>
+      </header>
+
+      <div className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
+        {myTurn ? '🫵 ' : ''}
+        {status}
+        {deadline && <Countdown until={deadline - (room.serverNow - Date.now())} />}
+      </div>
+
+      <nav className="fab-col">
+        <button className={`fab glass ${broken ? 'alert' : ''}`} onClick={() => setSheet('plan')} aria-label="План хода">
+          📋{plan.length > 0 && <span className="badge">{broken || plan.length}</span>}
+        </button>
+        <button className="fab glass" onClick={() => setSheet('dev')} aria-label="Карты развития">
+          📜{priv.devCards.length > 0 && <span className="badge">{priv.devCards.length}</span>}
+        </button>
+        <button className="fab glass" onClick={() => setSheet('lore')} aria-label="История эпохи">
+          📖
+        </button>
+        <button className="fab glass" onClick={() => setSheet('react')} aria-label="Реакции">
+          😀
+        </button>
+        <button
+          className="fab glass"
+          onClick={() => {
+            const next = mode === '2d' ? '25d' : mode === '25d' ? '3d' : '2d';
+            setMode(next);
+            sfx.play('whoosh');
+          }}
+          aria-label="Вид карты"
+        >
+          <small className="mode-l">{MODE_LABEL[mode]}</small>
+        </button>
+      </nav>
+
+      {(planPick || (targets && !selected)) && (
+        <div className="board-hint glass">
+          {planPick ? `План: выбери место — ${STEP_LABEL[planPick].toLowerCase()}` : targets!.hint}
+          {planPick && (
+            <button className="btn ghost small-btn" onClick={() => setPlanPick(null)}>
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
+      {targets && selected && !planPick && (
+        <div className="confirm glass strong">
+          {targets.kind === 'hex' && victims.length > 1 ? (
+            <>
+              <span className="q">У кого украсть?</span>
+              {victims.map((v) => (
+                <button key={v} className="btn primary" disabled={busy} onClick={() => void send(targets.action(selected, v))}>
+                  {pub.players[v].name}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <span className="q">
+                {targets.confirm}
+                {targets.kind === 'hex' && victims.length === 1 && ` Украдёшь у ${pub.players[victims[0]].name}`}
+              </span>
+              <button className="btn ghost" onClick={() => setSelected(undefined)}>
+                Отмена
+              </button>
+              <button
+                className="btn primary"
+                disabled={busy}
+                onClick={async () => {
+                  haptic('success');
+                  const ok = await send(targets.action(selected, victims[0]));
+                  if (ok) setSelected(undefined);
+                }}
+              >
+                Да
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      <section className="dock glass strong">
+        <Hand hand={priv.resources} />
+        <Actions
+          pub={pub}
+          priv={priv}
+          me={me}
+          myTurn={myTurn}
+          build={build}
+          setBuild={(b) => {
+            setSelected(undefined);
+            setBuild(b);
+            sfx.play('tick');
+          }}
+          busy={busy}
+          send={sendVoid}
+          openSheet={setSheet}
+          countdown={countdown}
+          cancelCountdown={() => setCountdown(null)}
+          physical={physical}
+          planReady={myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status === 'ready'}
+          runPlan={runPlan}
+        />
+      </section>
+
+      {/* ─── шторки ─── */}
+      <Sheet open={sheet === 'trade'} onClose={() => setSheet(null)} title="Обмен">
+        {myTurn && pub.phase === 'main' ? (
+          <TradeSheet pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} />
+        ) : (
+          <p className="muted">Торговать можно в свой ход после броска. А пока — заготовь обмен в плане 📋</p>
+        )}
+      </Sheet>
+
+      <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn} onClose={() => setSheet(null)} title="Предложение обмена">
+        {pub.trade && <IncomingTrade key={pub.trade.id} pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} />}
+      </Sheet>
+
+      <Sheet open={sheet === 'dev'} onClose={() => setSheet(null)} title="Карты развития">
+        <DevCards
+          priv={priv}
+          pack={pack}
+          canPlay={myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed}
+          busy={busy}
+          onPlay={(t) => {
+            if (t === 'yearOfPlenty') return setSheet('plenty');
+            if (t === 'monopoly') return setSheet('monopoly');
+            setSheet(null);
+            setCountdown(null);
+            void send(t === 'knight' ? { type: 'playKnight' } : { type: 'playRoadBuilding' });
+          }}
+        />
+      </Sheet>
+
+      <Sheet open={sheet === 'plenty'} onClose={() => setSheet(null)} title={DEV_CARD_NAME.yearOfPlenty} description="Выбери два ресурса из банка">
+        <Plenty
+          busy={busy}
+          onDone={(r) => {
+            setSheet(null);
+            void send({ type: 'playYearOfPlenty', resources: r });
+          }}
+        />
+      </Sheet>
+
+      <Sheet open={sheet === 'monopoly'} onClose={() => setSheet(null)} title={DEV_CARD_NAME.monopoly} description="Какой ресурс забрать у всех?">
+        <ResourcePicker
+          onPick={(r) => {
+            setSheet(null);
+            void send({ type: 'playMonopoly', resource: r });
+          }}
+        />
+      </Sheet>
+
+      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} карт`} description={`${pack.robber.name}: у кого больше 7 карт — теряет половину`}>
+        <Discard priv={priv} busy={busy} send={sendVoid} />
+      </Sheet>
+
+      <Sheet open={sheet === 'dice'} onClose={() => setSheet(null)} title="Что выпало на кубиках?" description="Брось настоящие кубики и отметь числа">
+        <PhysicalDice
+          busy={busy}
+          canRoll={myTurn && pub.phase === 'roll'}
+          onDone={async (d) => {
+            const ok = await send({ type: 'rollDice' }, d);
+            if (ok) setSheet(null);
+          }}
+        />
+      </Sheet>
+
+      <Sheet open={sheet === 'plan'} onClose={() => setSheet(null)} title="План хода" description="Собери ходы заранее. После каждого чужого хода план перепроверяется.">
+        <PlanSheet
+          checked={checked}
+          plan={plan}
+          setPlan={setPlan}
+          hints={hints}
+          pub={pub}
+          priv={priv}
+          canRun={myTurn && pub.phase === 'main'}
+          busy={busy}
+          onRun={() => {
+            setSheet(null);
+            void runPlan();
+          }}
+          onPick={(k) => {
+            setSheet(null);
+            setPlanPick(k);
+          }}
+        />
+      </Sheet>
+
+      <Sheet open={sheet === 'lore'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
+        <FactsList pack={pack} />
+      </Sheet>
+
+      <Sheet open={sheet === 'react'} onClose={() => setSheet(null)} title="Реакция">
+        <ReactionBar
+          emojis={REACTIONS}
+          onReact={(e) => {
+            conn.send({ t: 'react', emoji: e });
+            setSheet(null);
+          }}
+        />
+      </Sheet>
+
+      <Sheet open={sheet === 'menu'} onClose={() => setSheet(null)} title="Меню">
+        <div className="stack">
+          <div className="label">Вид карты</div>
+          <div className="seg">
+            {(['2d', '25d', '3d'] as const).map((m) => (
+              <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
+                {MODE_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          <button className="item" onClick={() => setMuted(!muted)}>
+            <span>{muted ? '🔇' : '🔊'}</span>
+            <span className="grow t">{muted ? 'Звук выключен' : 'Звук включён'}</span>
+          </button>
+          {!physical && (
+            <button
+              className="item"
+              onClick={() => {
+                const v = !autoRoll;
+                setAutoRoll(v);
+                try {
+                  localStorage.setItem(AUTO_ROLL_KEY, v ? '1' : '0');
+                } catch {
+                  /* ok */
+                }
+              }}
+            >
+              <span>🎲</span>
+              <span className="grow t">Авто-бросок в свой ход</span>
+              <span className="faint">{autoRoll ? 'вкл' : 'выкл'}</span>
+            </button>
+          )}
+          <Costs />
+          {pub.phase !== 'finished' ? (
+            <button className="btn danger wide" onClick={() => setSheet('leave')}>
+              🚪 Выйти — за меня доиграет бот
+            </button>
+          ) : (
+            <button className="btn wide" onClick={() => conn.forget()}>
+              На главную
+            </button>
+          )}
+          {room.isHost && <HostTools room={room} pub={pub} />}
+        </div>
+      </Sheet>
+
+      <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title="Кто доиграет за тебя?" description="Карты и постройки останутся. Вернёшься с этого же телефона — заберёшь место у бота.">
+        <div className="stack">
+          {BOT_LEVELS.map((l) => (
+            <button
+              key={l}
+              className="btn wide"
+              disabled={busy}
+              onClick={async () => {
+                const ok = await send({ type: 'handToBot', level: l });
+                if (ok) setSheet(null);
+              }}
+            >
+              🤖 {l === 'easy' ? 'Лёгкий — играет наугад' : l === 'medium' ? 'Средний — с умом' : 'Сложный — на победу'}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+
+      <DiceOverlay roll={fx.roll} />
+      <Cinematic event={fx.cinematic} />
+      <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
+      <ReactionsLayer items={fx.reactions} />
+      {fx.narration && (
+        <div key={fx.narration.key} className="narration glass" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }}>
+          {fx.narration.text}
+        </div>
+      )}
+      {pub.phase === 'finished' && <Finished pub={pub} me={me} pack={pack} />}
+    </main>
+  );
+}
+
+// ───────────────────────── части ─────────────────────────
+
+export function PlayersStrip({ pub, room }: { pub: PublicState; room: RoomView }) {
+  const current = pub.order[pub.current];
+  return (
+    <div className="players-strip glass">
+      {pub.order.map((id) => {
+        const p = pub.players[id];
+        return (
+          <div
+            key={id}
+            className={`pchip ${id === current ? 'turn' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
+            style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
+          >
+            <span className="dot" style={{ background: PLAYER_HEX[p.color] }}>
+              {p.bot ? '🤖' : p.name.replace(/^🤖\s*/, '').charAt(0).toUpperCase()}
+            </span>
+            <span className="pname">{p.name.replace(/^🤖\s*/, '')}</span>
+            <span className="vp">⭐{p.points}</span>
+            <span className="faint">🂠{p.resourceCount}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Countdown({ until }: { until: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.max(0, Math.round((until - now) / 1000));
+  return <span className="faint"> · 🤖 через {s}с</span>;
+}
+
+function Hand({ hand }: { hand: ResourceMap }) {
+  const prev = useRef(hand);
+  const [bump, setBump] = useState<Partial<Record<Resource, number>>>({});
+  useEffect(() => {
+    const b: Partial<Record<Resource, number>> = {};
+    for (const r of RESOURCES) if (hand[r] > prev.current[r]) b[r] = Date.now();
+    prev.current = hand;
+    if (Object.keys(b).length) setBump(b);
+  }, [hand]);
+  return (
+    <div className="hand">
+      {RESOURCES.map((r) => (
+        <div key={`${r}-${bump[r] ?? 0}`} className={`rcard ${hand[r] ? '' : 'zero'} ${bump[r] ? 'bump' : ''}`} style={{ ['--rc' as string]: RES_COLOR[r] }}>
+          <ResIcon r={r} className="e" />
+          <span className="n">{hand[r]}</span>
+          <span className="lbl">{RESOURCE_NAME[r]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const RES_COLOR: Record<Resource, string> = {
+  brick: '#c8643c',
+  wood: '#3f8c4a',
+  sheep: '#9fd06a',
+  wheat: '#e8c14d',
+  ore: '#8d98ad',
+};
+
+function Actions(props: {
+  pub: PublicState;
+  priv: PrivateView;
+  me: PlayerId;
+  myTurn: boolean;
+  build: BuildMode | null;
+  setBuild: (b: BuildMode | null) => void;
+  busy: boolean;
+  send: (a: Action) => Promise<void>;
+  openSheet: (s: SheetId) => void;
+  countdown: number | null;
+  cancelCountdown: () => void;
+  physical: boolean;
+  planReady: boolean;
+  runPlan: () => void;
+}) {
+  const { pub, priv, me, myTurn, build, setBuild, busy, send, openSheet, countdown, cancelCountdown, physical } = props;
+  const meP = pub.players[me];
+  const playable = priv.devCards.filter((c) => c.playable).length;
+
+  if (!myTurn || pub.phase === 'discard') {
+    return (
+      <div className="actions">
+        <button className="btn" onClick={() => openSheet('plan')}>
+          📋 Планировать
+        </button>
+        <button className="btn" onClick={() => openSheet(pub.trade ? 'incoming' : 'trade')}>
+          🤝 {pub.trade ? 'Обмен идёт' : 'Обмен'}
+        </button>
+      </div>
+    );
+  }
+
+  switch (pub.phase) {
+    case 'setup':
+    case 'moveRobber':
+    case 'roadBuilding':
+      return <p className="dock-note">Нажми на светящееся место на карте 👆</p>;
+    case 'roll':
+      return (
+        <div className="actions">
+          {countdown !== null ? (
+            <button className="btn primary big" onClick={cancelCountdown}>
+              🎲 Бросаю через {countdown}… <small>стоп</small>
+            </button>
+          ) : (
+            <button className="btn primary big" disabled={busy} onClick={() => (physical ? openSheet('dice') : void send({ type: 'rollDice' }))}>
+              🎲 {physical ? 'Ввести бросок' : 'Бросить'}
+            </button>
+          )}
+          {playable > 0 && (
+            <button className="btn" onClick={() => openSheet('dev')}>
+              📜 Карта ({playable})
+            </button>
+          )}
+        </div>
+      );
+    case 'main': {
+      const can = (cost: ResourceMap) => hasResources(priv.resources, cost);
+      const road = meP.pieces.roads > 0 && can(COSTS.road) && legalRoadEdges(pub, me).length > 0;
+      const settl = meP.pieces.settlements > 0 && can(COSTS.settlement) && legalSettlementVertices(pub, me).length > 0;
+      const city = meP.pieces.cities > 0 && can(COSTS.city) && legalCityVertices(pub, me).length > 0;
+      const dev = pub.devDeckCount > 0 && can(COSTS.devCard);
+      const t = (b: BuildMode) => setBuild(build === b ? null : b);
+      return (
+        <>
+          <div className="actions">
+            <button className={`act ${build === 'road' ? 'on' : ''}`} disabled={!road && build !== 'road'} onClick={() => t('road')}>
+              <span className="i">🛤️</span>
+              {cap(shortName('road'))}
+            </button>
+            <button className={`act ${build === 'settlement' ? 'on' : ''}`} disabled={!settl && build !== 'settlement'} onClick={() => t('settlement')}>
+              <span className="i">🏠</span>
+              {cap(shortName('settlement'))}
+            </button>
+            <button className={`act ${build === 'city' ? 'on' : ''}`} disabled={!city && build !== 'city'} onClick={() => t('city')}>
+              <span className="i">🏰</span>
+              {cap(shortName('city'))}
+            </button>
+            <button className="act" disabled={!dev || busy} onClick={() => void send({ type: 'buyDevCard' })}>
+              <span className="i">📜</span>
+              Карта
+            </button>
+          </div>
+          <div className="actions">
+            {props.planReady ? (
+              <button className="btn primary" disabled={busy} onClick={props.runPlan}>
+                ▶ Выполнить план
+              </button>
+            ) : (
+              <button className="btn" onClick={() => openSheet('trade')}>
+                🤝 Обмен{pub.trade ? ' · идёт' : ''}
+              </button>
+            )}
+            <button className="btn" disabled={busy} onClick={() => void send({ type: 'endTurn' })}>
+              Конец хода ➜
+            </button>
+          </div>
+        </>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
+let pieceNames: { road: string; settlement: string; city: string } = { road: 'дорога', settlement: 'поселение', city: 'город' };
+const shortName = (k: keyof typeof pieceNames) => pieceNames[k];
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+export function setPieceNames(p: { road: string; settlement: string; city: string }) {
+  pieceNames = p;
+}
+
+function computeTargets(pub: PublicState, me: PlayerId, myTurn: boolean, mode: BuildMode | null): Targets | null {
+  if (!myTurn) return null;
+  switch (pub.phase) {
+    case 'setup':
+      if (pub.setup?.step === 'road') {
+        return {
+          kind: 'edge',
+          ids: legalRoadEdges(pub, me, pub.setup.lastVertex),
+          hint: `Поставь ${shortName('road')} к своему поселению`,
+          confirm: 'Поставить сюда?',
+          action: (edge) => ({ type: 'buildRoad', edge }),
+        };
+      }
+      return {
+        kind: 'vertex',
+        ids: legalSettlementVertices(pub, me, true),
+        hint: pub.setup?.round === 2 ? 'Второе поселение — за него дадут ресурсы' : 'Поставь первое поселение',
+        confirm: 'Поставить поселение сюда?',
+        action: (vertex) => ({ type: 'buildSettlement', vertex }),
+      };
+    case 'roadBuilding':
+      return {
+        kind: 'edge',
+        ids: legalRoadEdges(pub, me),
+        hint: `Бесплатная дорога (осталось ${pub.roadBuildingLeft ?? 1})`,
+        confirm: 'Поставить сюда?',
+        action: (edge) => ({ type: 'buildRoad', edge }),
+      };
+    case 'moveRobber':
+      return {
+        kind: 'hex',
+        ids: pub.board.hexes.filter((h) => h.id !== pub.robberHex).map((h) => h.id),
+        hint: 'Куда переставить разбойника?',
+        confirm: 'Сюда?',
+        action: (hex, victim) => ({ type: 'moveRobber', hex, ...(victim ? { victim } : {}) }),
+      };
+    case 'main':
+      if (mode === 'road')
+        return { kind: 'edge', ids: legalRoadEdges(pub, me), hint: 'Где строим дорогу?', confirm: 'Построить дорогу?', action: (edge) => ({ type: 'buildRoad', edge }) };
+      if (mode === 'settlement')
+        return {
+          kind: 'vertex',
+          ids: legalSettlementVertices(pub, me),
+          hint: 'Где строим поселение?',
+          confirm: 'Построить поселение?',
+          action: (vertex) => ({ type: 'buildSettlement', vertex }),
+        };
+      if (mode === 'city')
+        return {
+          kind: 'vertex',
+          ids: legalCityVertices(pub, me),
+          hint: 'Какое поселение станет городом?',
+          confirm: 'Построить город?',
+          action: (vertex) => ({ type: 'buildCity', vertex }),
+        };
+      return null;
+    default:
+      return null;
+  }
+}
+
+function DevCards({
+  priv,
+  pack,
+  canPlay,
+  busy,
+  onPlay,
+}: {
+  priv: PrivateView;
+  pack: LorePack;
+  canPlay: boolean;
+  busy: boolean;
+  onPlay: (t: DevCardType) => void;
+}) {
+  if (!priv.devCards.length) return <p className="muted">Карт пока нет. Купить: {resourcesText(COSTS.devCard)}</p>;
+  return (
+    <div className="list">
+      {priv.devCards.map((c, i) => {
+        const info = pack.devCards[c.type];
+        const usable = c.type !== 'victoryPoint' && c.playable && canPlay;
+        return (
+          <div key={i} className="item devcard">
+            <span className="dev-ic">{DEV_ICON[c.type]}</span>
+            <div className="grow">
+              <div className="t">{info.name}</div>
+              <div className="s">{info.flavor}</div>
+            </div>
+            {c.type === 'victoryPoint' ? (
+              <span className="faint small">+1 ⭐</span>
+            ) : (
+              <button className="btn primary" disabled={!usable || busy} onClick={() => onPlay(c.type)}>
+                {c.playable ? 'Сыграть' : 'со след. хода'}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const DEV_ICON: Record<DevCardType, string> = { knight: '⚔️', victoryPoint: '🏆', roadBuilding: '🛤️', yearOfPlenty: '🎁', monopoly: '💰' };
+
+function Plenty({ busy, onDone }: { busy: boolean; onDone: (r: [Resource, Resource]) => void }) {
+  const [picked, setPicked] = useState<Resource[]>([]);
+  return (
+    <div className="stack">
+      <ResourcePicker
+        onPick={(r) => {
+          const next = [...picked, r].slice(-2);
+          setPicked(next);
+          sfx.play('tick');
+        }}
+      />
+      <p className="center big-emoji">{picked.length ? picked.map((r) => RESOURCE_ICON[r]).join(' + ') : '— + —'}</p>
+      <button className="btn primary wide" disabled={picked.length !== 2 || busy} onClick={() => onDone(picked as [Resource, Resource])}>
+        Взять
+      </button>
+    </div>
+  );
+}
+
+function Discard({ priv, busy, send }: { priv: PrivateView; busy: boolean; send: (a: Action) => Promise<void> }) {
+  const [sel, setSel] = useState<ResourceMap>(emptyResources());
+  const n = sum(sel);
+  return (
+    <div className="stack">
+      <ResourceStepper value={sel} onChange={setSel} max={priv.resources} />
+      <button className="btn primary wide" disabled={n !== priv.mustDiscard || busy} onClick={() => void send({ type: 'discard', resources: sel })}>
+        Сбросить {n}/{priv.mustDiscard}
+      </button>
+    </div>
+  );
+}
+
+function PhysicalDice({ busy, canRoll, onDone }: { busy: boolean; canRoll: boolean; onDone: (d: [number, number]) => void }) {
+  const [a, setA] = useState<number>();
+  const [b, setB] = useState<number>();
+  const pick = (which: 'a' | 'b', v: number) => {
+    sfx.play('diceLand');
+    haptic('tap');
+    if (which === 'a') setA(v);
+    else setB(v);
+  };
+  const row = (which: 'a' | 'b', val?: number) => (
+    <div className="die-row">
+      {[1, 2, 3, 4, 5, 6].map((v) => (
+        <button key={v} className={`die-btn ${val === v ? 'on' : ''}`} onClick={() => pick(which, v)} aria-label={`${v}`}>
+          <Pips n={v} />
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <div className="stack">
+      <div className="label">Первый кубик</div>
+      {row('a', a)}
+      <div className="label">Второй кубик</div>
+      {row('b', b)}
+      <div className={`dice-total display ${a && b && a + b === 7 ? 'seven' : ''}`}>{a && b ? a + b : '—'}</div>
+      <button className="btn primary big wide" disabled={!a || !b || busy || !canRoll} onClick={() => onDone([a!, b!])}>
+        Готово
+      </button>
+    </div>
+  );
+}
+
+const PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function Pips({ n }: { n: number }) {
+  return (
+    <span className="pips">
+      {Array.from({ length: 9 }, (_, i) => (
+        <i key={i} className={PIPS[n].includes(i) ? 'on' : ''} />
+      ))}
+    </span>
+  );
+}
+
+function PlanSheet({
+  checked,
+  plan,
+  setPlan,
+  hints,
+  pub,
+  priv,
+  canRun,
+  busy,
+  onRun,
+  onPick,
+}: {
+  checked: ReturnType<typeof checkPlan>;
+  plan: PlanStep[];
+  setPlan: (p: PlanStep[]) => void;
+  hints: string[];
+  pub: PublicState;
+  priv: PrivateView;
+  canRun: boolean;
+  busy: boolean;
+  onRun: () => void;
+  onPick: (k: PlanPick) => void;
+}) {
+  const [adding, setAdding] = useState<null | 'bank' | 'offer'>(null);
+  const [give, setGive] = useState<Resource>();
+  const [offerGive, setOfferGive] = useState<ResourceMap>(emptyResources());
+  const [offerWant, setOfferWant] = useState<ResourceMap>(emptyResources());
+
+  if (adding === 'bank') {
+    return (
+      <div className="stack">
+        <div className="label">Отдаю банку ({give ? `${priv.tradeRatios[give]}:1` : 'выбери'})</div>
+        <ResourcePicker onPick={setGive} />
+        <div className="label">Получаю</div>
+        <ResourcePicker
+          disabled={(r) => !give || r === give}
+          onPick={(r) => {
+            setPlan([...plan, { id: newStepId(), kind: 'bank', give: give!, receive: r }]);
+            setAdding(null);
+            setGive(undefined);
+          }}
+        />
+        <button className="btn ghost wide" onClick={() => setAdding(null)}>
+          Назад
+        </button>
+      </div>
+    );
+  }
+  if (adding === 'offer') {
+    const ok = sum(offerGive) > 0 && sum(offerWant) > 0;
+    return (
+      <div className="stack">
+        <div className="label">Отдаю</div>
+        <ResourceStepper value={offerGive} onChange={setOfferGive} />
+        <div className="label">Хочу</div>
+        <ResourceStepper value={offerWant} onChange={setOfferWant} />
+        <button
+          className="btn primary wide"
+          disabled={!ok}
+          onClick={() => {
+            setPlan([...plan, { id: newStepId(), kind: 'offer', give: offerGive, want: offerWant }]);
+            setAdding(null);
+            setOfferGive(emptyResources());
+            setOfferWant(emptyResources());
+          }}
+        >
+          Добавить в план
+        </button>
+        <button className="btn ghost wide" onClick={() => setAdding(null)}>
+          Назад
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stack">
+      {hints.map((h) => (
+        <div key={h} className="hint-card">
+          💡 {h}
+        </div>
+      ))}
+      {checked.length === 0 ? (
+        <p className="muted">План пуст. Добавь шаги — в свой ход выполнишь их одной кнопкой.</p>
+      ) : (
+        <ol className="list plan-list">
+          {checked.map((c, i) => (
+            <li key={c.step.id} className={`item ${c.status === 'ready' ? 'ok' : c.status === 'short' ? 'warn' : 'broken'}`}>
+              <span className="plan-n">{i + 1}</span>
+              <span>{STEP_ICON[c.step.kind]}</span>
+              <div className="grow">
+                <div className="t">{STEP_LABEL[c.step.kind]}</div>
+                <div className="s">{stepText(c)}</div>
+              </div>
+              <button className="btn ghost icon" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(move(plan, i, i - 1))}>
+                ↑
+              </button>
+              <button className="btn ghost icon" aria-label="Убрать" onClick={() => setPlan(plan.filter((s) => s.id !== c.step.id))}>
+                ✕
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+      <div className="plan-add">
+        <button className="btn" onClick={() => onPick('road')}>
+          🛤️ Дорога
+        </button>
+        <button className="btn" onClick={() => onPick('settlement')}>
+          🏠 Поселение
+        </button>
+        <button className="btn" onClick={() => onPick('city')}>
+          🏰 Город
+        </button>
+        <button className="btn" disabled={pub.devDeckCount <= 0} onClick={() => setPlan([...plan, { id: newStepId(), kind: 'devCard' }])}>
+          📜 Карта
+        </button>
+        <button className="btn" onClick={() => setAdding('bank')}>
+          🏦 Банк
+        </button>
+        <button className="btn" onClick={() => setAdding('offer')}>
+          🤝 Обмен
+        </button>
+      </div>
+      {checked.length > 0 && (
+        <div className="row">
+          <button className="btn ghost grow" onClick={() => setPlan([])}>
+            Очистить
+          </button>
+          <button className="btn primary grow" disabled={!canRun || busy || checked[0].status !== 'ready'} onClick={onRun}>
+            ▶ Выполнить
+          </button>
+        </div>
+      )}
+      {!canRun && checked.length > 0 && <p className="faint small center">Выполнить можно в свой ход после броска</p>}
+    </div>
+  );
+}
+
+function move<T>(a: T[], from: number, to: number): T[] {
+  const b = [...a];
+  const [x] = b.splice(from, 1);
+  b.splice(to, 0, x);
+  return b;
+}
+
+function Costs() {
+  const rows: [string, ResourceMap][] = [
+    [`🛤️ ${cap(shortName('road'))}`, COSTS.road],
+    [`🏠 ${cap(shortName('settlement'))}`, COSTS.settlement],
+    [`🏰 ${cap(shortName('city'))}`, COSTS.city],
+    ['📜 Карта развития', COSTS.devCard],
+  ];
+  return (
+    <div className="list costs">
+      {rows.map(([n, c]) => (
+        <div key={n} className="item">
+          <span className="grow t">{n}</span>
+          <span>{resourcesText(c)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HostTools({ room, pub }: { room: RoomView; pub: PublicState }) {
+  const [open, setOpen] = useState(false);
+  if (pub.phase === 'finished') return null;
+  return (
+    <div className="stack">
+      <button className="btn ghost wide" onClick={() => setOpen(!open)}>
+        👑 Ведущий {open ? '▴' : '▾'}
+      </button>
+      {open && (
+        <>
+          <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
+            ⏭ Пропустить ход {pub.players[pub.order[pub.current]].name}
+          </button>
+          {pub.order
+            .filter((id) => id !== room.me && !pub.players[id].kicked)
+            .map((id) => (
+              <button key={id} className="btn danger wide" onClick={() => conn.send({ t: 'kick', player: id, level: 'medium' })}>
+                🚫 Заменить ботом: {pub.players[id].name}
+              </button>
+            ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: LorePack }) {
+  const winner = pub.winner!;
+  const order = [...pub.order].sort((a, b) => pub.players[b].points - pub.players[a].points);
+  return (
+    <div className="finish-overlay">
+      <div className="panel glass strong stack center">
+        <div className="big-emoji">{winner === me ? '👑' : '🏁'}</div>
+        <h2 className="display">{winner === me ? 'Ты победил!' : `Победа: ${pub.players[winner].name}`}</h2>
+        <p className="muted">{pack.victory.replace('{player}', pub.players[winner].name)}</p>
+        <ol className="list">
+          {order.map((id) => (
+            <li key={id} className="item">
+              <span className="seat-dot" style={{ background: PLAYER_HEX[pub.players[id].color] }} />
+              <span className="grow t">{pub.players[id].name}</span>
+              <b>⭐ {pub.players[id].points}</b>
+            </li>
+          ))}
+        </ol>
+        <button className="btn primary wide" onClick={() => conn.forget()}>
+          На главную
+        </button>
+      </div>
+    </div>
+  );
+}
