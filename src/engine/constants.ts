@@ -9,6 +9,12 @@ export const LONGEST_ROAD_MIN = 5;
 export const LARGEST_ARMY_MIN = 3;
 /** Сбрасывают при семёрке те, у кого карт БОЛЬШЕ этого числа. */
 export const DISCARD_LIMIT = 7;
+/**
+ * Сбалансированные кубики: колода из всех 36 бросков двух кубиков.
+ * Когда в колоде остаётся столько бросков — она перемешивается заново целиком
+ * (последние броски нельзя вычислить заранее).
+ */
+export const DICE_DECK_RESHUFFLE_AT = 6;
 export const LOG_LIMIT = 60;
 
 export const COSTS = {

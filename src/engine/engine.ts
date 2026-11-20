@@ -20,9 +20,9 @@ import {
   resourceMap,
   totalResources,
 } from './types';
-import { COSTS, DISCARD_LIMIT, LOG_LIMIT } from './constants';
+import { COSTS, DICE_DECK_RESHUFFLE_AT, DISCARD_LIMIT, LOG_LIMIT } from './constants';
 import type { Rng } from './rng';
-import { pick, rollDie } from './rng';
+import { newDiceDeck, pick, rollDie } from './rng';
 import {
   canBuildCity,
   canBuildRoad,
@@ -67,6 +67,8 @@ export function applyHostAction(state: GameState, action: HostAction, rng: Rng):
         return forceDiscard(s, action.player, rng, events);
       case 'handToBot':
         return handToBot(s, action.player, action.level, !!action.auto, events);
+      case 'kick':
+        return kick(s, action.player, action.level, events);
       default:
         fail('Неизвестное действие хоста');
     }
@@ -215,7 +217,7 @@ const HANDLERS: Handlers = {
     requireTurn(c);
     requirePhase(c, 'roll');
     const { s, actor } = c;
-    const dice: [number, number] = [rollDie(c.rng), rollDie(c.rng)];
+    const dice = throwDice(s, c.rng);
     const total = dice[0] + dice[1];
     s.dice = dice;
     c.events.push({ type: 'diceRolled', player: actor, dice, total });
@@ -393,6 +395,7 @@ const HANDLERS: Handlers = {
 
   returnFromBot(c) {
     const p = c.s.players[c.actor];
+    if (p.kicked) fail('Ведущий убрал тебя из игры');
     if (!p.away) fail('За тебя сейчас не играет бот');
     delete p.bot;
     delete p.away;
@@ -528,6 +531,16 @@ function validateTradeTerms(giveRaw: unknown, wantRaw: unknown): { give: Resourc
   return { give, want };
 }
 
+// ───────────────────────── кубики ─────────────────────────
+
+/** Обычные кубики — честный случай; сбалансированные — следующий бросок из колоды 36 комбинаций. */
+function throwDice(s: GameState, rng: Rng): [number, number] {
+  if (!s.settings.balancedDice) return [rollDie(rng), rollDie(rng)];
+  if (!s.diceDeck || s.diceDeck.length <= DICE_DECK_RESHUFFLE_AT) s.diceDeck = newDiceDeck(rng);
+  const [a, b] = s.diceDeck.pop()!;
+  return [a, b];
+}
+
 // ───────────────────────── выход и возвращение ─────────────────────────
 
 /** Игрок выходит из партии: его карты, постройки и очки остаются, ходит бот. */
@@ -539,7 +552,27 @@ function handToBot(s: GameState, pid: PlayerId, level: BotLevel, auto: boolean, 
   p.bot = level;
   p.away = true;
   events.push({ type: 'playerLeft', player: pid, level, ...(auto ? { auto: true } : {}) });
-  // Предложение обмена от ушедшего игрока снимаем — бот начнёт свой ход с чистого листа
+  dropTradeOf(s, pid, events);
+}
+
+/** Ведущий выгоняет игрока: бот играет за него до конца, вернуться нельзя. */
+function kick(s: GameState, pid: PlayerId, level: BotLevel, events: GameEvent[]): void {
+  const p = s.players[pid];
+  if (!p) fail('Нет такого игрока');
+  if (p.kicked) fail('Этого игрока уже выгнали');
+  if (p.bot && !p.away) fail('Это бот — выгонять некого');
+  if (!p.away) {
+    if (!BOT_LEVELS.includes(level)) fail('Неизвестный уровень бота');
+    p.bot = level;
+    p.away = true;
+  }
+  p.kicked = true;
+  events.push({ type: 'playerKicked', player: pid, level: p.bot! });
+  dropTradeOf(s, pid, events);
+}
+
+/** Предложение обмена от ушедшего игрока снимаем — бот начнёт свой ход с чистого листа. */
+function dropTradeOf(s: GameState, pid: PlayerId, events: GameEvent[]): void {
   if (s.trade && currentPlayerId(s) === pid) {
     delete s.trade;
     events.push({ type: 'tradeCancelled', player: pid });

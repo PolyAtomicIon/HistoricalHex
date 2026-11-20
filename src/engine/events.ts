@@ -29,6 +29,8 @@ export type GameEvent =
   /** Игрок вышел (auto — не вернулся вовремя), за него играет бот. */
   | { type: 'playerLeft'; player: PlayerId; level: BotLevel; auto?: boolean }
   | { type: 'playerReturned'; player: PlayerId }
+  /** Ведущий выгнал игрока, за него до конца играет бот. */
+  | { type: 'playerKicked'; player: PlayerId; level: BotLevel }
   | { type: 'gameWon'; player: PlayerId; points: number };
 
 export type LogEntry = GameEvent & { seq: number };

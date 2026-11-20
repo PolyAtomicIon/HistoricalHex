@@ -10,9 +10,18 @@ export interface RoomSettings {
   vpToWin: number;
   /** Не вернулся за reconnectSeconds, пока игра ждёт его хода — за него играет бот (иначе решает ведущий). */
   offlineBot: boolean;
+  /** Откуда берутся кубики. */
+  dice: DiceMode;
 }
 
-export const DEFAULT_ROOM_SETTINGS: RoomSettings = { reconnectSeconds: 120, vpToWin: 10, offlineBot: true };
+/**
+ * randomOrg — настоящий случай с random.org (если сайт недоступен — генератор системы);
+ * balanced  — колода из всех 36 бросков двух кубиков (меньше серий);
+ * random    — генератор системы.
+ */
+export type DiceMode = 'randomOrg' | 'balanced' | 'random';
+
+export const DEFAULT_ROOM_SETTINGS: RoomSettings = { reconnectSeconds: 120, vpToWin: 10, offlineBot: true, dice: 'randomOrg' };
 
 /** Уровень бота, который подменяет отвалившегося игрока. */
 export const OFFLINE_BOT_LEVEL = 'medium' as const;

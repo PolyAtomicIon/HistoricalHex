@@ -38,4 +38,6 @@ export type HostAction =
   /** Сбросить за игрока случайные карты при семёрке. */
   | { type: 'forceDiscard'; player: PlayerId }
   /** Отдать отвалившегося игрока боту (вручную или по таймеру — auto). */
-  | { type: 'handToBot'; player: PlayerId; level: BotLevel; auto?: boolean };
+  | { type: 'handToBot'; player: PlayerId; level: BotLevel; auto?: boolean }
+  /** Выгнать игрока посреди партии: его место до конца занимает бот (если бот уже играет за него — остаётся тот же). */
+  | { type: 'kick'; player: PlayerId; level: BotLevel };

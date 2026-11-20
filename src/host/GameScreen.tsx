@@ -12,6 +12,7 @@ import { formatClock, useNow } from '../ui/hooks';
 import { PLAYER_HEX, PLAYER_STROKE, RESOURCE_ICON } from '../ui/theme';
 import { useMuted } from '../ui/sound';
 import { Emblem } from '../ui/Logo';
+import { KickDialog, kickable } from './KickDialog';
 import { hostCues, useLogSounds } from '../ui/eventSounds';
 import { DEV_CARD_ART, art, resourceArt } from '../ui/art';
 import { DEV_CARD_NAME, GAME_TITLE, cards, eventText, namesFrom, phaseText, points, resourcesText } from '../i18n/ru';
@@ -25,11 +26,13 @@ interface Props {
   onNewGame: () => void;
   /** false — без звуков (в режиме «играю с этого устройства» звучит экран игрока). */
   sounds?: boolean;
+  /** Ведущий сам играет (режим «с этого устройства») — себя выгнать нельзя. */
+  me?: PlayerId;
 }
 
 const NO_CUES = () => [];
 
-export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds = true }: Props) {
+export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds = true, me }: Props) {
   const pub = useMemo(() => toPublicView(state), [state]);
   const colors = useMemo(
     () => Object.fromEntries(pub.order.map((id) => [id, pub.players[id].color])) as Record<PlayerId, PlayerColor>,
@@ -38,6 +41,7 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds 
   const t = useNow(now);
   const [extraWait, setExtraWait] = useState<Record<PlayerId, number>>({});
   const [error, setError] = useState('');
+  const [kicking, setKicking] = useState(false);
 
   const current = pub.order[pub.current];
   const recent = useMemo(() => recentBuilt(pub), [pub]);
@@ -95,8 +99,18 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds 
             if (confirm('Закрыть комнату? Игра закончится у всех.')) onClose();
           }}
           canSkip={pub.phase !== 'finished' && pub.phase !== 'discard'}
+          onKick={() => setKicking(true)}
+          canKick={pub.phase !== 'finished' && kickable(state, me).length > 0}
         />
       </header>
+      {kicking && (
+        <KickDialog
+          state={state}
+          exclude={me}
+          onKick={(uid, level) => room.kickFromGame(uid, level)}
+          onClose={() => setKicking(false)}
+        />
+      )}
 
       <aside className="players">
         {pub.order.map((id) => (
@@ -131,6 +145,18 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds 
       <aside className="side">
         <div className="card dice-card">
           <Dice dice={pub.dice} rollKey={rollSeq} />
+          {snap.settings.dice === 'randomOrg' && pub.dice && snap.diceSource && (
+            <div
+              className={`dice-source ${snap.diceSource}`}
+              title={
+                snap.diceSource === 'randomOrg'
+                  ? 'Бросок взят с random.org — настоящий случай из атмосферного шума'
+                  : 'random.org сейчас недоступен — бросок от генератора системы'
+              }
+            >
+              🎲 {snap.diceSource === 'randomOrg' ? 'random.org' : 'запасной генератор'}
+            </div>
+          )}
           <div className="bank">
             <small>Банк</small> {resourcesText(pub.bank)} · 🃏 {pub.devDeckCount}
           </div>
@@ -237,7 +263,7 @@ function PlayerPanel({
         <span className="chip" style={chipStyle(p.color)} />
         <span className="name">{p.name}</span>
         {p.bot && (
-          <span className={`bot-badge ${p.bot}`} title={p.away ? 'Игрок вышел — вместо него играет бот' : undefined}>
+          <span className={`bot-badge ${p.bot}`} title={p.kicked ? 'Игрок выгнан — вместо него играет бот' : p.away ? 'Игрок вышел — вместо него играет бот' : undefined}>
             {BOT_LEVEL_NAME[p.bot]}
           </span>
         )}
@@ -477,7 +503,19 @@ function WinnerOverlay({ pub, onNewGame, onClose }: { pub: PublicState; onNewGam
   );
 }
 
-function HostMenu({ onSkip, onClose, canSkip }: { onSkip: () => void; onClose: () => void; canSkip: boolean }) {
+function HostMenu({
+  onSkip,
+  onClose,
+  canSkip,
+  onKick,
+  canKick,
+}: {
+  onSkip: () => void;
+  onClose: () => void;
+  canSkip: boolean;
+  onKick: () => void;
+  canKick: boolean;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="host-menu">
@@ -487,6 +525,7 @@ function HostMenu({ onSkip, onClose, canSkip }: { onSkip: () => void; onClose: (
       {open && (
         <div className="menu-pop" onClick={() => setOpen(false)}>
           {canSkip && <button onClick={onSkip}>Пропустить ход текущего игрока</button>}
+          {canKick && <button onClick={onKick}>🚫 Выгнать игрока…</button>}
           <button onClick={onClose}>Закрыть комнату</button>
         </div>
       )}

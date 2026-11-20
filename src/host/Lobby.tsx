@@ -7,7 +7,7 @@ import { BOT_LEVELS, MAX_PLAYERS, MIN_PLAYERS } from '../engine';
 import { BOT_LEVEL_NAME } from '../bots';
 import type { HostRoom, HostSnapshot } from '../net';
 import { describeError } from '../net';
-import { COLOR_NAME, GAME_TITLE, plural } from '../i18n/ru';
+import { COLOR_NAME, DICE_MODE_TEXT, GAME_TITLE, plural } from '../i18n/ru';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
 import { Emblem } from '../ui/Logo';
 
@@ -151,6 +151,8 @@ export function Lobby({
         <p className="muted small">
           Победа: {snap.settings.vpToWin} очков · ждём отвалившихся {Math.round(snap.settings.reconnectSeconds / 60)} мин
           {snap.settings.offlineBot ? ', потом за них играет бот' : ''}
+          {' · кубики '}
+          {DICE_MODE_TEXT[snap.settings.dice] ?? DICE_MODE_TEXT.random}
         </p>
         {error && <p className="error">{error}</p>}
       </section>

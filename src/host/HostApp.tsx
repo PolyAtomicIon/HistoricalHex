@@ -1,7 +1,7 @@
 // Экран хоста (ноутбук → телевизор): меню → лобби → игра → итоги.
 
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
-import type { Connection, RoomSettings } from '../net';
+import type { Connection, DiceMode, RoomSettings } from '../net';
 import { DEFAULT_ROOM_SETTINGS, HostRoom, connectOnce, describeError } from '../net';
 import { useSnapshot, storage } from '../ui/hooks';
 import { GAME_TITLE } from '../i18n/ru';
@@ -198,6 +198,17 @@ function Menu({ onCreate }: { onCreate: (s: RoomSettings) => Promise<void> }) {
           >
             <option value="bot">за него играет бот</option>
             <option value="host">решает ведущий</option>
+          </select>
+        </label>
+        <label>
+          Кубики
+          <select
+            value={settings.dice}
+            onChange={(e) => setSettings({ ...settings, dice: e.target.value as DiceMode })}
+          >
+            <option value="randomOrg">🌐 random.org (настоящий случай)</option>
+            <option value="balanced">сбалансированные (меньше серий)</option>
+            <option value="random">генератор системы</option>
           </select>
         </label>
         <label>

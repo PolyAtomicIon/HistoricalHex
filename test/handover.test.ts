@@ -110,3 +110,44 @@ describe('выход из игры с ботом вместо себя', () => {
     expect(Object.values(s.players).every((p) => p.away && p.bot === 'hard')).toBe(true);
   }, 60_000);
 });
+
+describe('ведущий выгоняет игрока посреди партии', () => {
+  it('живого игрока: бот выбранного уровня, вернуться нельзя', () => {
+    let s = mainPhase(newGame(3));
+    setHand(s, 'b', { wood: 2 });
+    const res = applyHostAction(s, { type: 'kick', player: 'b', level: 'easy' }, seededRng(1));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    s = res.state;
+    expect(s.players.b).toMatchObject({ bot: 'easy', away: true, kicked: true });
+    expect(s.players.b.resources.wood).toBe(2);
+    expect(s.log.at(-1)).toMatchObject({ type: 'playerKicked', player: 'b', level: 'easy' });
+    expect(toPublicView(s).players.b.kicked).toBe(true);
+    expect(actFail(s, 'b', { type: 'returnFromBot' })).toMatch(/убрал/);
+    const again = applyHostAction(s, { type: 'kick', player: 'b', level: 'hard' }, seededRng(1));
+    expect(again.ok).toBe(false);
+  });
+
+  it('того, кто уже вышел с ботом: бот остаётся тот же', () => {
+    let s = mainPhase(newGame(3));
+    s = act(s, 'c', { type: 'handToBot', level: 'hard' });
+    const res = applyHostAction(s, { type: 'kick', player: 'c', level: 'easy' }, seededRng(1));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.state.players.c).toMatchObject({ bot: 'hard', kicked: true });
+    expect(res.state.log.at(-1)).toMatchObject({ type: 'playerKicked', level: 'hard' });
+  });
+
+  it('бота из лобби выгнать нельзя, активный игрок теряет предложение обмена', () => {
+    let s = mainPhase(newGame(3));
+    s.players.c.bot = 'easy';
+    const bot = applyHostAction(s, { type: 'kick', player: 'c', level: 'easy' }, seededRng(1));
+    expect(bot.ok).toBe(false);
+    setHand(s, 'a', { wood: 1 });
+    s = act(s, 'a', { type: 'offerTrade', give: { wood: 1, brick: 0, sheep: 0, wheat: 0, ore: 0 }, want: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 1 } });
+    const res = applyHostAction(s, { type: 'kick', player: 'a', level: 'medium' }, seededRng(1));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.state.trade).toBeUndefined();
+  });
+});

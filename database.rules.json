@@ -64,7 +64,7 @@
 
         "actions": {
           "$id": {
-            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && root.child('rooms').child($pin).child('public/players').child(auth.uid).exists()",
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && root.child('rooms').child($pin).child('public/players').child(auth.uid).exists() && !root.child('rooms').child($pin).child('kicked').child(auth.uid).exists()",
             ".validate": "newData.hasChildren(['uid', 'action', 'at']) && newData.child('at').val() === now"
           }
         },

@@ -16,7 +16,9 @@ import {
   toPrivateView,
   toPublicView,
 } from '../engine';
-import type { ActionResult } from '../engine';
+import type { Action, ActionResult, Rng } from '../engine';
+import type { DiceSource } from './randomOrg';
+import { RandomOrgDice } from './randomOrg';
 import type { BotMemory } from '../bots';
 import { BOT_NAMES, botsToAct, decide } from '../bots';
 import type { Connection } from './firebase';
@@ -36,6 +38,8 @@ export interface HostSnapshot {
   waitingSince: Record<PlayerId, number>;
   /** Последняя ошибка записи в базу, если была. */
   error?: string;
+  /** Откуда взят последний бросок кубиков в режиме random.org. */
+  diceSource?: DiceSource;
 }
 
 type Listener = (snap: HostSnapshot) => void;
@@ -85,6 +89,8 @@ export class HostRoom {
   private botMemory: Record<PlayerId, BotMemory> = {};
   private offlineTimer?: ReturnType<typeof setInterval>;
   private takingOver = new Set<PlayerId>();
+  /** Запас бросков с random.org (используется, если в настройках кубики randomOrg). */
+  private readonly randomOrg = new RandomOrgDice();
 
   private constructor(
     private readonly conn: Connection,
@@ -95,6 +101,16 @@ export class HostRoom {
     this.room = ref(conn.db, roomPath(pin));
     this.snap = { pin, status: meta.status, settings: meta.settings, lobby: [], presence: {}, state, waitingSince: {} };
     if (state) this.snap.waitingSince = this.nextWaiting(state);
+    // Запас бросков начинаем набирать ещё в лобби, чтобы первый бросок не ждал сеть
+    if (meta.settings.dice === 'randomOrg') void this.randomOrg.refill();
+  }
+
+  /** Случайность для действия: бросок кубиков в режиме random.org берётся из запаса сайта. */
+  private rngFor(action: Action | undefined): Rng {
+    if (action?.type !== 'rollDice' || this.snap.settings.dice !== 'randomOrg') return cryptoRng;
+    const { rng, source } = this.randomOrg.rollRng();
+    this.snap = { ...this.snap, diceSource: source };
+    return rng;
   }
 
   /** Новая комната со случайным 6-значным PIN. */
@@ -201,6 +217,16 @@ export class HostRoom {
     });
   }
 
+  /**
+   * Выгнать игрока посреди партии: до конца за него играет бот, вернуться он не сможет
+   * (флаг kicked — телефон покажет «Тебя убрали», правила базы не примут его действия).
+   */
+  async kickFromGame(uid: PlayerId, level: BotLevel): Promise<ActionResult> {
+    const res = await this.hostAction({ type: 'kick', player: uid, level });
+    if (res.ok) await this.write({ [`kicked/${uid}`]: true });
+    return res;
+  }
+
   /** Начать игру с игроками из лобби. */
   async start(): Promise<void> {
     if (this.snap.status !== 'lobby') throw new Error('Игра уже идёт');
@@ -214,7 +240,7 @@ export class HostRoom {
     const state = createGame(
       players.map((p) => ({ id: p.uid, name: p.name, color: p.color!, ...(p.bot ? { bot: p.bot } : {}) })),
       cryptoRng,
-      { vpToWin: this.snap.settings.vpToWin },
+      { vpToWin: this.snap.settings.vpToWin, balancedDice: this.snap.settings.dice === 'balanced' },
     );
     await this.write({ ...this.stateUpdates(state, true), 'meta/status': 'playing' });
     this.snap = { ...this.snap, status: 'playing', state, waitingSince: this.nextWaiting(state) };
@@ -357,7 +383,7 @@ export class HostRoom {
     const res: ActionResult =
       state.players[queued.uid]?.bot && type !== 'returnFromBot'
         ? { ok: false, error: 'За тебя сейчас играет бот — нажми «Вернуться в игру»' }
-        : applyAction(state, queued.uid, queued.action, cryptoRng);
+        : applyAction(state, queued.uid, queued.action, this.rngFor(queued.action));
     if (res.ok && (type === 'handToBot' || type === 'returnFromBot')) delete this.botMemory[queued.uid];
     updates[`results/${queued.uid}`] = {
       actionId: key,
@@ -422,11 +448,11 @@ export class HostRoom {
       };
       const action = decide(ctx);
       if (!action) continue; // бот ждёт (например, ответов людей на свой обмен)
-      let res = applyAction(state, id, action, cryptoRng);
+      let res = applyAction(state, id, action, this.rngFor(action));
       if (!res.ok) {
         // Подстраховка: если бот ошибся — делаем ход за него как лёгкий бот, потом — действием хоста
         const fallback = decide({ ...ctx, level: 'easy', memory: {} });
-        if (fallback) res = applyAction(state, id, fallback, cryptoRng);
+        if (fallback) res = applyAction(state, id, fallback, this.rngFor(fallback));
         if (!res.ok && pub.phase === 'discard') res = applyHostAction(state, { type: 'forceDiscard', player: id }, cryptoRng);
         else if (!res.ok && pub.order[pub.current] === id) res = applyHostAction(state, { type: 'skipTurn' }, cryptoRng);
       }

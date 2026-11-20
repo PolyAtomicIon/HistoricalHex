@@ -40,6 +40,8 @@ export interface Player {
   bot?: BotLevel;
   /** Живой игрок вышел из партии — за него временно играет бот (bot). Может вернуться. */
   away?: boolean;
+  /** Ведущий выгнал игрока: за него до конца играет бот, вернуться нельзя. */
+  kicked?: boolean;
 }
 
 export interface Building {
@@ -70,6 +72,8 @@ export interface SetupState {
 
 export interface GameSettings {
   vpToWin: number;
+  /** Сбалансированные кубики: броски берутся из колоды всех 36 комбинаций (меньше серий одного числа). */
+  balancedDice?: boolean;
 }
 
 export interface GameState {
@@ -90,6 +94,8 @@ export interface GameState {
   buildings: Record<VertexId, Building>;
   roads: Record<EdgeId, PlayerId>;
   dice?: [number, number];
+  /** Колода сбалансированных кубиков (только у хоста — иначе броски можно предсказать). */
+  diceDeck?: [number, number][];
   /** Сыграна ли уже карта развития в этот ход. */
   devCardPlayed: boolean;
   /** Сколько карт должен сбросить каждый (при семёрке). */
@@ -115,6 +121,7 @@ export interface NewPlayer {
 
 export interface CreateGameOptions {
   vpToWin?: number;
+  balancedDice?: boolean;
 }
 
 export function createGame(newPlayers: readonly NewPlayer[], rng: Rng, options: CreateGameOptions = {}): GameState {
@@ -156,7 +163,7 @@ export function createGame(newPlayers: readonly NewPlayer[], rng: Rng, options: 
 
   return {
     phase: 'setup',
-    settings: { vpToWin: options.vpToWin ?? DEFAULT_VP_TO_WIN },
+    settings: { vpToWin: options.vpToWin ?? DEFAULT_VP_TO_WIN, ...(options.balancedDice ? { balancedDice: true } : {}) },
     board,
     robberHex,
     players,

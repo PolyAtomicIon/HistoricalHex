@@ -45,3 +45,10 @@ export function shuffle<T>(rng: Rng, items: readonly T[]): T[] {
 export function rollDie(rng: Rng): number {
   return randomInt(rng, 6) + 1;
 }
+
+/** Все 36 бросков двух кубиков в случайном порядке (колода сбалансированных кубиков). */
+export function newDiceDeck(rng: Rng): [number, number][] {
+  const all: [number, number][] = [];
+  for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) all.push([a, b]);
+  return shuffle(rng, all);
+}

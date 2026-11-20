@@ -663,3 +663,70 @@ body {
     flex: 1 1 60%;
   }
 }
+
+/* ── выгнать игрока посреди партии ── */
+.kick-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(5, 15, 25, 0.6);
+}
+.kick-dialog {
+  width: min(440px, 100%);
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+.kick-dialog h4 {
+  margin: 12px 0 6px;
+}
+.kick-list,
+.kick-bots {
+  display: grid;
+  gap: 8px;
+}
+.kick-list .btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+.kick-list .btn .name {
+  flex: 1;
+}
+.kick-list small,
+.kick-bots small {
+  font-weight: 600;
+  opacity: 0.75;
+}
+.kick-bots .btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.kick-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.kick-dialog .btn.ghost {
+  color: var(--ink);
+}
+
+/* ── откуда взят бросок (режим random.org) ── */
+.dice-source {
+  font-size: 0.75em;
+  font-weight: 700;
+  opacity: 0.7;
+  text-align: center;
+  margin-top: 2px;
+}
+.dice-source.fallback {
+  color: var(--bad);
+  opacity: 0.85;
+}

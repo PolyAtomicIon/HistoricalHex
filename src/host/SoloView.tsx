@@ -6,10 +6,11 @@ import { useEffect, useState } from 'react';
 import type { BotLevel } from '../engine';
 import { BOT_LEVELS, MAX_PLAYERS, MIN_PLAYERS } from '../engine';
 import type { Connection, HostRoom, HostSnapshot } from '../net';
-import { describeError } from '../net';
+import { connectOnce, describeError } from '../net';
 import { BOT_LEVEL_NAME } from '../bots';
 import { PlayerApp } from '../play/PlayerApp';
 import { GameScreen } from './GameScreen';
+import { KickDialog, kickable } from './KickDialog';
 import '../play/play.css';
 
 interface Props {
@@ -25,7 +26,14 @@ export default function SoloView({ room, snap, conn, onExitSolo, onClose, onNewG
   const [view, setView] = useState<'me' | 'map'>('me');
   const [menu, setMenu] = useState(false);
   const [error, setError] = useState('');
+  const [kicking, setKicking] = useState(false);
+  // Свой uid игрока (у экрана игрока своё подключение) — себя выгнать нельзя
+  const [me, setMe] = useState<string>();
+  useEffect(() => {
+    connectOnce({ name: 'player' }).then((c) => setMe(c.uid), () => undefined);
+  }, []);
   const lobby = snap.status === 'lobby';
+  const canKick = !lobby && !!snap.state && snap.state.phase !== 'finished' && kickable(snap.state, me).length > 0;
   const players = snap.lobby;
   const ready =
     players.length >= MIN_PLAYERS &&
@@ -93,6 +101,7 @@ export default function SoloView({ room, snap, conn, onExitSolo, onClose, onNewG
           {menu && (
             <div className="menu-pop" onClick={() => setMenu(false)}>
               {lobby && players.some((p) => p.bot) && <button onClick={removeBots}>Убрать всех ботов</button>}
+              {canKick && <button onClick={() => setKicking(true)}>🚫 Выгнать игрока…</button>}
               <button onClick={onExitSolo}>Экран ведущего (для телевизора)</button>
               <button
                 onClick={() => {
@@ -111,6 +120,15 @@ export default function SoloView({ room, snap, conn, onExitSolo, onClose, onNewG
         </div>
       )}
 
+      {kicking && snap.state && (
+        <KickDialog
+          state={snap.state}
+          exclude={me}
+          onKick={(uid, level) => room.kickFromGame(uid, level)}
+          onClose={() => setKicking(false)}
+        />
+      )}
+
       <div className="solo-content">
         {/* Экран игрока не размонтируем при переключении — чтобы не терять состояние */}
         <div className="solo-pane" hidden={view === 'map' && !lobby}>
@@ -126,6 +144,7 @@ export default function SoloView({ room, snap, conn, onExitSolo, onClose, onNewG
               onClose={onClose}
               onNewGame={onNewGame}
               sounds={false}
+              me={me}
             />
           </div>
         )}

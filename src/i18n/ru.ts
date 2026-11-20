@@ -170,6 +170,8 @@ export function eventText(e: GameEvent, name: Names): string | null {
       return e.auto
         ? `🤖 ${name(e.player)} не вернулся вовремя — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`
         : `🤖 ${name(e.player)} выходит из игры — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`;
+    case 'playerKicked':
+      return `🚫 ${name(e.player)} выгнан — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`;
     case 'playerReturned':
       return `👋 ${name(e.player)} возвращается в игру`;
     case 'gameWon':
@@ -178,3 +180,10 @@ export function eventText(e: GameEvent, name: Names): string | null {
       return null;
   }
 }
+
+/** Режим кубиков в лобби: «кубики …». */
+export const DICE_MODE_TEXT: Record<'randomOrg' | 'balanced' | 'random', string> = {
+  randomOrg: 'с random.org',
+  balanced: 'сбалансированные',
+  random: 'от генератора системы',
+};

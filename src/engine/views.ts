@@ -23,9 +23,11 @@ export interface PublicPlayer {
   bot?: BotLevel;
   /** Живой игрок вышел — за него играет бот. */
   away?: boolean;
+  /** Ведущий выгнал игрока — за него до конца играет бот. */
+  kicked?: boolean;
 }
 
-export type PublicState = Omit<GameState, 'players' | 'devDeck' | 'log'> & {
+export type PublicState = Omit<GameState, 'players' | 'devDeck' | 'diceDeck' | 'log'> & {
   players: Record<PlayerId, PublicPlayer>;
   devDeckCount: number;
   log: LogEntry[];
@@ -53,7 +55,7 @@ export interface PrivateView {
 }
 
 export function toPublicView(s: GameState): PublicState {
-  const { players, devDeck, log, ...rest } = s;
+  const { players, devDeck, diceDeck: _diceDeck, log, ...rest } = s;
   const finished = s.phase === 'finished';
   const publicPlayers: Record<PlayerId, PublicPlayer> = {};
   for (const pid of s.order) {
@@ -70,6 +72,7 @@ export function toPublicView(s: GameState): PublicState {
       roadLength: longestRoadLength(s, pid),
       ...(p.bot ? { bot: p.bot } : {}),
       ...(p.away ? { away: true } : {}),
+      ...(p.kicked ? { kicked: true } : {}),
     };
   }
   return {
