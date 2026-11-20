@@ -32,7 +32,7 @@ import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { STEP_ICON, STEP_LABEL, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction, stepText } from './planner';
-import { FactsList } from './Facts';
+import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
 type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react';
@@ -74,6 +74,14 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const [autoRoll, setAutoRoll] = useState(readAuto);
   const [countdown, setCountdown] = useState<number | null>(null);
   const physical = room.settings.dice === 'physical';
+  const dockRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = dockRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--dock-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const setPlan = (p: PlanStep[]) => {
     setPlanState(p);
@@ -227,6 +235,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const status = myTurn ? myPhaseText(pub) : phaseText(pub);
   const deadline = room.deadlines[current];
   const hints = goalHints(pub, priv, me);
+  const fact = useRotatingFact(pack, 16000);
+  const showFact = !myTurn && pub.phase !== 'finished' && pub.phase !== 'discard' && !planPick;
 
   return (
     <main className={`screen game ${myTurn ? 'my-turn' : ''}`} style={{ ['--me' as string]: PLAYER_HEX[meP.color] }}>
@@ -332,7 +342,13 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
-      <section className="dock glass strong">
+      {showFact && (
+        <button key={fact.text} className="wait-fact glass" onClick={() => setSheet('lore')}>
+          <Fact f={fact} />
+        </button>
+      )}
+
+      <section ref={dockRef} className="dock glass strong">
         <Hand hand={priv.resources} />
         <Actions
           pub={pub}

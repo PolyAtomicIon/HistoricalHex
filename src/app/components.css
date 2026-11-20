@@ -632,3 +632,26 @@
     width: 46vw;
   }
 }
+
+.wait-fact {
+  position: absolute;
+  z-index: 5;
+  left: 10px;
+  right: 10px;
+  max-width: 560px;
+  margin: 0 auto;
+  bottom: calc(var(--safe-b) + var(--dock-h) + 18px);
+  padding: 0;
+  border-radius: var(--r-md);
+  text-align: left;
+  cursor: pointer;
+  animation: rise 600ms var(--spring);
+}
+.wait-fact .fact-card {
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  max-height: 7.5em;
+  overflow: hidden;
+}
