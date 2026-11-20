@@ -14,11 +14,13 @@ import { joinLink, Qr } from './Lobby';
 import { conn } from '../client/conn';
 import { ArtIcon, Icon } from './icons';
 import { eraIcon } from './era';
+import { useLite } from './lite';
 import { Sheet } from './Sheet';
 import { savedName, saveName } from './Home';
 
 export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePack; screen?: boolean }) {
   const [panel, setPanel] = useState<null | 'host' | 'claim'>(null);
+  const { lite } = useLite();
   const [claimName, setNameState] = useState(savedName());
   const pub = room.public!;
   const fx = useGameFx(pub, pack);
@@ -119,7 +121,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
       </aside>
 
       <div className="tv-modes glass">
-        {(['2d', '25d', '3d'] as const).map((m) => (
+        {!lite && (['2d', '25d', '3d'] as const).map((m) => (
           <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
             {MODE_LABEL[m]}
           </button>

@@ -67,7 +67,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const fx = useGameFx(pub, pack, me);
   const [mode, setMode] = useBoardMode();
   const [muted, setMuted] = useMuted();
-  const { pref: litePref, auto: liteAuto } = useLite();
+  const { pref: litePref, auto: liteAuto, lite: liteOn } = useLite();
   const [sheet, setSheet] = useState<SheetId>(null);
   const [build, setBuild] = useState<BuildMode | null>(null);
   const [selected, setSelected] = useState<string>();
@@ -287,6 +287,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         <button className="fab glass" onClick={() => setSheet('react')} aria-label="Реакции">
           <Icon name="smile" />
         </button>
+        {!liteOn && (
         <button
           className="fab glass"
           onClick={() => {
@@ -298,6 +299,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         >
           <small className="mode-l">{MODE_LABEL[mode]}</small>
         </button>
+        )}
       </nav>
 
       {(planPick || (targets && !selected)) && (

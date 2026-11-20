@@ -5,6 +5,7 @@ import { LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
 import { applyEra, eraCover, eraIcon } from './era';
 import { EraCarousel } from './EraCarousel';
+import { ArtIcon } from './icons';
 import { haptic, sfx } from '../fx';
 
 export const NAME_KEY = 'hh.name';
@@ -47,7 +48,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
       <div key={era} className="hero-bg" style={{ backgroundImage: `url(${eraCover(era)})` }} aria-hidden />
       <div className="center-col">
         <header className="brand">
-          <img key={pack.id} className="brand-mark" src={eraIcon(pack.id, 'emblem')} alt="" width={72} height={72} />
+          <ArtIcon key={pack.id} className="brand-mark" src={eraIcon(pack.id, 'emblem')} size={72} fallback={<span className="brand-mark" />} />
           <h1 className="display brand-title">HistoricalHex</h1>
           <p className="muted brand-sub">Стройся, торгуй и узнавай историю — каждая партия в своей эпохе</p>
         </header>

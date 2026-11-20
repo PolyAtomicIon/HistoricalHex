@@ -254,6 +254,7 @@ textarea {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  overflow: clip;
 }
 .stage {
   position: absolute;

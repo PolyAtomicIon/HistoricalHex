@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import type { LorePack } from '../lore';
 import { eraCover, eraIcon } from './era';
 import { haptic, sfx } from '../fx';
+import { ArtIcon } from './icons';
 
 export function EraCarousel({ packs, value, onChange }: { packs: LorePack[]; value: string; onChange: (id: string) => void }) {
   const track = useRef<HTMLDivElement>(null);
@@ -61,7 +62,7 @@ export function EraCarousel({ packs, value, onChange }: { packs: LorePack[]; val
           >
             <span className="era-cover" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden />
             <span className="era-body">
-              <img className="era-icon" src={eraIcon(p.id, 'emblem')} alt="" width={44} height={44} />
+              <ArtIcon className="era-icon" src={eraIcon(p.id, 'emblem')} size={44} fallback={<span className="era-icon" />} />
               <span className="era-text">
                 <b className="era-title">{p.title}</b>
                 <span className="era-years">{p.years}</span>
