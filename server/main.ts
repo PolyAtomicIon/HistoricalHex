@@ -1,0 +1,227 @@
+// Сервер HistoricalHex: WebSocket на /ws, комнаты в памяти + снимки на диске.
+//   PORT=8790 DATA_DIR=/var/lib/historicalhex node dist-server/server.mjs
+
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { join } from 'node:path';
+import { WebSocketServer, type WebSocket } from 'ws';
+import type { ClientMsg, ServerMsg } from '../src/proto';
+import { DEFAULT_SETTINGS } from '../src/proto';
+import { cryptoRng } from '../src/engine';
+import type { Client, SavedRoom } from './room';
+import { Room } from './room';
+
+const PORT = Number(process.env.PORT ?? 8790);
+const HOST = process.env.HOST ?? '127.0.0.1';
+const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), '.data');
+/** Комнату без подключений и изменений удаляем через это время. */
+const IDLE_MS = 1000 * 60 * 60 * 24 * 2;
+const MAX_ROOMS = 500;
+
+mkdirSync(DATA_DIR, { recursive: true });
+
+const rooms = new Map<string, Room>();
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function save(room: Room): void {
+  if (saveTimers.has(room.pin)) return;
+  saveTimers.set(
+    room.pin,
+    setTimeout(() => {
+      saveTimers.delete(room.pin);
+      if (room.isDisposed) return;
+      const file = join(DATA_DIR, `${room.pin}.json`);
+      try {
+        writeFileSync(file + '.tmp', JSON.stringify(room.toJSON()));
+        renameSync(file + '.tmp', file);
+      } catch (e) {
+        console.error('save failed', room.pin, e);
+      }
+    }, 300),
+  );
+}
+
+function drop(pin: string): void {
+  rooms.get(pin)?.dispose();
+  rooms.delete(pin);
+  rmSync(join(DATA_DIR, `${pin}.json`), { force: true });
+}
+
+// Восстановить комнаты после перезапуска
+for (const f of readdirSync(DATA_DIR)) {
+  if (!/^\d{6}\.json$/.test(f)) continue;
+  try {
+    const data = JSON.parse(readFileSync(join(DATA_DIR, f), 'utf8')) as SavedRoom;
+    if (Date.now() - data.touched > IDLE_MS) {
+      rmSync(join(DATA_DIR, f), { force: true });
+      continue;
+    }
+    rooms.set(data.pin, new Room(data, save));
+  } catch (e) {
+    console.error('load failed', f, e);
+  }
+}
+console.log(`loaded ${rooms.size} rooms from ${DATA_DIR}`);
+
+/** Публичный id игрока из секрета клиента: секрет никому не показываем. */
+const playerId = (secret: string) => 'p' + createHash('sha256').update('hh:' + secret).digest('base64url').slice(0, 12);
+
+function newPin(): string {
+  for (let i = 0; i < 50; i++) {
+    const pin = String(100000 + Math.floor(cryptoRng() * 900000));
+    if (!rooms.has(pin)) return pin;
+  }
+  throw new Error('Не удалось придумать PIN');
+}
+
+const http = createServer((req, res) => {
+  if (req.url?.endsWith('/health')) {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
+    return;
+  }
+  res.writeHead(404).end();
+});
+
+const wss = new WebSocketServer({ server: http, maxPayload: 64 * 1024 });
+
+wss.on('connection', (ws: WebSocket) => {
+  let me: string | undefined;
+  let room: Room | undefined;
+  let msgCount = 0;
+  const window = setInterval(() => (msgCount = 0), 10_000);
+
+  const send = (msg: ServerMsg) => {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+  };
+  const client: Client = {
+    get me() {
+      return me!;
+    },
+    send,
+  };
+
+  const enter = (r: Room) => {
+    if (room === r) return;
+    room?.detach(client);
+    room = r;
+    r.attach(client);
+  };
+
+  const handle = async (msg: ClientMsg) => {
+    if (msg.t === 'ping') return send({ t: 'pong', now: Date.now() });
+    if (msg.t === 'hello') {
+      if (typeof msg.secret !== 'string' || msg.secret.length < 16 || msg.secret.length > 128) {
+        throw new Error('Плохой ключ клиента');
+      }
+      me = playerId(msg.secret);
+      return send({ t: 'welcome', me });
+    }
+    if (!me) throw new Error('Сначала hello');
+
+    switch (msg.t) {
+      case 'create': {
+        if (rooms.size >= MAX_ROOMS) throw new Error('Сервер переполнен, попробуй позже');
+        const pin = newPin();
+        const r = new Room(
+          {
+            pin,
+            hostId: me,
+            created: Date.now(),
+            touched: Date.now(),
+            status: 'lobby',
+            settings: { ...DEFAULT_SETTINGS },
+            seats: [],
+            kicked: [],
+          },
+          save,
+        );
+        if (msg.settings) r.updateSettings(me, msg.settings);
+        rooms.set(pin, r);
+        save(r);
+        send({ t: 'created', pin });
+        return enter(r);
+      }
+      case 'open': {
+        const r = rooms.get(String(msg.pin).replace(/\D/g, ''));
+        if (!r) throw Object.assign(new Error('Игра с таким PIN не найдена'), { fatal: true });
+        return enter(r);
+      }
+      case 'join': {
+        const r = rooms.get(String(msg.pin).replace(/\D/g, ''));
+        if (!r) throw Object.assign(new Error('Игра с таким PIN не найдена'), { fatal: true });
+        r.join(me, String(msg.name ?? ''));
+        return enter(r);
+      }
+    }
+
+    if (!room) throw new Error('Сначала открой комнату');
+    const r = room;
+    switch (msg.t) {
+      case 'color':
+        return r.setColor(me, msg.color);
+      case 'leaveLobby':
+        return r.leaveLobby(me);
+      case 'settings':
+        return r.updateSettings(me, msg.settings ?? {});
+      case 'addBot':
+        return r.addBot(me, msg.level);
+      case 'kick':
+        return r.kick(me, msg.player, msg.level);
+      case 'start':
+        return r.start(me);
+      case 'act': {
+        const res = await r.act(me, msg.action, msg.dice);
+        return send({ t: 'result', id: msg.id, ok: res.ok, ...(res.ok ? {} : { error: res.error }) });
+      }
+      case 'host': {
+        const res = await r.hostAction(me, msg.action);
+        return send({ t: 'result', id: msg.id, ok: res.ok, ...(res.ok ? {} : { error: res.error }) });
+      }
+      case 'react':
+        return r.react(me, msg.emoji);
+      case 'close':
+        r.close(me);
+        return drop(r.pin);
+    }
+  };
+
+  ws.on('message', (raw) => {
+    if (++msgCount > 200) return send({ t: 'error', message: 'Слишком много сообщений' });
+    let msg: ClientMsg;
+    try {
+      msg = JSON.parse(String(raw));
+    } catch {
+      return send({ t: 'error', message: 'Непонятное сообщение' });
+    }
+    handle(msg).catch((e: unknown) => {
+      const message = e instanceof Error ? e.message : String(e);
+      const fatal = !!(e as { fatal?: boolean })?.fatal;
+      const id = (msg as { id?: string }).id;
+      if (id && (msg.t === 'act' || msg.t === 'host')) send({ t: 'result', id, ok: false, error: message });
+      else send({ t: 'error', message, ...(fatal ? { fatal } : {}) });
+    });
+  });
+
+  ws.on('close', () => {
+    clearInterval(window);
+    room?.detach(client);
+  });
+});
+
+// Таймеры: замена отвалившихся ботами и уборка старых комнат
+setInterval(() => {
+  const now = Date.now();
+  for (const r of rooms.values()) {
+    r.tick();
+    if (r.clientCount === 0 && now - r.touched > IDLE_MS) drop(r.pin);
+  }
+}, 2000);
+
+// Пинг, чтобы прокси не закрывал тихие соединения
+setInterval(() => {
+  for (const ws of wss.clients) if (ws.readyState === ws.OPEN) ws.ping();
+}, 25_000);
+
+http.listen(PORT, HOST, () => console.log(`historicalhex server on ${HOST}:${PORT}`));

@@ -8,3 +8,5 @@ dist/
 
 # Исходники арта из ChatGPT (коллажи); нарезанные файлы — в src/assets/art
 картинки/
+dist-server
+.data
