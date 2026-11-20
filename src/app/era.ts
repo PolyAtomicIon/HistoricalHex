@@ -41,3 +41,6 @@ export function useEra(id: string | undefined): LorePack {
   useEffect(() => applyEra(pack), [pack]);
   return pack;
 }
+
+/** Обложка эпохи (сгенерирована через Codex, лежит в public/eras). */
+export const eraCover = (id: string) => `${import.meta.env.BASE_URL}eras/${id}.webp`;

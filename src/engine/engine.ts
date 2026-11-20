@@ -50,8 +50,9 @@ type Ctx = { s: GameState; actor: PlayerId; rng: Rng; events: GameEvent[] };
 export function applyAction(state: GameState, actor: PlayerId, action: Action, rng: Rng): ActionResult {
   return run(state, (s, events) => {
     if (s.phase === 'finished') fail('Игра уже закончилась');
-    if (!s.players[actor]) fail('Ты не участник этой игры');
-    const handler = HANDLERS[action?.type as Action['type']];
+    if (!Object.hasOwn(s.players, actor)) fail('Ты не участник этой игры');
+    const type = action?.type as Action['type'];
+    const handler = typeof type === 'string' && Object.hasOwn(HANDLERS, type) ? HANDLERS[type] : undefined;
     if (!handler) fail('Неизвестное действие');
     handler({ s, actor, rng, events }, action as never);
   });
@@ -412,6 +413,8 @@ const HANDLERS: Handlers = {
   endTurn(c) {
     requireTurn(c);
     requirePhase(c, 'main');
+    // Незакрытое предложение обмена сгорает с концом хода — сообщаем всем
+    if (c.s.trade) c.events.push({ type: 'tradeCancelled', player: c.actor });
     passTurn(c.s, c.events);
   },
 };
@@ -497,6 +500,7 @@ function moveRobberAndSteal(
   if (hex === s.robberHex) fail('Разбойника нужно переставить на другой гекс');
   // Если ограбить можно только одного — грабим его автоматически (victim не нужен).
   const candidates = stealCandidates(s, hex, pid);
+  if (victim !== undefined && !candidates.includes(victim)) fail('У этого игрока здесь нельзя украсть');
   let target: PlayerId | undefined;
   if (candidates.length === 1) target = candidates[0];
   if (candidates.length > 1) {

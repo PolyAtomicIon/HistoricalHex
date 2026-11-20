@@ -18,6 +18,8 @@ const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), '.data');
 /** Комнату без подключений и изменений удаляем через это время. */
 const IDLE_MS = 1000 * 60 * 60 * 24 * 2;
 const MAX_ROOMS = 500;
+/** Пустое лобби без подключений живёт час. */
+const LOBBY_IDLE_MS = 1000 * 60 * 60;
 
 mkdirSync(DATA_DIR, { recursive: true });
 
@@ -86,8 +88,18 @@ const http = createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: http, maxPayload: 64 * 1024 });
 
+wss.on('error', (e) => console.error('wss error', e));
+
+const alive = new WeakMap<WebSocket, boolean>();
+/** Сколько комнат создало соединение (защита от спама комнатами). */
+const CREATE_LIMIT = 5;
+
 wss.on('connection', (ws: WebSocket) => {
   let me: string | undefined;
+  let created = 0;
+  alive.set(ws, true);
+  ws.on('pong', () => alive.set(ws, true));
+  ws.on('error', () => ws.terminate());
   let room: Room | undefined;
   let msgCount = 0;
   const window = setInterval(() => (msgCount = 0), 10_000);
@@ -122,6 +134,7 @@ wss.on('connection', (ws: WebSocket) => {
 
     switch (msg.t) {
       case 'create': {
+        if (++created > CREATE_LIMIT) throw new Error('Слишком много новых комнат — подожди');
         if (rooms.size >= MAX_ROOMS) throw new Error('Сервер переполнен, попробуй позже');
         const pin = newPin();
         const r = new Room(
@@ -188,18 +201,25 @@ wss.on('connection', (ws: WebSocket) => {
   };
 
   ws.on('message', (raw) => {
-    if (++msgCount > 200) return send({ t: 'error', message: 'Слишком много сообщений' });
     let msg: ClientMsg;
     try {
       msg = JSON.parse(String(raw));
     } catch {
       return send({ t: 'error', message: 'Непонятное сообщение' });
     }
+    if (!msg || typeof msg !== 'object' || typeof (msg as { t?: unknown }).t !== 'string') {
+      return send({ t: 'error', message: 'Непонятное сообщение' });
+    }
+    if (++msgCount > 200) {
+      const id = (msg as { id?: unknown }).id;
+      if (typeof id === 'string') return send({ t: 'result', id, ok: false, error: 'Слишком много действий — подожди' });
+      return send({ t: 'error', message: 'Слишком много сообщений' });
+    }
     handle(msg).catch((e: unknown) => {
       const message = e instanceof Error ? e.message : String(e);
       const fatal = !!(e as { fatal?: boolean })?.fatal;
-      const id = (msg as { id?: string }).id;
-      if (id && (msg.t === 'act' || msg.t === 'host')) send({ t: 'result', id, ok: false, error: message });
+      const id = (msg as { id?: unknown })?.id;
+      if (typeof id === 'string' && (msg.t === 'act' || msg.t === 'host')) send({ t: 'result', id, ok: false, error: message });
       else send({ t: 'error', message, ...(fatal ? { fatal } : {}) });
     });
   });
@@ -215,13 +235,25 @@ setInterval(() => {
   const now = Date.now();
   for (const r of rooms.values()) {
     r.tick();
-    if (r.clientCount === 0 && now - r.touched > IDLE_MS) drop(r.pin);
+    const idle = now - r.touched;
+    if (r.clientCount === 0 && (idle > IDLE_MS || (r.status === 'lobby' && idle > LOBBY_IDLE_MS))) drop(r.pin);
   }
 }, 2000);
 
-// Пинг, чтобы прокси не закрывал тихие соединения
+// Пинг: держит соединение через прокси и закрывает «мёртвые» (телефон уснул, пропала сеть),
+// чтобы игрок считался отключённым и его вовремя заменил бот.
 setInterval(() => {
-  for (const ws of wss.clients) if (ws.readyState === ws.OPEN) ws.ping();
-}, 25_000);
+  for (const ws of wss.clients) {
+    if (alive.get(ws) === false) {
+      ws.terminate();
+      continue;
+    }
+    alive.set(ws, false);
+    if (ws.readyState === ws.OPEN) ws.ping();
+  }
+}, 15_000);
+
+process.on('unhandledRejection', (e) => console.error('unhandledRejection', e));
+process.on('uncaughtException', (e) => console.error('uncaughtException', e));
 
 http.listen(PORT, HOST, () => console.log(`historicalhex server on ${HOST}:${PORT}`));

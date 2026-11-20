@@ -662,3 +662,105 @@
   max-width: calc(100vw - 32px);
   text-align: center;
 }
+.tv-actions {
+  position: absolute;
+  z-index: 7;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .tv-actions {
+    left: 16px;
+    right: 16px;
+    bottom: calc(var(--safe-b) + 70px);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* обложка эпохи на фоне главной и лобби */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 30%;
+  animation: hero-in 900ms var(--ease-out);
+}
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(7, 19, 29, 0.35) 0%, rgba(7, 19, 29, 0.55) 40%, rgba(7, 19, 29, 0.92) 100%),
+    radial-gradient(120% 80% at 50% 0%, transparent, rgba(7, 19, 29, 0.6));
+}
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+.era {
+  overflow: hidden;
+  isolation: isolate;
+}
+.era-thumb {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.28;
+  transition: opacity 300ms;
+  z-index: -1;
+  border-radius: inherit;
+}
+.era.on .era-thumb {
+  opacity: 0.5;
+}
+.era > *:not(.era-thumb) {
+  position: relative;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+@media (max-width: 700px) {
+  .tv .tv-left {
+    top: calc(var(--safe-t) + 10px);
+    left: 10px;
+    right: 10px;
+    bottom: auto;
+    width: auto;
+    gap: 8px;
+  }
+  .tv-era {
+    padding: 8px 12px;
+  }
+  .tv-players {
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tv-player {
+    flex: none;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .tv-player .faint.small {
+    display: none;
+  }
+  .tv-player .t {
+    font-size: 14px;
+  }
+  .tv-vp {
+    font-size: 20px;
+  }
+  .tv-player.turn {
+    transform: scale(1.03);
+  }
+  .narration.tv {
+    top: auto;
+    bottom: calc(var(--safe-b) + 140px);
+    font-size: 15px;
+    max-width: calc(100vw - 32px);
+  }
+}

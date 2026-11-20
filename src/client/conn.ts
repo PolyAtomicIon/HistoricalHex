@@ -25,7 +25,7 @@ function safeSet(key: string, value: string | null): void {
 
 function secret(): string {
   // ?test=имя — отдельный игрок в каждой вкладке (для проверки в одном браузере)
-  const test = new URLSearchParams(location.search).get('test');
+  const test = import.meta.env.DEV ? new URLSearchParams(location.search).get('test') : null;
   if (test) return `test-${test}-0123456789abcdef`;
   let s = safeGet(SECRET_KEY);
   if (!s) {
@@ -150,9 +150,16 @@ class Connection {
     for (const s of this.subs) s();
   }
 
-  send(m: ClientMsg): void {
-    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m));
-    else this.outbox.push(m);
+  send(m: ClientMsg): boolean {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(m));
+      return true;
+    }
+    // Ходы и создание комнаты без связи не копим: иначе после переподключения
+    // выполнится то, что игрок уже считал неудачным
+    if (m.t === 'act' || m.t === 'host' || m.t === 'create') return false;
+    this.outbox.push(m);
+    return true;
   }
 
   // ─── API для экранов ───
@@ -177,7 +184,7 @@ class Connection {
   }
 
   create(settings?: Partial<RoomSettings>): void {
-    this.send({ t: 'create', settings });
+    if (!this.send({ t: 'create', settings })) this.notify('Нет связи с сервером');
   }
   open(pin: string): void {
     this.patch({ fatal: undefined });
@@ -187,7 +194,6 @@ class Connection {
   join(pin: string, name: string): void {
     this.patch({ fatal: undefined });
     this.send({ t: 'join', pin, name });
-    this.resume = { t: 'open', pin };
   }
   /** Уйти из комнаты на главную (в партии место остаётся за ботом). */
   forget(): void {
@@ -201,15 +207,18 @@ class Connection {
   act(action: Action, dice?: [number, number]): Promise<{ ok: boolean; error?: string }> {
     const id = `a${++this.seq}`;
     return new Promise((done) => {
+      if (!this.send({ t: 'act', id, action, ...(dice ? { dice } : {}) })) {
+        this.notify('Нет связи — попробуй ещё раз');
+        return done({ ok: false, error: 'Нет связи' });
+      }
       this.pending.set(id, done);
-      this.send({ t: 'act', id, action, ...(dice ? { dice } : {}) });
     });
   }
   host(action: HostAction): Promise<{ ok: boolean; error?: string }> {
     const id = `h${++this.seq}`;
     return new Promise((done) => {
+      if (!this.send({ t: 'host', id, action })) return done({ ok: false, error: 'Нет связи' });
       this.pending.set(id, done);
-      this.send({ t: 'host', id, action });
     });
   }
 }

@@ -10,7 +10,7 @@ import { LORE_PACKS } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { haptic, sfx } from '../fx';
 import { savedName, saveName } from './Home';
-import { useEra } from './era';
+import { eraCover, useEra } from './era';
 
 const DICE: { id: DiceMode; label: string; hint: string }[] = [
   { id: 'randomOrg', label: 'random.org', hint: 'Настоящий случай из атмосферного шума' },
@@ -44,6 +44,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
   return (
     <main className="screen lobby">
       <div className="ambient" aria-hidden />
+      <div key={pack.id} className="hero-bg" style={{ backgroundImage: `url(${eraCover(pack.id)})` }} aria-hidden />
       <div className="center-col">
         <header className="lobby-head">
           <div className="era-badge glass">

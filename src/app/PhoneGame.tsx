@@ -83,7 +83,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     return () => ro.disconnect();
   }, []);
 
+  const planRef = useRef(plan);
   const setPlan = (p: PlanStep[]) => {
+    planRef.current = p;
     setPlanState(p);
     savePlan(room.pin, me, p);
   };
@@ -188,6 +190,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const tap = (id: string) => {
     sfx.play('tick');
     if (planPick) {
+      if (!planTargets?.ids.includes(id)) return;
       const step: PlanStep =
         planPick === 'road' ? { id: newStepId(), kind: 'road', at: id } : { id: newStepId(), kind: planPick, at: id };
       setPlan([...plan, step]);
@@ -204,7 +207,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       if (c.status !== 'ready') break;
       const ok = await send(stepAction(c.step));
       if (!ok) break;
-      setPlan((loadPlan(room.pin, me) as PlanStep[]).filter((s) => s.id !== c.step.id));
+      setPlan(planRef.current.filter((s) => s.id !== c.step.id));
       if (c.step.kind === 'offer') break; // ждём ответов
       await new Promise((r) => setTimeout(r, 350));
     }
@@ -266,7 +269,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       <div className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
         {myTurn ? '🫵 ' : ''}
         {status}
-        {deadline && <Countdown until={deadline - (room.serverNow - Date.now())} />}
+        {deadline && <Countdown until={deadline - conn.getState().clockSkew} />}
       </div>
 
       <nav className="fab-col">

@@ -150,7 +150,15 @@ export class Room {
       if (clean && this.status === 'lobby') this.seats.get(me)!.name = clean;
       return this.changed();
     }
-    if (this.status !== 'lobby') throw new Error('Игра уже идёт — войти можно только тем, кто в ней участвует');
+    if (this.status !== 'lobby') {
+      // Новый телефон/браузер: занять своё место по имени, если старое устройство не в сети
+      const seat = [...this.seats.values()].find((x) => !x.bot && x.name.toLowerCase() === clean.toLowerCase());
+      if (seat && !this.kicked.has(seat.id) && !this.isOnline(seat.id)) {
+        this.rebind(seat.id, me);
+        return this.changed();
+      }
+      throw new Error('Игра уже идёт — войти можно под своим именем из этой партии');
+    }
     if (!clean) throw new Error('Напиши имя');
     if (this.seats.size >= MAX_PLAYERS) throw new Error(`За столом уже ${MAX_PLAYERS} игроков`);
     if ([...this.seats.values()].some((s) => s.name.toLowerCase() === clean.toLowerCase())) {
@@ -159,6 +167,26 @@ export class Room {
     const color = PLAYER_COLORS.find((c) => ![...this.seats.values()].some((s) => s.color === c));
     this.seats.set(me, { id: me, name: clean, color, joinedAt: Date.now() });
     this.changed();
+  }
+
+  /** Перенести место игрока на новый id (вход с другого устройства). */
+  private rebind(oldId: PlayerId, newId: PlayerId): void {
+    const seat = this.seats.get(oldId)!;
+    this.seats.delete(oldId);
+    this.seats.set(newId, { ...seat, id: newId });
+    if (this.hostId === oldId) this.hostId = newId;
+    if (this.state) {
+      // id — случайные строки, в состоянии они встречаются только как id игрока
+      this.state = normalizeState(JSON.parse(JSON.stringify(this.state).split(JSON.stringify(oldId)).join(JSON.stringify(newId))));
+    }
+    for (const m of [this.offlineSince, this.waitingSince]) {
+      if (m.has(oldId)) {
+        m.set(newId, m.get(oldId)!);
+        m.delete(oldId);
+      }
+    }
+    this.offlineSince.delete(newId);
+    delete this.botMemory[oldId];
   }
 
   setColor(me: PlayerId, color: PlayerColor): void {
@@ -246,9 +274,14 @@ export class Room {
       const state = this.state;
       if (!state) return { ok: false, error: 'Игра ещё не началась' };
       if (this.kicked.has(me)) return { ok: false, error: 'Ведущий убрал тебя из игры' };
-      if (!state.players[me]) return { ok: false, error: 'Ты не участвуешь в этой партии' };
+      if (!Object.hasOwn(state.players, me)) return { ok: false, error: 'Ты не участвуешь в этой партии' };
+      if (!action || typeof action !== 'object' || typeof action.type !== 'string') return { ok: false, error: 'Непонятное действие' };
       if (state.players[me].bot && action.type !== 'returnFromBot') {
         return { ok: false, error: 'За тебя сейчас играет бот — нажми «Вернуться в игру»' };
+      }
+      if (action?.type === 'rollDice') {
+        if (state.order[state.current] !== me) return { ok: false, error: 'Сейчас не твой ход' };
+        if (state.phase !== 'roll') return { ok: false, error: 'Кубики уже брошены' };
       }
       let rng: Rng;
       try {
@@ -300,6 +333,8 @@ export class Room {
   private applyHost(action: HostAction): ActionResult {
     const state = this.state;
     if (!state) return { ok: false, error: 'Игра ещё не началась' };
+    if (!action || typeof action !== 'object' || typeof action.type !== 'string') return { ok: false, error: 'Непонятное действие' };
+    if ('player' in action && !Object.hasOwn(state.players, action.player)) return { ok: false, error: 'Нет такого игрока' };
     const res = applyHostAction(state, action, cryptoRng);
     if (res.ok) {
       if (action.type === 'handToBot' || action.type === 'kick') delete this.botMemory[action.player];
@@ -352,8 +387,8 @@ export class Room {
     const next = new Map<PlayerId, number>();
     for (const pid of waitingOn(state)) next.set(pid, this.waitingSince.get(pid) ?? now);
     this.waitingSince = next;
-    this.sendEvents(events);
     this.changed();
+    this.sendEvents(events);
     this.scheduleBots();
   }
 
@@ -408,7 +443,7 @@ export class Room {
       void this.enqueue(() => {
         if (this.state?.players[pid]?.bot) return;
         this.applyHost({ type: 'handToBot', player: pid, level: OFFLINE_BOT_LEVEL, auto: true });
-      });
+      }).catch((e) => console.error('takeover failed', this.pin, e));
     }
   }
 
@@ -431,7 +466,7 @@ export class Room {
       isHost: me === this.hostId,
       ...(this.kicked.has(me) ? { kicked: true } : {}),
       ...(state ? { public: toPublicView(state) } : {}),
-      ...(state && state.players[me] ? { private: toPrivateView(state, me) } : {}),
+      ...(state && Object.hasOwn(state.players, me) && !this.kicked.has(me) ? { private: toPrivateView(state, me) } : {}),
       deadlines: this.deadlines(),
       online,
       diceSource: this.diceSource,
@@ -458,7 +493,14 @@ export class Room {
     this.botTimer = setTimeout(
       () => {
         this.botTimer = undefined;
-        void this.enqueue(() => this.runBots());
+        void this.enqueue(() => {
+          try {
+            this.runBots();
+          } catch (e) {
+            console.error('bot failed', this.pin, e);
+            this.scheduleBots(3000);
+          }
+        }).catch((e) => console.error('bot queue failed', this.pin, e));
       },
       delay ?? (isTurn ? BOT_DELAY_MS : BOT_REPLY_MS),
     );

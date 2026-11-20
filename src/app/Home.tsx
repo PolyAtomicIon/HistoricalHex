@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
-import { applyEra } from './era';
+import { applyEra, eraCover } from './era';
 import { haptic, sfx } from '../fx';
 
 export const NAME_KEY = 'hh.name';
@@ -28,6 +28,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
   const [pin, setPin] = useState(initialPin ?? '');
   const [name, setName] = useState(savedName());
   const [mode, setMode] = useState<'home' | 'join'>(initialPin ? 'join' : 'home');
+  const [creating, setCreating] = useState(false);
   const pack = LORE_PACKS.find((p) => p.id === era)!;
   applyEra(pack);
 
@@ -42,6 +43,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
   return (
     <main className="screen home">
       <div className="ambient" aria-hidden />
+      <div key={era} className="hero-bg" style={{ backgroundImage: `url(${eraCover(era)})` }} aria-hidden />
       <div className="center-col">
         <header className="brand">
           <div className="brand-mark" aria-hidden>
@@ -66,6 +68,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
                   }}
                   aria-pressed={p.id === era}
                 >
+                  <span className="era-thumb" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden />
                   <span className="era-emblem">{p.emblem}</span>
                   <b>{p.title}</b>
                   <small className="muted">{p.years}</small>
@@ -76,9 +79,11 @@ export function Home({ initialPin }: { initialPin?: string }) {
             <div className="panel glass stack">
               <button
                 className="btn primary big wide"
-                disabled={status !== 'online'}
+                disabled={status !== 'online' || creating}
                 onClick={() => {
                   sfx.play('pop');
+                  setCreating(true);
+                  setTimeout(() => setCreating(false), 4000);
                   conn.create({ lore: era });
                 }}
               >

@@ -163,7 +163,8 @@ const key = (pin: string, me: string) => `hh.plan.${pin}.${me}`;
 
 export function loadPlan(pin: string, me: string): PlanStep[] {
   try {
-    return JSON.parse(localStorage.getItem(key(pin, me)) ?? '[]') as PlanStep[];
+    const v = JSON.parse(localStorage.getItem(key(pin, me)) ?? '[]') as unknown;
+    return Array.isArray(v) ? (v.filter((x) => x && typeof x === 'object' && typeof x.kind === 'string') as PlanStep[]) : [];
   } catch {
     return [];
   }

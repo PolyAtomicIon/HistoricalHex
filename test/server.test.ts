@@ -98,16 +98,63 @@ describe('server', () => {
     c.send({ t: 'act', id: 'h', action: { type: 'handToBot', level: 'easy' } });
     await c.until(() => c.room!.public!.phase !== 'setup');
     c.send({ t: 'act', id: 'r', action: { type: 'returnFromBot' } });
+    await c.until(() => c.msgs.some((m) => m.t === 'result' && m.id === 'r'));
+    // Вернулись посреди своего хода — заканчиваем его и ждём следующий с фазой броска
+    let ended = 0;
     await c.until(() => {
       const p = c.room!.public!;
-      return p.order[p.current] === c.room!.me && p.phase === 'roll';
+      const mine = p.order[p.current] === c.room!.me;
+      if (mine && p.phase === 'main' && ended < p.turn) {
+        ended = p.turn;
+        c.send({ t: 'act', id: `end${p.turn}`, action: { type: 'endTurn' } });
+      }
+      return mine && p.phase === 'roll';
     }, 30_000);
     c.send({ t: 'act', id: 'bad', action: { type: 'rollDice' }, dice: [7, 1] });
     c.send({ t: 'act', id: 'good', action: { type: 'rollDice' }, dice: [4, 3] });
     await c.until(() => c.msgs.some((m) => m.t === 'result' && m.id === 'good'));
     expect(c.msgs.find((m) => m.t === 'result' && m.id === 'bad')).toMatchObject({ ok: false });
-    expect(c.msgs.find((m) => m.t === 'result' && m.id === 'good')).toMatchObject({ ok: true });
+    const good = c.msgs.find((m) => m.t === 'result' && m.id === 'good');
+    expect(good, JSON.stringify(good)).toMatchObject({ ok: true });
     expect(c.room!.public!.dice).toEqual([4, 3]);
     c.ws.close();
   }, 60_000);
+
+  it('lets a player reclaim their seat from a new device by name', async () => {
+    const a = new TestClient();
+    await a.ready();
+    a.send({ t: 'hello', secret: 'old-phone-0123456789' });
+    a.send({ t: 'create', settings: { dice: 'random' } });
+    await a.until(() => !!a.room);
+    const pin = a.room!.pin;
+    a.send({ t: 'join', pin, name: 'Айгерим' });
+    a.send({ t: 'addBot', level: 'easy' });
+    a.send({ t: 'addBot', level: 'easy' });
+    await a.until(() => a.room!.lobby.length === 3);
+    a.send({ t: 'start' });
+    await a.until(() => a.room?.status === 'playing');
+    const oldId = a.room!.me;
+    a.ws.close();
+    await new Promise((r) => setTimeout(r, 200));
+
+    const b = new TestClient();
+    await b.ready();
+    b.send({ t: 'hello', secret: 'new-phone-0123456789' });
+    b.send({ t: 'join', pin, name: 'айгерим' });
+    await b.until(() => !!b.room?.private);
+    expect(b.room!.seated).toBe(true);
+    expect(b.room!.isHost).toBe(true);
+    expect(b.room!.public!.order).toContain(b.room!.me);
+    expect(b.room!.public!.order).not.toContain(oldId);
+
+    // Чужое имя не подходит
+    const c = new TestClient();
+    await c.ready();
+    c.send({ t: 'hello', secret: 'stranger-0123456789' });
+    c.send({ t: 'join', pin, name: 'Незнакомец' });
+    await c.until(() => c.msgs.some((m) => m.t === 'error'));
+    expect(c.room).toBeUndefined();
+    b.ws.close();
+    c.ws.close();
+  }, 30_000);
 });

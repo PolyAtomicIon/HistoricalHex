@@ -11,8 +11,13 @@ import { GameBoard, MODE_LABEL, useBoardMode } from './GameBoard';
 import { useGameFx } from './useGameFx';
 import { Fact, useRotatingFact } from './Facts';
 import { joinLink, Qr } from './Lobby';
+import { conn } from '../client/conn';
+import { Sheet } from './Sheet';
+import { savedName, saveName } from './Home';
 
-export function Tv({ room, pack }: { room: RoomView; pack: LorePack }) {
+export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePack; screen?: boolean }) {
+  const [panel, setPanel] = useState<null | 'host' | 'claim'>(null);
+  const [claimName, setNameState] = useState(savedName());
   const pub = room.public!;
   const fx = useGameFx(pub, pack);
   const [mode, setMode] = useBoardMode('3d');
@@ -124,6 +129,63 @@ export function Tv({ room, pack }: { room: RoomView; pack: LorePack }) {
           {muted ? '🔇' : '🔊'}
         </button>
       </div>
+
+      <div className="tv-actions">
+        {room.isHost && (
+          <button className="btn glass" onClick={() => setPanel('host')}>
+            👑 Ведущий
+          </button>
+        )}
+        {!screen && !room.seated && pub.phase !== 'finished' && (
+          <button className="btn primary" onClick={() => setPanel('claim')}>
+            Я играю в этой партии
+          </button>
+        )}
+        {!screen && (
+          <button className="btn glass" onClick={() => conn.forget()}>
+            На главную
+          </button>
+        )}
+      </div>
+
+      <Sheet open={panel === 'host'} onClose={() => setPanel(null)} title="Ведущий">
+        <div className="stack">
+          {pub.phase !== 'finished' && (
+            <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
+              ⏭ Пропустить ход: {pub.players[current].name}
+            </button>
+          )}
+          {pub.order
+            .filter((id) => !pub.players[id].kicked && !pub.players[id].bot)
+            .map((id) => (
+              <button key={id} className="btn danger wide" onClick={() => conn.send({ t: 'kick', player: id, level: 'medium' })}>
+                🚫 Заменить ботом: {pub.players[id].name}
+              </button>
+            ))}
+          <button className="btn ghost wide" onClick={() => conn.send({ t: 'close' })}>
+            Закрыть комнату
+          </button>
+        </div>
+      </Sheet>
+
+      <Sheet open={panel === 'claim'} onClose={() => setPanel(null)} title="Вернуться на своё место" description="Новый телефон или браузер? Введи имя, под которым играешь в этой партии.">
+        <form
+          className="stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!claimName.trim()) return;
+            saveName(claimName.trim());
+            conn.join(room.pin, claimName.trim());
+            setPanel(null);
+          }}
+        >
+          <input className="field" value={claimName} maxLength={20} onChange={(e) => setNameState(e.target.value)} placeholder="Имя" />
+          <button className="btn primary wide" disabled={!claimName.trim()}>
+            Занять место
+          </button>
+          <p className="faint small">Сработает, если старое устройство сейчас не в сети.</p>
+        </form>
+      </Sheet>
 
       {narr && (
         <div key={narr.key} className="narration tv glass" style={{ ['--pc' as string]: narr.color ?? 'var(--accent)' }}>
