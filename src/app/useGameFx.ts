@@ -8,7 +8,8 @@ import { narrate } from '../lore';
 import { conn } from '../client/conn';
 import type { CinematicEvent, DiceRoll, Gain, ReactionItem } from '../fx';
 import { haptic, rollDurationMs, sfx } from '../fx';
-import { RESOURCE_ICON, PLAYER_HEX } from '../ui/theme';
+import { PLAYER_HEX } from '../ui/theme';
+import { eraIcon } from './era';
 import { RESOURCE_NAME } from '../i18n/ru';
 
 export interface Narration {
@@ -75,7 +76,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             }));
             if (e.total === 7) {
               setTimeout(() => {
-                cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '🌪️' });
+                cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber') });
                 setFx((f) => ({ ...f, shake: f.shake + 1 }));
               }, rollDurationMs);
             }
@@ -86,7 +87,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             setTimeout(() => setFx((f) => ({ ...f, flash: { hexes, key: k.current++ } })), delay);
             if (me && e.gains?.[me]) {
               const g = e.gains[me];
-              const list: Gain[] = RESOURCES.filter((r) => (g[r] ?? 0) > 0).map((r) => ({ res: r, emoji: RESOURCE_ICON[r], count: g[r]! }));
+              const list: Gain[] = RESOURCES.filter((r) => (g[r] ?? 0) > 0).map((r) => ({ res: RESOURCE_NAME[r], emoji: '', count: g[r]!, img: eraIcon(packRef.current.id, `res-${r}`) }));
               setTimeout(() => {
                 setFx((f) => ({ ...f, gains: { list, key: k.current++ } }));
                 haptic('success');
@@ -107,7 +108,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             }));
             sfx.play('pop');
             if (e.kind === 'city') {
-              cine({ kind: 'built-city', title: `${p.pieces.city}!`, subtitle: narrate(p, 'city', { player: name(e.player) }), emoji: '🏰', color: color(e.player) });
+              cine({ kind: 'built-city', title: `${p.pieces.city}!`, subtitle: narrate(p, 'city', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'emblem'), color: color(e.player) });
             } else if (tv) say(narrate(p, e.kind === 'road' ? 'road' : 'settlement', { player: name(e.player) }), e.player);
             break;
           }
@@ -120,16 +121,16 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             if (me === e.victim) haptic('error');
             say(
               narrate(p, 'stole', { player: name(e.thief), victim: name(e.victim) }) +
-                (e.resource && (me === e.thief || me === e.victim) ? ` (${RESOURCE_ICON[e.resource as Resource]} ${RESOURCE_NAME[e.resource as Resource]})` : ''),
+                (e.resource && (me === e.thief || me === e.victim) ? ` (${RESOURCE_NAME[e.resource as Resource]})` : ''),
               e.thief,
             );
             break;
           case 'devCardPlayed': {
             const card = p.devCards[e.card];
             if (e.card === 'knight') {
-              cine({ kind: 'knight', title: card.name, subtitle: narrate(p, 'knight', { player: name(e.player) }), emoji: '⚔️', color: color(e.player) });
+              cine({ kind: 'knight', title: card.name, subtitle: narrate(p, 'knight', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
             } else if (e.card === 'roadBuilding') {
-              cine({ kind: 'roadBuilding', title: card.name, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '🛤️', color: color(e.player) });
+              cine({ kind: 'roadBuilding', title: card.name, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
             }
             break;
           }
@@ -138,7 +139,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
               kind: 'monopoly',
               title: p.devCards.monopoly.name,
               subtitle: narrate(p, 'monopoly', { player: name(e.player), res: RESOURCE_NAME[e.resource], count: e.total }),
-              emoji: RESOURCE_ICON[e.resource],
+              emoji: '', img: eraIcon(p.id, `res-${e.resource}`), rain: eraIcon(p.id, 'dev-monopoly'),
               color: color(e.player),
             });
             if (me && me !== e.player) haptic('error');
@@ -148,16 +149,16 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
               kind: 'yearOfPlenty',
               title: p.devCards.yearOfPlenty.name,
               subtitle: narrate(p, 'yearOfPlenty', { player: name(e.player) }),
-              emoji: (e.resources ?? []).map((r) => RESOURCE_ICON[r]).join(''),
+              emoji: '', img: eraIcon(p.id, 'dev-yearOfPlenty'), rain: eraIcon(p.id, `res-${(e.resources ?? ['wheat'])[0]}`),
               color: color(e.player),
             });
             break;
           case 'longestRoad':
             if (e.player)
-              cine({ kind: 'longestRoad', title: p.bonuses.longestRoad, subtitle: narrate(p, 'longestRoad', { player: name(e.player), n: e.length }), emoji: '🛣️', color: color(e.player) });
+              cine({ kind: 'longestRoad', title: p.bonuses.longestRoad, subtitle: narrate(p, 'longestRoad', { player: name(e.player), n: e.length }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
             break;
           case 'largestArmy':
-            cine({ kind: 'largestArmy', title: p.bonuses.largestArmy, subtitle: narrate(p, 'largestArmy', { player: name(e.player), n: e.knights }), emoji: '🛡️', color: color(e.player) });
+            cine({ kind: 'largestArmy', title: p.bonuses.largestArmy, subtitle: narrate(p, 'largestArmy', { player: name(e.player), n: e.knights }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
             break;
           case 'tradeCompleted':
             sfx.play('chime');
@@ -184,7 +185,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             say(narrate(p, 'gameStarted', {}));
             break;
           case 'gameWon':
-            cine({ kind: 'victory', title: name(e.player), subtitle: p.victory.replace('{player}', name(e.player)), emoji: '👑', color: color(e.player) });
+            cine({ kind: 'victory', title: name(e.player), subtitle: p.victory.replace('{player}', name(e.player)), emoji: '', img: eraIcon(p.id, 'dev-victoryPoint'), color: color(e.player) });
             break;
         }
       }

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
-import { applyEra, eraCover } from './era';
+import { applyEra, eraCover, eraIcon } from './era';
+import { EraCarousel } from './EraCarousel';
 import { haptic, sfx } from '../fx';
 
 export const NAME_KEY = 'hh.name';
@@ -46,36 +47,14 @@ export function Home({ initialPin }: { initialPin?: string }) {
       <div key={era} className="hero-bg" style={{ backgroundImage: `url(${eraCover(era)})` }} aria-hidden />
       <div className="center-col">
         <header className="brand">
-          <div className="brand-mark" aria-hidden>
-            {pack.emblem}
-          </div>
+          <img key={pack.id} className="brand-mark" src={eraIcon(pack.id, 'emblem')} alt="" width={72} height={72} />
           <h1 className="display brand-title">HistoricalHex</h1>
           <p className="muted brand-sub">Стройся, торгуй и узнавай историю — каждая партия в своей эпохе</p>
         </header>
 
         {mode === 'home' ? (
           <>
-            <section className="eras" aria-label="Эпоха">
-              {LORE_PACKS.map((p) => (
-                <button
-                  key={p.id}
-                  className={`era glass ${p.id === era ? 'on' : ''}`}
-                  style={{ ['--era' as string]: p.palette.accent }}
-                  onClick={() => {
-                    setEra(p.id);
-                    sfx.play('tick');
-                    haptic('tap');
-                  }}
-                  aria-pressed={p.id === era}
-                >
-                  <span className="era-thumb" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden />
-                  <span className="era-emblem">{p.emblem}</span>
-                  <b>{p.title}</b>
-                  <small className="muted">{p.years}</small>
-                  <span className="era-sub faint">{p.subtitle}</span>
-                </button>
-              ))}
-            </section>
+            <EraCarousel packs={LORE_PACKS} value={era} onChange={setEra} />
             <div className="panel glass stack">
               <button
                 className="btn primary big wide"

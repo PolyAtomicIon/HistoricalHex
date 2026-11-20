@@ -112,7 +112,7 @@ export function Modal({ title, children, onClose }: { title: string; children: R
           <h3>{title}</h3>
           {onClose && (
             <button className="btn ghost icon" onClick={onClose} aria-label="Закрыть">
-              ✕
+              ×
             </button>
           )}
         </div>

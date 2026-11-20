@@ -2,7 +2,6 @@
 
 import type { BotLevel, DevCardType, GameEvent, PlayerColor, PlayerId, PublicState, Resource, ResourceMap, Terrain } from '../engine';
 import { RESOURCES } from '../engine';
-import { RESOURCE_ICON } from '../ui/theme';
 
 export const GAME_TITLE = 'Хексленд';
 
@@ -55,7 +54,7 @@ export const points = (n: number) => `${n} ${plural(n, 'очко', 'очка', '
 
 /** «🧱×2 🌾×1» — для логов и обменов. */
 export function resourcesText(m: Partial<ResourceMap> | undefined): string {
-  const parts = RESOURCES.filter((r) => (m?.[r] ?? 0) > 0).map((r) => `${RESOURCE_ICON[r]}×${m![r]}`);
+  const parts = RESOURCES.filter((r) => (m?.[r] ?? 0) > 0).map((r) => `${RESOURCE_NAME[r]} ×${m![r]}`);
   return parts.length ? parts.join(' ') : '—';
 }
 
@@ -143,11 +142,11 @@ export function eventText(e: GameEvent, name: Names): string | null {
     case 'devCardPlayed':
       return `${name(e.player)} играет «${DEV_CARD_NAME[e.card]}»`;
     case 'yearOfPlenty':
-      return `${name(e.player)} берёт из банка ${(e.resources ?? []).map((r) => RESOURCE_ICON[r]).join(' ')}`;
+      return `${name(e.player)} берёт из банка: ${(e.resources ?? []).map((r) => RESOURCE_NAME[r]).join(', ')}`;
     case 'monopoly':
       return `${name(e.player)} забирает у всех ${RESOURCE_NAME[e.resource]}: ${cards(e.total ?? 0)}`;
     case 'bankTrade':
-      return `${name(e.player)} меняет с банком ${RESOURCE_ICON[e.give]}×${e.giveCount} → ${RESOURCE_ICON[e.receive]}×${e.receiveCount}`;
+      return `${name(e.player)} меняет с банком: ${RESOURCE_NAME[e.give]} ×${e.giveCount} → ${RESOURCE_NAME[e.receive]} ×${e.receiveCount}`;
     case 'tradeOffered':
       return `${name(e.player)} предлагает обмен: ${resourcesText(e.give)} → ${resourcesText(e.want)}`;
     case 'tradeResponded':
@@ -168,14 +167,14 @@ export function eventText(e: GameEvent, name: Names): string | null {
       return `Ход ${name(e.player)} пропущен`;
     case 'playerLeft':
       return e.auto
-        ? `🤖 ${name(e.player)} не вернулся вовремя — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`
-        : `🤖 ${name(e.player)} выходит из игры — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`;
+        ? `${name(e.player)} не вернулся вовремя — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`
+        : `${name(e.player)} выходит из игры — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`;
     case 'playerKicked':
-      return `🚫 ${name(e.player)} выгнан — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`;
+      return `${name(e.player)} выгнан — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`;
     case 'playerReturned':
-      return `👋 ${name(e.player)} возвращается в игру`;
+      return `${name(e.player)} возвращается в игру`;
     case 'gameWon':
-      return `🏆 ${name(e.player)} побеждает с ${points(e.points ?? 0)}!`;
+      return `${name(e.player)} побеждает с ${points(e.points ?? 0)}!`;
     default:
       return null;
   }

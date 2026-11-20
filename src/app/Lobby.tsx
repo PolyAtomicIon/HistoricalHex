@@ -10,11 +10,12 @@ import { LORE_PACKS } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { haptic, sfx } from '../fx';
 import { savedName, saveName } from './Home';
-import { eraCover, useEra } from './era';
+import { eraCover, eraIcon, useEra } from './era';
+import { ArtIcon, Icon } from './icons';
 
 const DICE: { id: DiceMode; label: string; hint: string }[] = [
   { id: 'randomOrg', label: 'random.org', hint: 'Настоящий случай из атмосферного шума' },
-  { id: 'physical', label: '🎲 Настоящие', hint: 'Бросаем кубики на столе и вводим, что выпало' },
+  { id: 'physical', label: 'Настоящие', hint: 'Бросаем кубики на столе и вводим, что выпало' },
   { id: 'balanced', label: 'Ровные', hint: 'Колода из 36 бросков — меньше серий' },
 ];
 
@@ -48,7 +49,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
       <div className="center-col">
         <header className="lobby-head">
           <div className="era-badge glass">
-            <span>{pack.emblem}</span>
+            <ArtIcon src={eraIcon(pack.id, 'emblem')} size={30} />
             <b>{pack.title}</b>
             <small className="muted">{pack.years}</small>
           </div>
@@ -67,7 +68,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
                 <span className="muted small">или открой сайт и введи PIN</span>
                 {!tv && (
                   <a className="btn wide" href={joinLink(room.pin, true)} target="_blank" rel="noreferrer">
-                    📺 Экран для ТВ
+                    <Icon name="tv" /> Экран для ТВ
                   </a>
                 )}
               </div>
@@ -86,7 +87,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
                   {!s.online && <span className="faint small">не в сети</span>}
                   {host && s.id !== room.me && (
                     <button className="btn ghost icon" aria-label={`Убрать ${s.name}`} onClick={() => conn.send({ t: 'kick', player: s.id })}>
-                      ✕
+                      <Icon name="close" size={18} />
                     </button>
                   )}
                 </li>
@@ -96,7 +97,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
               <div className="row">
                 {(['easy', 'medium', 'hard'] as BotLevel[]).map((l) => (
                   <button key={l} className="btn grow" onClick={() => conn.send({ t: 'addBot', level: l })}>
-                    + 🤖 {l === 'easy' ? 'лёгкий' : l === 'medium' ? 'средний' : 'сложный'}
+                    <Icon name="bot" size={18} /> {l === 'easy' ? 'лёгкий' : l === 'medium' ? 'средний' : 'сложный'}
                   </button>
                 ))}
               </div>
@@ -155,7 +156,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
                         style={{ ['--era' as string]: p.palette.accent }}
                         onClick={() => conn.send({ t: 'settings', settings: { lore: p.id } })}
                       >
-                        <span className="era-emblem">{p.emblem}</span>
+                        <ArtIcon src={eraIcon(p.id, 'emblem')} size={34} />
                         <b>{p.title}</b>
                       </button>
                     ))}

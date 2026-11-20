@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { sfx } from './sfx';
 import { FxPortal } from './util';
 
-export interface Gain { res: string; emoji: string; count: number }
+export interface Gain { res: string; emoji: string; count: number; img?: string }
 
 export function GainToast({ gains, keyId }: { gains: Gain[]; keyId: number }) {
   const [shown, setShown] = useState<{ gains: Gain[]; key: number } | null>(null);
@@ -27,7 +27,7 @@ export function GainToast({ gains, keyId }: { gains: Gain[]; keyId: number }) {
       <div className="fx-gain" key={shown.key}>
         {shown.gains.map((g, i) => (
           <div key={g.res} className="fx-gain-chip" style={{ animationDelay: `${i * 110}ms` }}>
-            <b>+{g.count}</b><span>{g.emoji}</span>
+            <b>+{g.count}</b>{g.img ? <img src={g.img} alt={g.res} style={{ width: 26, height: 26, objectFit: 'contain' }} /> : <span>{g.emoji || g.res}</span>}
           </div>
         ))}
       </div>

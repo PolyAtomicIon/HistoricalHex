@@ -3,6 +3,7 @@
 
 :root {
   --accent: #f2b544;
+  --accent-rgb: 242, 181, 68;
   --accent-ink: #1b1306;
   --bg: #07131d;
   --ink: #f6f3ec;
@@ -125,9 +126,11 @@ textarea {
   cursor: default;
 }
 .btn.primary {
+  background: linear-gradient(180deg, var(--accent), var(--accent));
   background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 100%, white 14%), var(--accent));
   color: var(--accent-ink);
   border-color: transparent;
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.45), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
   box-shadow: 0 8px 24px color-mix(in oklab, var(--accent) 45%, transparent), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
 }
 .btn.danger {
@@ -186,6 +189,7 @@ textarea {
 }
 .sheet {
   width: min(560px, 100vw);
+  max-height: calc(100vh - var(--safe-t) - 24px);
   max-height: calc(100dvh - var(--safe-t) - 24px);
   margin: 0 auto;
   display: flex;
@@ -298,6 +302,7 @@ textarea {
 .ambient {
   position: absolute;
   inset: -20%;
+  background: radial-gradient(70% 60% at 50% 110%, var(--sea-deep, #072433), transparent 70%), var(--bg);
   background:
     radial-gradient(60% 50% at 20% 20%, color-mix(in oklab, var(--sea, #1e6f8f) 70%, transparent), transparent 70%),
     radial-gradient(50% 40% at 80% 70%, color-mix(in oklab, var(--accent) 40%, transparent), transparent 70%),
@@ -395,6 +400,7 @@ textarea {
   transition: background 300ms;
 }
 .status-pill.mine {
+  background: rgba(var(--accent-rgb), 0.35);
   background: color-mix(in oklab, var(--accent) 35%, rgba(22, 30, 40, 0.5));
 }
 
@@ -425,6 +431,7 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0.25));
   background: linear-gradient(180deg, color-mix(in oklab, var(--rc) 55%, transparent), color-mix(in oklab, var(--rc) 25%, transparent));
   border: 1px solid rgba(255, 255, 255, 0.14);
   transition: transform 300ms var(--spring);
@@ -514,6 +521,7 @@ textarea {
   opacity: 0.35;
 }
 .act.on {
+  background: rgba(var(--accent-rgb), 0.40);
   background: color-mix(in oklab, var(--accent) 40%, transparent);
   border-color: var(--accent);
 }
@@ -728,7 +736,9 @@ button.item {
 .hint-card {
   border-radius: var(--r-md);
   padding: 12px 14px;
+  background: rgba(var(--accent-rgb), 0.16);
   background: color-mix(in oklab, var(--accent) 16%, transparent);
+  border: 1px solid rgba(var(--accent-rgb), 0.40);
   border: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
   font-size: 14px;
 }
@@ -753,5 +763,52 @@ button.item {
   *::after {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
+  }
+}
+
+/* ─── лёгкий режим (старые телефоны) ─── */
+.lite .glass,
+.lite .sheet,
+.lite .dock {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(16, 24, 34, 0.94);
+}
+.lite .glass::before {
+  display: none;
+}
+.lite .ambient,
+.lite .brand-mark,
+.lite .hero-bg {
+  animation: none;
+}
+.lite .era-card {
+  transition: none;
+  box-shadow: none;
+}
+.lite-sheet-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.lite-sheet-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(2, 8, 14, 0.6);
+}
+.lite-sheet {
+  position: relative;
+  animation: lite-up 220ms ease-out;
+}
+@keyframes lite-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
   }
 }

@@ -69,7 +69,7 @@ function tokenTexture(n: number): THREE.CanvasTexture {
   });
 }
 
-const HARBOR_EMOJI: Record<string, string> = { brick: '🧱', wood: '🌲', sheep: '🐑', wheat: '🌾', ore: '⛰️', any: '⚓' };
+const HARBOR_COLOR: Record<string, string> = { brick: '#c8643c', wood: '#2f7d3a', sheep: '#9fd06a', wheat: '#e8b931', ore: '#7d889c' };
 
 function harborTexture(type: HarborType): THREE.CanvasTexture {
   return canvasTexture(`hb${type}`, 256, (g, s) => {
@@ -87,8 +87,25 @@ function harborTexture(type: HarborType): THREE.CanvasTexture {
     g.stroke();
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = `${s * 0.38}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-    g.fillText(HARBOR_EMOJI[type] ?? '❓', s / 2, s * 0.37);
+    if (type === 'any') {
+      // якорь линиями
+      g.strokeStyle = '#143a5c';
+      g.lineWidth = s * 0.045;
+      g.lineCap = 'round';
+      const cx = s / 2, top = s * 0.18, bot = s * 0.5;
+      g.beginPath(); g.arc(cx, top + s * 0.035, s * 0.035, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.moveTo(cx, top + s * 0.07); g.lineTo(cx, bot); g.stroke();
+      g.beginPath(); g.moveTo(cx - s * 0.08, top + s * 0.12); g.lineTo(cx + s * 0.08, top + s * 0.12); g.stroke();
+      g.beginPath(); g.arc(cx, bot - s * 0.1, s * 0.12, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+    } else {
+      g.fillStyle = HARBOR_COLOR[type] ?? '#888';
+      g.beginPath();
+      g.arc(s / 2, s * 0.36, s * 0.14, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = 'rgba(0,0,0,0.25)';
+      g.lineWidth = s * 0.02;
+      g.stroke();
+    }
     g.fillStyle = '#143a5c';
     g.font = `bold ${s * 0.27}px ${FONT}`;
     g.fillText(type === 'any' ? '3:1' : '2:1', s / 2, s * 0.7);

@@ -14,6 +14,9 @@ export default defineConfig({
       input: { main: page('./index.html'), host: page('./host.html') },
     },
     chunkSizeWarningLimit: 1500,
+    // iPhone 7 застрял на iOS 15 — собираем под Safari 14
+    target: ['es2020', 'safari14', 'chrome87', 'firefox78'],
+    cssTarget: ['safari14', 'chrome87'],
   },
   server: {
     host: true,

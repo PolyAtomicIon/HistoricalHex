@@ -21,7 +21,9 @@ import { REACTIONS } from '../proto';
 import { conn } from '../client/conn';
 import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
-import { RESOURCE_ICON } from '../ui/theme';
+import { Icon, ArtIcon } from './icons';
+import { eraIcon } from './era';
+import { setLitePref, useLite } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, myPhaseText, phaseText, resourcesText } from '../i18n/ru';
 import { Cinematic, DiceOverlay, GainToast, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
 import { Sheet } from './Sheet';
@@ -65,6 +67,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const fx = useGameFx(pub, pack, me);
   const [mode, setMode] = useBoardMode();
   const [muted, setMuted] = useMuted();
+  const { pref: litePref, auto: liteAuto } = useLite();
   const [sheet, setSheet] = useState<SheetId>(null);
   const [build, setBuild] = useState<BuildMode | null>(null);
   const [selected, setSelected] = useState<string>();
@@ -173,7 +176,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const prevBroken = useRef(broken);
   useEffect(() => {
     if (broken > prevBroken.current) {
-      conn.notify('⚠️ Твой план сломался — загляни в 📋');
+      conn.notify('Твой план сломался — загляни в «План»');
       haptic('error');
     }
     prevBroken.current = broken;
@@ -262,28 +265,27 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       <header className="hud-top">
         <PlayersStrip pub={pub} room={room} />
         <button className="fab glass" onClick={() => setSheet('menu')} aria-label="Меню">
-          ☰
+          <Icon name="menu" />
         </button>
       </header>
 
       <div className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
-        {myTurn ? '🫵 ' : ''}
-        {status}
+                {status}
         {deadline && <Countdown until={deadline - conn.getState().clockSkew} />}
       </div>
 
       <nav className="fab-col">
         <button className={`fab glass ${broken ? 'alert' : ''}`} onClick={() => setSheet('plan')} aria-label="План хода">
-          📋{plan.length > 0 && <span className="badge">{broken || plan.length}</span>}
+          <Icon name="plan" />{plan.length > 0 && <span className="badge">{broken || plan.length}</span>}
         </button>
         <button className="fab glass" onClick={() => setSheet('dev')} aria-label="Карты развития">
-          📜{priv.devCards.length > 0 && <span className="badge">{priv.devCards.length}</span>}
+          <Icon name="cards" />{priv.devCards.length > 0 && <span className="badge">{priv.devCards.length}</span>}
         </button>
         <button className="fab glass" onClick={() => setSheet('lore')} aria-label="История эпохи">
-          📖
+          <Icon name="book" />
         </button>
         <button className="fab glass" onClick={() => setSheet('react')} aria-label="Реакции">
-          😀
+          <Icon name="smile" />
         </button>
         <button
           className="fab glass"
@@ -303,7 +305,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           {planPick ? `План: выбери место — ${STEP_LABEL[planPick].toLowerCase()}` : targets!.hint}
           {planPick && (
             <button className="btn ghost small-btn" onClick={() => setPlanPick(null)}>
-              ✕
+              <Icon name="close" size={16} />
             </button>
           )}
         </div>
@@ -347,7 +349,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       {myTurn && pub.phase === 'main' && !build && !planPick && !selected && hints[0] && (
         <div key={hints[0]} className="board-hint glass turn-hint">
-          💡 {hints[0]}
+          <Icon name="bulb" size={18} /> {hints[0]}
         </div>
       )}
 
@@ -386,7 +388,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         {myTurn && pub.phase === 'main' ? (
           <TradeSheet pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} />
         ) : (
-          <p className="muted">Торговать можно в свой ход после броска. А пока — заготовь обмен в плане 📋</p>
+          <p className="muted">Торговать можно в свой ход после броска. А пока — заготовь обмен в «Плане»</p>
         )}
       </Sheet>
 
@@ -489,8 +491,16 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               </button>
             ))}
           </div>
+          <div className="label">Лёгкий режим (старые телефоны)</div>
+          <div className="seg">
+            {(['auto', 'on', 'off'] as const).map((v) => (
+              <button key={v} aria-pressed={litePref === v} onClick={() => setLitePref(v)}>
+                {v === 'auto' ? `Авто${liteAuto ? ' · вкл' : ''}` : v === 'on' ? 'Вкл' : 'Выкл'}
+              </button>
+            ))}
+          </div>
           <button className="item" onClick={() => setMuted(!muted)}>
-            <span>{muted ? '🔇' : '🔊'}</span>
+            <Icon name={muted ? 'mute' : 'sound'} />
             <span className="grow t">{muted ? 'Звук выключен' : 'Звук включён'}</span>
           </button>
           {!physical && (
@@ -506,7 +516,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                 }
               }}
             >
-              <span>🎲</span>
+              <Icon name="dice" />
               <span className="grow t">Авто-бросок в свой ход</span>
               <span className="faint">{autoRoll ? 'вкл' : 'выкл'}</span>
             </button>
@@ -514,7 +524,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           <Costs />
           {pub.phase !== 'finished' ? (
             <button className="btn danger wide" onClick={() => setSheet('leave')}>
-              🚪 Выйти — за меня доиграет бот
+              <Icon name="door" /> Выйти — за меня доиграет бот
             </button>
           ) : (
             <button className="btn wide" onClick={() => conn.forget()}>
@@ -537,7 +547,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                 if (ok) setSheet(null);
               }}
             >
-              🤖 {l === 'easy' ? 'Лёгкий — играет наугад' : l === 'medium' ? 'Средний — с умом' : 'Сложный — на победу'}
+              <Icon name="bot" /> {l === 'easy' ? 'Лёгкий — играет наугад' : l === 'medium' ? 'Средний — с умом' : 'Сложный — на победу'}
             </button>
           ))}
         </div>
@@ -572,11 +582,11 @@ export function PlayersStrip({ pub, room }: { pub: PublicState; room: RoomView }
             style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
           >
             <span className="dot" style={{ background: PLAYER_HEX[p.color] }}>
-              {p.bot ? '🤖' : p.name.replace(/^🤖\s*/, '').charAt(0).toUpperCase()}
+              {p.bot ? <Icon name="bot" size={16} /> : p.name.charAt(0).toUpperCase()}
             </span>
-            <span className="pname">{p.name.replace(/^🤖\s*/, '')}</span>
-            <span className="vp">⭐{p.points}</span>
-            <span className="faint">🂠{p.resourceCount}</span>
+            <span className="pname">{p.name}</span>
+            <span className="vp"><Icon name="star" size={13} />{p.points}</span>
+            <span className="faint cnt"><Icon name="hand" size={13} />{p.resourceCount}</span>
           </div>
         );
       })}
@@ -591,7 +601,7 @@ function Countdown({ until }: { until: number }) {
     return () => clearInterval(t);
   }, []);
   const s = Math.max(0, Math.round((until - now) / 1000));
-  return <span className="faint"> · 🤖 через {s}с</span>;
+  return <span className="faint"> · бот через {s} с</span>;
 }
 
 function Hand({ hand }: { hand: ResourceMap }) {
@@ -648,10 +658,10 @@ function Actions(props: {
     return (
       <div className="actions">
         <button className="btn" onClick={() => openSheet('plan')}>
-          📋 Планировать
+          <Icon name="plan" /> Планировать
         </button>
         <button className="btn" onClick={() => openSheet(pub.trade ? 'incoming' : 'trade')}>
-          🤝 {pub.trade ? 'Обмен идёт' : 'Обмен'}
+          <Icon name="trade" /> {pub.trade ? 'Обмен идёт' : 'Обмен'}
         </button>
       </div>
     );
@@ -661,22 +671,22 @@ function Actions(props: {
     case 'setup':
     case 'moveRobber':
     case 'roadBuilding':
-      return <p className="dock-note">Нажми на светящееся место на карте 👆</p>;
+      return <p className="dock-note">Нажми на светящееся место на карте</p>;
     case 'roll':
       return (
         <div className="actions">
           {countdown !== null ? (
             <button className="btn primary big" onClick={cancelCountdown}>
-              🎲 Бросаю через {countdown}… <small>стоп</small>
+              <Icon name="dice" /> Бросаю через {countdown}… <small>стоп</small>
             </button>
           ) : (
             <button className="btn primary big" disabled={busy} onClick={() => (physical ? openSheet('dice') : void send({ type: 'rollDice' }))}>
-              🎲 {physical ? 'Ввести бросок' : 'Бросить'}
+              <Icon name="dice" /> {physical ? 'Ввести бросок' : 'Бросить'}
             </button>
           )}
           {playable > 0 && (
             <button className="btn" onClick={() => openSheet('dev')}>
-              📜 Карта ({playable})
+              <Icon name="cards" /> Карта ({playable})
             </button>
           )}
         </div>
@@ -692,34 +702,34 @@ function Actions(props: {
         <>
           <div className="actions">
             <button className={`act ${build === 'road' ? 'on' : ''}`} disabled={!road && build !== 'road'} onClick={() => t('road')}>
-              <span className="i">🛤️</span>
+              <Icon name="road" className="i" />
               {cap(shortName('road'))}
             </button>
             <button className={`act ${build === 'settlement' ? 'on' : ''}`} disabled={!settl && build !== 'settlement'} onClick={() => t('settlement')}>
-              <span className="i">🏠</span>
+              <Icon name="house" className="i" />
               {cap(shortName('settlement'))}
             </button>
             <button className={`act ${build === 'city' ? 'on' : ''}`} disabled={!city && build !== 'city'} onClick={() => t('city')}>
-              <span className="i">🏰</span>
+              <Icon name="castle" className="i" />
               {cap(shortName('city'))}
             </button>
             <button className="act" disabled={!dev || busy} onClick={() => void send({ type: 'buyDevCard' })}>
-              <span className="i">📜</span>
+              <Icon name="cards" className="i" />
               Карта
             </button>
           </div>
           <div className="actions">
             {props.planReady ? (
               <button className="btn primary" disabled={busy} onClick={props.runPlan}>
-                ▶ Выполнить план
+                <Icon name="play" /> Выполнить план
               </button>
             ) : (
               <button className="btn" onClick={() => openSheet('trade')}>
-                🤝 Обмен{pub.trade ? ' · идёт' : ''}
+                <Icon name="trade" /> Обмен{pub.trade ? ' · идёт' : ''}
               </button>
             )}
             <button className="btn" disabled={busy} onClick={() => void send({ type: 'endTurn' })}>
-              Конец хода ➜
+              Конец хода <Icon name="next" />
             </button>
           </div>
         </>
@@ -819,13 +829,13 @@ function DevCards({
         const usable = c.type !== 'victoryPoint' && c.playable && canPlay;
         return (
           <div key={i} className="item devcard">
-            <span className="dev-ic">{DEV_ICON[c.type]}</span>
+            <ArtIcon src={eraIcon(pack.id, `dev-${c.type}`)} size={52} className="dev-ic" fallback={<Icon name="cards" size={32} />} />
             <div className="grow">
               <div className="t">{info.name}</div>
               <div className="s">{info.flavor}</div>
             </div>
             {c.type === 'victoryPoint' ? (
-              <span className="faint small">+1 ⭐</span>
+              <span className="faint small">+1 очко</span>
             ) : (
               <button className="btn primary" disabled={!usable || busy} onClick={() => onPlay(c.type)}>
                 {c.playable ? 'Сыграть' : 'со след. хода'}
@@ -838,7 +848,6 @@ function DevCards({
   );
 }
 
-const DEV_ICON: Record<DevCardType, string> = { knight: '⚔️', victoryPoint: '🏆', roadBuilding: '🛤️', yearOfPlenty: '🎁', monopoly: '💰' };
 
 function Plenty({ busy, onDone }: { busy: boolean; onDone: (r: [Resource, Resource]) => void }) {
   const [picked, setPicked] = useState<Resource[]>([]);
@@ -851,7 +860,7 @@ function Plenty({ busy, onDone }: { busy: boolean; onDone: (r: [Resource, Resour
           sfx.play('tick');
         }}
       />
-      <p className="center big-emoji">{picked.length ? picked.map((r) => RESOURCE_ICON[r]).join(' + ') : '— + —'}</p>
+      <div className="picked-row">{picked.length ? picked.map((r, i) => <ResIcon key={i} r={r} size={48} />) : <span className="faint">выбери два</span>}</div>
       <button className="btn primary wide" disabled={picked.length !== 2 || busy} onClick={() => onDone(picked as [Resource, Resource])}>
         Взять
       </button>
@@ -994,7 +1003,7 @@ function PlanSheet({
     <div className="stack">
       {hints.map((h) => (
         <div key={h} className="hint-card">
-          💡 {h}
+          <Icon name="bulb" size={18} /> {h}
         </div>
       ))}
       {checked.length === 0 ? (
@@ -1004,7 +1013,7 @@ function PlanSheet({
           {checked.map((c, i) => (
             <li key={c.step.id} className={`item ${c.status === 'ready' ? 'ok' : c.status === 'short' ? 'warn' : 'broken'}`}>
               <span className="plan-n">{i + 1}</span>
-              <span>{STEP_ICON[c.step.kind]}</span>
+              <Icon name={STEP_ICON[c.step.kind]} />
               <div className="grow">
                 <div className="t">{STEP_LABEL[c.step.kind]}</div>
                 <div className="s">{stepText(c)}</div>
@@ -1013,7 +1022,7 @@ function PlanSheet({
                 ↑
               </button>
               <button className="btn ghost icon" aria-label="Убрать" onClick={() => setPlan(plan.filter((s) => s.id !== c.step.id))}>
-                ✕
+                <Icon name="close" size={16} />
               </button>
             </li>
           ))}
@@ -1021,22 +1030,22 @@ function PlanSheet({
       )}
       <div className="plan-add">
         <button className="btn" onClick={() => onPick('road')}>
-          🛤️ Дорога
+          <Icon name="road" /> Дорога
         </button>
         <button className="btn" onClick={() => onPick('settlement')}>
-          🏠 Поселение
+          <Icon name="house" /> Поселение
         </button>
         <button className="btn" onClick={() => onPick('city')}>
-          🏰 Город
+          <Icon name="castle" /> Город
         </button>
         <button className="btn" disabled={pub.devDeckCount <= 0} onClick={() => setPlan([...plan, { id: newStepId(), kind: 'devCard' }])}>
-          📜 Карта
+          <Icon name="cards" /> Карта
         </button>
         <button className="btn" onClick={() => setAdding('bank')}>
-          🏦 Банк
+          <Icon name="bank" /> Банк
         </button>
         <button className="btn" onClick={() => setAdding('offer')}>
-          🤝 Обмен
+          <Icon name="trade" /> Обмен
         </button>
       </div>
       {checked.length > 0 && (
@@ -1045,7 +1054,7 @@ function PlanSheet({
             Очистить
           </button>
           <button className="btn primary grow" disabled={!canRun || busy || checked[0].status !== 'ready'} onClick={onRun}>
-            ▶ Выполнить
+            <Icon name="play" /> Выполнить
           </button>
         </div>
       )}
@@ -1063,10 +1072,10 @@ function move<T>(a: T[], from: number, to: number): T[] {
 
 function Costs() {
   const rows: [string, ResourceMap][] = [
-    [`🛤️ ${cap(shortName('road'))}`, COSTS.road],
-    [`🏠 ${cap(shortName('settlement'))}`, COSTS.settlement],
-    [`🏰 ${cap(shortName('city'))}`, COSTS.city],
-    ['📜 Карта развития', COSTS.devCard],
+    [cap(shortName('road')), COSTS.road],
+    [cap(shortName('settlement')), COSTS.settlement],
+    [cap(shortName('city')), COSTS.city],
+    ['Карта развития', COSTS.devCard],
   ];
   return (
     <div className="list costs">
@@ -1086,18 +1095,18 @@ function HostTools({ room, pub }: { room: RoomView; pub: PublicState }) {
   return (
     <div className="stack">
       <button className="btn ghost wide" onClick={() => setOpen(!open)}>
-        👑 Ведущий {open ? '▴' : '▾'}
+        <Icon name="crown" /> Ведущий {open ? '▴' : '▾'}
       </button>
       {open && (
         <>
           <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
-            ⏭ Пропустить ход {pub.players[pub.order[pub.current]].name}
+            <Icon name="skip" /> Пропустить ход {pub.players[pub.order[pub.current]].name}
           </button>
           {pub.order
             .filter((id) => id !== room.me && !pub.players[id].kicked)
             .map((id) => (
               <button key={id} className="btn danger wide" onClick={() => conn.send({ t: 'kick', player: id, level: 'medium' })}>
-                🚫 Заменить ботом: {pub.players[id].name}
+                <Icon name="ban" /> Заменить ботом: {pub.players[id].name}
               </button>
             ))}
         </>
@@ -1112,7 +1121,7 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
   return (
     <div className="finish-overlay">
       <div className="panel glass strong stack center">
-        <div className="big-emoji">{winner === me ? '👑' : '🏁'}</div>
+        <ArtIcon src={eraIcon(pack.id, 'dev-victoryPoint')} size={96} className="win-art" fallback={<Icon name="crown" size={56} />} />
         <h2 className="display">{winner === me ? 'Ты победил!' : `Победа: ${pub.players[winner].name}`}</h2>
         <p className="muted">{pack.victory.replace('{player}', pub.players[winner].name)}</p>
         <ol className="list">
@@ -1120,7 +1129,7 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
             <li key={id} className="item">
               <span className="seat-dot" style={{ background: PLAYER_HEX[pub.players[id].color] }} />
               <span className="grow t">{pub.players[id].name}</span>
-              <b>⭐ {pub.players[id].points}</b>
+              <b className="row"><Icon name="star" size={16} /> {pub.players[id].points}</b>
             </li>
           ))}
         </ol>

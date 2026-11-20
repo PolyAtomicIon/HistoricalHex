@@ -56,11 +56,11 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
                 <span className="who">{name(id)}</span>
                 <span className="what">
                   {!r && 'думает…'}
-                  {r?.kind === 'accept' && '✅ согласен'}
-                  {r?.kind === 'decline' && '❌ отказ'}
+                  {r?.kind === 'accept' && 'согласен'}
+                  {r?.kind === 'decline' && 'отказ'}
                   {r?.kind === 'counter' && (
                     <>
-                      🔁 хочет {resourcesText(r.give)} за {resourcesText(r.want)}
+                      встречное: хочет {resourcesText(r.give)} за {resourcesText(r.want)}
                     </>
                   )}
                 </span>

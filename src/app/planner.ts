@@ -14,7 +14,6 @@ import {
   resourceMap,
   tradeRatios,
 } from '../engine';
-import { RESOURCE_ICON } from '../ui/theme';
 import { RESOURCE_NAME, resourcesText } from '../i18n/ru';
 
 export type PlanStep =
@@ -44,14 +43,14 @@ export const STEP_LABEL: Record<PlanStep['kind'], string> = {
   offer: 'Предложить обмен',
 };
 
-export const STEP_ICON: Record<PlanStep['kind'], string> = {
-  road: '🛤️',
-  settlement: '🏠',
-  city: '🏰',
-  devCard: '📜',
-  bank: '🏦',
-  offer: '🤝',
-};
+export const STEP_ICON = {
+  road: 'road',
+  settlement: 'house',
+  city: 'castle',
+  devCard: 'cards',
+  bank: 'bank',
+  offer: 'trade',
+} as const;
 
 const costOf = (s: PlanStep): ResourceMap | null =>
   s.kind === 'road'
@@ -148,7 +147,7 @@ export function stepText(c: CheckedStep): string {
   const s = c.step;
   const base =
     s.kind === 'bank'
-      ? `${RESOURCE_ICON[s.give]} → ${RESOURCE_ICON[s.receive]}`
+      ? `${RESOURCE_NAME[s.give]} → ${RESOURCE_NAME[s.receive]}`
       : s.kind === 'offer'
         ? `${resourcesText(s.give)} → ${resourcesText(s.want)}`
         : '';
@@ -194,15 +193,15 @@ export function goalHints(pub: PublicState, priv: PrivateView, me: PlayerId): st
   for (const [name, cost] of goals) {
     const miss = missingOf(hand, cost);
     const n = Object.values(miss).reduce((a, b) => a + (b ?? 0), 0);
-    if (n === 0) out.push(`Хватает на ${name} ✅`);
+    if (n === 0) out.push(`Хватает на ${name}`);
     else if (n === 1) {
       const r = Object.keys(miss)[0] as Resource;
-      out.push(`До «${name}» не хватает 1 ${RESOURCE_ICON[r]} ${RESOURCE_NAME[r]}`);
+      out.push(`До «${name}» не хватает: ${RESOURCE_NAME[r]}`);
     }
   }
   const ratios = tradeRatios(pub, me);
   for (const r of RESOURCES) {
-    if (ratios[r] === 2 && hand[r] >= 2) out.push(`Гавань 2:1: можно выгодно сменять ${RESOURCE_ICON[r]}`);
+    if (ratios[r] === 2 && hand[r] >= 2) out.push(`Гавань 2:1: выгодно сменять ${RESOURCE_NAME[r]}`);
   }
   const total = RESOURCES.reduce((a, r) => a + hand[r], 0);
   if (total > 7) out.push(`У тебя ${total} карт — на семёрке потеряешь половину. Потрать!`);
@@ -219,14 +218,14 @@ export function incomingTradeHint(
   const missing = RESOURCES.filter((r) => (miss[r] ?? 0) > 0);
   if (missing.length === 0) {
     const gain = RESOURCES.filter((r) => (give[r] ?? 0) > 0)
-      .map((r) => RESOURCE_ICON[r])
-      .join(' ');
+      .map((r) => RESOURCE_NAME[r])
+      .join(', ');
     return { canAccept: true, text: `Тебе по силам. Получишь ${gain}` };
   }
-  const names = missing.map((r) => `${RESOURCE_ICON[r]} ${RESOURCE_NAME[r]}`).join(', ');
+  const names = missing.map((r) => RESOURCE_NAME[r]).join(', ');
   return {
     canAccept: false,
-    text: `Бро, у тебя нет ${names} — это предложение не к тебе. Но можешь предложить встречное 👇`,
+    text: `Бро, у тебя нет: ${names} — это предложение не к тебе. Но можешь предложить встречное.`,
   };
 }
 

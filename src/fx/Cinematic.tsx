@@ -11,6 +11,10 @@ export interface CinematicEvent {
   title: string;
   subtitle?: string;
   emoji: string;
+  /** Картинка вместо эмодзи (авторский арт эпохи). */
+  img?: string;
+  /** Картинка для «дождя» (монеты, зерно). */
+  rain?: string;
   color?: string;
   key: number;
 }
@@ -40,7 +44,7 @@ function sounds(kind: CinematicKind, later: (fn: () => void, ms: number) => void
   }
 }
 
-function Particles({ kind, k }: { kind: CinematicKind; k: number }) {
+function Particles({ kind, k, rain }: { kind: CinematicKind; k: number; rain?: string }) {
   const items = useMemo(() => {
     if (kind === 'victory') {
       return Array.from({ length: 90 }, (_, i) => ({
@@ -49,7 +53,7 @@ function Particles({ kind, k }: { kind: CinematicKind; k: number }) {
       }));
     }
     if (kind === 'monopoly' || kind === 'yearOfPlenty') {
-      const e = kind === 'monopoly' ? '🪙' : '🌾';
+      const e = '●';
       return Array.from({ length: 28 }, (_, i) => ({
         i, x: rand(-48, 48), y: -60, fall: rand(95, 115), r: rand(-360, 360), d: rand(0, 1), t: rand(1.1, 1.7), e, s: rand(1.4, 2.6),
       }));
@@ -75,7 +79,7 @@ function Particles({ kind, k }: { kind: CinematicKind; k: number }) {
           <i key={p.i} className="fx-rain" style={{
             '--x': `${p.x}vw`, '--f': `${p.fall}vh`, '--r': `${p.r}deg`, fontSize: `${p.s}rem`,
             animationDelay: `${p.d}s`, animationDuration: `${p.t}s`,
-          } as CSSProperties}>{p.e}</i>
+          } as CSSProperties}>{rain ? <img src={rain} alt="" style={{ width: '1em', height: '1em' }} /> : p.e}</i>
         ))}
       </div>
     );
@@ -126,11 +130,11 @@ export function Cinematic({ event, tv = false }: { event: CinematicEvent | null;
       <div key={active.key} className={`fx-cin fx-cin-${active.kind}${tv ? ' fx-cin-tv' : ''}`} style={style}>
         <div className="fx-cin-vignette" />
         <div className="fx-cin-flash" />
-        <Particles kind={active.kind} k={active.key} />
+        <Particles kind={active.kind} k={active.key} rain={active.rain} />
         <div className="fx-cin-center">
           <div className="fx-cin-emoji-wrap">
             <i className="fx-streak fx-streak-l" /><i className="fx-streak fx-streak-r" />
-            <div className="fx-cin-emoji">{active.emoji}</div>
+            <div className="fx-cin-emoji">{active.img ? <img className="fx-cin-img" src={active.img} alt="" /> : active.emoji}</div>
           </div>
           <div className="fx-cin-title">{active.title}</div>
           {active.subtitle && <div className="fx-cin-sub">{active.subtitle}</div>}

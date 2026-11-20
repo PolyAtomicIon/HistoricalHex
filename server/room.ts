@@ -229,9 +229,9 @@ export class Room {
     if (this.seats.size >= MAX_PLAYERS) throw new Error(`Уже ${MAX_PLAYERS} игроков`);
     const used = new Set([...this.seats.values()].map((s) => s.name));
     const color = PLAYER_COLORS.find((c) => ![...this.seats.values()].some((s) => s.color === c));
-    const base = BOT_NAMES.find((n) => !used.has(`🤖 ${n}`)) ?? `Бот ${this.seats.size + 1}`;
+    const base = BOT_NAMES.find((n) => !used.has(n)) ?? `Бот ${this.seats.size + 1}`;
     const id = `bot-${Math.floor(cryptoRng() * 1e9).toString(36)}`;
-    this.seats.set(id, { id, name: `🤖 ${base}`, color, bot: level, joinedAt: Date.now() });
+    this.seats.set(id, { id, name: base, color, bot: level, joinedAt: Date.now() });
     this.changed();
   }
 

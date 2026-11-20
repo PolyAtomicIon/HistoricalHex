@@ -6,6 +6,7 @@ import type { PlayerColor, PlayerId, PublicState } from '../engine';
 import type { BoardMode } from '../board3d/Board3D';
 import { Board } from '../board/Board';
 import type { GameFx } from './useGameFx';
+import { useLite } from './lite';
 
 const Board3D = lazy(() => import('../board3d/Board3D'));
 
@@ -85,12 +86,13 @@ export function GameBoard({
   ghosts?: { vertex?: string; edge?: string; kind: 'road' | 'settlement' | 'city'; color: PlayerColor; broken?: boolean }[];
 }) {
   const [gl] = useState(hasWebGL);
+  const { lite } = useLite();
   const svg = (
     <div className="svg-board">
       <Board view={pub} colors={colors} highlight={highlight} onVertex={onVertex} onEdge={onEdge} onHex={onHex} selected={selected} recent={fx.recent} flash={fx.flash} />
     </div>
   );
-  if (!gl) return svg;
+  if (!gl || lite) return svg;
   return (
     <Fallback fallback={svg}>
       <Suspense fallback={<div className="board-loading"><div className="spinner" /></div>}>

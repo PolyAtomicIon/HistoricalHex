@@ -12,6 +12,8 @@ import { useGameFx } from './useGameFx';
 import { Fact, useRotatingFact } from './Facts';
 import { joinLink, Qr } from './Lobby';
 import { conn } from '../client/conn';
+import { ArtIcon, Icon } from './icons';
+import { eraIcon } from './era';
 import { Sheet } from './Sheet';
 import { savedName, saveName } from './Home';
 
@@ -59,7 +61,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
 
       <aside className="tv-left">
         <div className="tv-era glass">
-          <span className="era-emblem">{pack.emblem}</span>
+          <ArtIcon src={eraIcon(pack.id, 'emblem')} size={40} />
           <div>
             <b>{pack.title}</b>
             <div className="faint small">
@@ -79,9 +81,11 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
                     {!room.online[id] && !p.bot && <span className="faint small"> · не в сети</span>}
                   </div>
                   <div className="faint small">
-                    🂠 {p.resourceCount} · 📜 {p.devCardCount} · ⚔️ {p.knightsPlayed} · 🛤️ {p.roadLength}
-                    {pub.longestRoad === id && ' · 🛣️'}
-                    {pub.largestArmy === id && ' · 🛡️'}
+                    <span className="stat"><Icon name="hand" size={14} />{p.resourceCount}</span>
+                    <span className="stat"><Icon name="cards" size={14} />{p.devCardCount}</span>
+                    <span className="stat"><Icon name="road" size={14} />{p.roadLength}</span>
+                    {pub.longestRoad === id && <span className="bonus">{pack.bonuses.longestRoad}</span>}
+                    {pub.largestArmy === id && <span className="bonus">{pack.bonuses.largestArmy}</span>}
                   </div>
                 </div>
                 <b className="tv-vp display">{p.points}</b>
@@ -101,7 +105,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
           ))}
         </div>
         <div className="tv-fact glass">
-          <div className="label">📖 Знаете ли вы</div>
+          <div className="label row"><Icon name="book" size={14} /> Знаете ли вы</div>
           <Fact f={fact} />
         </div>
         <div className="tv-join glass">
@@ -126,14 +130,14 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
             sfx.play('tick');
           }}
         >
-          {muted ? '🔇' : '🔊'}
+          <Icon name={muted ? 'mute' : 'sound'} size={18} />
         </button>
       </div>
 
       <div className="tv-actions">
         {room.isHost && (
           <button className="btn glass" onClick={() => setPanel('host')}>
-            👑 Ведущий
+            <Icon name="crown" /> Ведущий
           </button>
         )}
         {!screen && !room.seated && pub.phase !== 'finished' && (
@@ -152,14 +156,14 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         <div className="stack">
           {pub.phase !== 'finished' && (
             <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
-              ⏭ Пропустить ход: {pub.players[current].name}
+              <Icon name="skip" /> Пропустить ход: {pub.players[current].name}
             </button>
           )}
           {pub.order
             .filter((id) => !pub.players[id].kicked && !pub.players[id].bot)
             .map((id) => (
               <button key={id} className="btn danger wide" onClick={() => conn.send({ t: 'kick', player: id, level: 'medium' })}>
-                🚫 Заменить ботом: {pub.players[id].name}
+                <Icon name="ban" /> Заменить ботом: {pub.players[id].name}
               </button>
             ))}
           <button className="btn ghost wide" onClick={() => conn.send({ t: 'close' })}>

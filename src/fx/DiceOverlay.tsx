@@ -135,7 +135,7 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
   if (!active) return null;
   const total = active.dice[0] + active.dice[1];
   const seven = total === 7;
-  const badge = active.source === 'randomOrg' ? 'random.org' : active.source === 'physical' ? '🎲 настоящие кубики' : null;
+  const badge = active.source === 'randomOrg' ? 'random.org' : active.source === 'physical' ? 'настоящие кубики' : null;
   const style = { '--fx-player': active.color ?? 'var(--accent, #7aa2ff)' } as CSSProperties;
 
   return (

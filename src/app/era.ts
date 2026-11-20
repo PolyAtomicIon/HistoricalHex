@@ -15,10 +15,13 @@ const BASE = {
 };
 
 let applied: string | undefined;
+/** Эпоха, которая сейчас применена (для иконок ресурсов). */
+export let currentEra = 'genghis';
 
 export function applyEra(pack: LorePack | undefined): void {
   if (applied === (pack?.id ?? '')) return;
   applied = pack?.id ?? '';
+  if (pack) currentEra = pack.id;
   for (const r of RESOURCES) {
     RESOURCE_NAME[r] = pack ? pack.resources[r].name.toLowerCase() : BASE.res[r];
     RESOURCE_ICON[r] = pack ? pack.resources[r].emoji : BASE.icon[r];
@@ -30,6 +33,7 @@ export function applyEra(pack: LorePack | undefined): void {
   const root = document.documentElement.style;
   if (pack) {
     root.setProperty('--accent', pack.palette.accent);
+    root.setProperty('--accent-rgb', hexRgb(pack.palette.accent));
     root.setProperty('--sea', pack.palette.sea);
     root.setProperty('--sea-deep', pack.palette.seaDeep);
   }
@@ -44,3 +48,13 @@ export function useEra(id: string | undefined): LorePack {
 
 /** Обложка эпохи (сгенерирована через Codex, лежит в public/eras). */
 export const eraCover = (id: string) => `${import.meta.env.BASE_URL}eras/${id}.webp`;
+
+/** Авторская иконка эпохи (сгенерирована через Codex): emblem, robber, res-<ресурс>, dev-<карта>. */
+export const eraIcon = (id: string, name: string) => `${import.meta.env.BASE_URL}eras/${id}/${name}.webp`;
+
+function hexRgb(hex: string): string {
+  const h = hex.replace('#', '');
+  const v = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
+  const n = parseInt(v, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}

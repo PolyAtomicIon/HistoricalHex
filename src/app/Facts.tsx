@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { RESOURCES } from '../engine';
 import type { LoreFact, LorePack } from '../lore';
+import { ArtIcon } from './icons';
+import { eraIcon } from './era';
 
 export function FactsList({ pack }: { pack: LorePack }) {
   const [only, setOnly] = useState<'all' | 'kz'>('all');
@@ -18,7 +20,7 @@ export function FactsList({ pack }: { pack: LorePack }) {
       <div className="glossary">
         {RESOURCES.map((r) => (
           <div key={r} className="item">
-            <span className="big-emoji-s">{pack.resources[r].emoji}</span>
+            <ArtIcon src={eraIcon(pack.id, `res-${r}`)} size={40} />
             <div className="grow">
               <div className="t">{pack.resources[r].name}</div>
               <div className="s">{pack.resources[r].note}</div>
@@ -26,7 +28,7 @@ export function FactsList({ pack }: { pack: LorePack }) {
           </div>
         ))}
         <div className="item">
-          <span className="big-emoji-s">🦹</span>
+          <ArtIcon src={eraIcon(pack.id, 'robber')} size={40} />
           <div className="grow">
             <div className="t">{pack.robber.name}</div>
             <div className="s">{pack.robber.note}</div>
@@ -38,7 +40,7 @@ export function FactsList({ pack }: { pack: LorePack }) {
           Все факты · {pack.facts.length}
         </button>
         <button aria-pressed={only === 'kz'} onClick={() => setOnly('kz')}>
-          🇰🇿 Казахстан · {pack.facts.filter((f) => f.kz).length}
+          Казахстан · {pack.facts.filter((f) => f.kz).length}
         </button>
       </div>
       {facts.map((f, i) => (
@@ -58,7 +60,7 @@ export function Fact({ f }: { f: LoreFact }) {
   return (
     <div className="fact-card">
       {f.year && <span className="yr">{f.year}</span>}
-      {f.kz && <span className="kz-tag">🇰🇿</span>}
+      {f.kz && <span className="kz-tag">KZ</span>}
       {f.text}
       <span className="src">{f.source}</span>
     </div>

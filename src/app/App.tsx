@@ -8,6 +8,7 @@ import { Lobby } from './Lobby';
 import { PhoneGame, setPieceNames } from './PhoneGame';
 import { Tv } from './Tv';
 import { useEra } from './era';
+import { Icon } from './icons';
 
 const params = new URLSearchParams(location.search);
 const urlPin = params.get('pin')?.replace(/\D/g, '') || undefined;
@@ -53,7 +54,7 @@ function Away() {
       <div className="ambient" aria-hidden />
       <div className="center-col">
         <div className="panel glass stack center">
-          <div className="big-emoji">🤖</div>
+          <Icon name="bot" size={56} />
           <h2>За тебя играет бот</h2>
           <p className="muted">Карты и постройки на месте. Вернись — и бот отдаст место.</p>
           <button className="btn primary big wide" onClick={() => void conn.act({ type: 'returnFromBot' })}>
