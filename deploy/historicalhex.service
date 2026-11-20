@@ -1,0 +1,17 @@
+[Unit]
+Description=HistoricalHex game server (WebSocket, /catan/ws)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Environment=PORT=8790
+Environment=HOST=127.0.0.1
+Environment=DATA_DIR=/var/lib/historicalhex
+ExecStart=/usr/local/bin/node22 /opt/historicalhex/server.mjs
+Restart=always
+RestartSec=2
+StateDirectory=historicalhex
+
+[Install]
+WantedBy=multi-user.target
