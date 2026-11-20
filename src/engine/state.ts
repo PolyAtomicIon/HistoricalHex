@@ -38,6 +38,8 @@ export interface Player {
   pieces: { roads: number; settlements: number; cities: number };
   /** Есть, если это бот (за него ходит хост). */
   bot?: BotLevel;
+  /** Живой игрок вышел из партии — за него временно играет бот (bot). Может вернуться. */
+  away?: boolean;
 }
 
 export interface Building {

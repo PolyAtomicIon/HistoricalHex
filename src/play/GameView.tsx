@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, DevCardType, PlayerColor, PlayerId, PrivateView, PublicState, Resource, ResourceMap } from '../engine';
 import {
+  BOT_LEVELS,
   COSTS,
   RESOURCES,
   emptyResources,
@@ -21,11 +22,15 @@ import { ZoomPan } from './ZoomPan';
 import { useMuted } from '../ui/sound';
 import { playerCues, useLogSounds } from '../ui/eventSounds';
 import { DEV_CARD_ART, art } from '../ui/art';
+import { BOT_LEVEL_NAME } from '../bots';
 import { IncomingTrade, TradeSheet } from './trade';
 import { Modal, ResourceCards, ResourcePicker, ResourceStepper, sum, useSender } from './widgets';
 
 type BuildMode = 'road' | 'settlement' | 'city';
-type Sheet = null | 'trade' | 'dev' | 'yearOfPlenty' | 'monopoly' | 'costs';
+type Sheet = null | 'trade' | 'dev' | 'yearOfPlenty' | 'monopoly' | 'costs' | 'leave' | 'leaveBot';
+
+const BOT_LEVEL_HINT = { easy: 'играет наугад', medium: 'играет с умом', hard: 'играет на победу' } as const;
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 interface Targets {
   kind: 'vertex' | 'edge' | 'hex';
@@ -111,8 +116,8 @@ export function GameView({ room, snap, pub, priv, onLeave }: Props) {
         <button className="btn ghost icon" onClick={toggleMute} aria-label={muted ? 'Включить звук' : 'Выключить звук'}>
           {muted ? '🔇' : '🔊'}
         </button>
-        <button className="btn ghost icon" onClick={() => setSheet('costs')} aria-label="Цены">
-          ?
+        <button className="btn ghost icon" onClick={() => setSheet('costs')} aria-label="Меню: цены и выход">
+          ☰
         </button>
       </header>
 
@@ -247,8 +252,47 @@ export function GameView({ room, snap, pub, priv, onLeave }: Props) {
       {sheet === 'costs' && (
         <Modal title="Цены и правила" onClose={() => setSheet(null)}>
           <Costs priv={priv} />
-          <button className="btn ghost wide" onClick={onLeave}>
-            Выйти из игры на этом устройстве
+          <button className="btn ghost wide" onClick={() => (pub.phase === 'finished' ? onLeave() : setSheet('leave'))}>
+            🚪 Выйти из игры
+          </button>
+        </Modal>
+      )}
+      {sheet === 'leave' && (
+        <Modal title="Точно выйти из игры?" onClose={() => setSheet(null)}>
+          <p className="small">
+            Твои карты, постройки и очки останутся — дальше за тебя сыграет бот. Передумаешь — вернёшься с этого же
+            устройства.
+          </p>
+          <div className="leave-row">
+            <button className="btn ghost" onClick={() => setSheet(null)}>
+              Остаться
+            </button>
+            <button className="btn primary" onClick={() => setSheet('leaveBot')}>
+              Выйти
+            </button>
+          </div>
+        </Modal>
+      )}
+      {sheet === 'leaveBot' && (
+        <Modal title="Кто доиграет за тебя?" onClose={() => setSheet(null)}>
+          <div className="bot-choice">
+            {BOT_LEVELS.map((l) => (
+              <button
+                key={l}
+                className={`btn wide bot-${l}`}
+                disabled={busy}
+                onClick={() => {
+                  setSheet(null);
+                  void send({ type: 'handToBot', level: l });
+                }}
+              >
+                <span>🤖 {capitalize(BOT_LEVEL_NAME[l])}</span>
+                <small>{BOT_LEVEL_HINT[l]}</small>
+              </button>
+            ))}
+          </div>
+          <button className="btn ghost wide" onClick={() => setSheet(null)}>
+            Отмена
           </button>
         </Modal>
       )}
@@ -590,7 +634,10 @@ function Finished({ pub, me, onLeave }: { pub: PublicState; me: PlayerId; onLeav
         {ranking.map((id) => (
           <li key={id}>
             <span className="chip" style={{ background: PLAYER_HEX[pub.players[id].color] }} />
-            <span className="name">{pub.players[id].name}</span>
+            <span className="name">
+              {pub.players[id].name}
+              {pub.players[id].away && ' 🤖'}
+            </span>
             <span>{points(pub.players[id].points)}</span>
           </li>
         ))}

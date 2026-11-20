@@ -22,7 +22,7 @@ import { BOT_NAMES, botsToAct, decide } from '../bots';
 import type { Connection } from './firebase';
 import { clean, describeError } from './firebase';
 import type { LobbyEntry, LobbyPlayer, Presence, QueuedAction, RoomMeta, RoomSettings, RoomStatus } from './types';
-import { DEFAULT_ROOM_SETTINGS, lobbyList, roomPath } from './types';
+import { DEFAULT_ROOM_SETTINGS, OFFLINE_BOT_LEVEL, lobbyList, roomPath } from './types';
 
 export interface HostSnapshot {
   pin: string;
@@ -32,6 +32,8 @@ export interface HostSnapshot {
   presence: Record<PlayerId, Presence>;
   /** Полное состояние игры (только у хоста). */
   state?: GameState;
+  /** С какого момента игра ждёт действия от игрока (ход, сброс на 7) — для таймера «заменим ботом». */
+  waitingSince: Record<PlayerId, number>;
   /** Последняя ошибка записи в базу, если была. */
   error?: string;
 }
@@ -42,6 +44,30 @@ type Listener = (snap: HostSnapshot) => void;
 const BOT_DELAY_MS = 1300;
 /** Пауза перед ответом бота на обмен / сбросом на 7. */
 const BOT_REPLY_MS = 900;
+/** Как часто проверять, не пора ли заменить отвалившегося игрока ботом. */
+const OFFLINE_CHECK_MS = 2000;
+
+/** От кого игра сейчас ждёт действия. */
+export function waitingOn(state: GameState): PlayerId[] {
+  if (state.phase === 'finished') return [];
+  if (state.phase === 'discard') return Object.keys(state.pendingDiscards ?? {});
+  return [state.order[state.current]];
+}
+
+/**
+ * Когда отвалившегося игрока заменят ботом (или null — не заменят / он в сети).
+ * Срок отсчитывается с того, что позже: ухода из сети или начала его хода.
+ */
+export function takeoverDeadline(
+  snap: Pick<HostSnapshot, 'settings' | 'presence' | 'waitingSince' | 'state'>,
+  pid: PlayerId,
+): number | null {
+  const since = snap.waitingSince[pid];
+  if (!snap.settings.offlineBot || since === undefined || snap.state?.players[pid]?.bot) return null;
+  const p = snap.presence[pid];
+  if (p?.online) return null;
+  return Math.max(p?.changedAt ?? 0, since) + snap.settings.reconnectSeconds * 1000;
+}
 
 export class HostRoom {
   private readonly room: DatabaseReference;
@@ -57,6 +83,8 @@ export class HostRoom {
   private disposed = false;
   private botTimer?: ReturnType<typeof setTimeout>;
   private botMemory: Record<PlayerId, BotMemory> = {};
+  private offlineTimer?: ReturnType<typeof setInterval>;
+  private takingOver = new Set<PlayerId>();
 
   private constructor(
     private readonly conn: Connection,
@@ -65,7 +93,8 @@ export class HostRoom {
     state?: GameState,
   ) {
     this.room = ref(conn.db, roomPath(pin));
-    this.snap = { pin, status: meta.status, settings: meta.settings, lobby: [], presence: {}, state };
+    this.snap = { pin, status: meta.status, settings: meta.settings, lobby: [], presence: {}, state, waitingSince: {} };
+    if (state) this.snap.waitingSince = this.nextWaiting(state);
   }
 
   /** Новая комната со случайным 6-значным PIN. */
@@ -188,18 +217,20 @@ export class HostRoom {
       { vpToWin: this.snap.settings.vpToWin },
     );
     await this.write({ ...this.stateUpdates(state, true), 'meta/status': 'playing' });
-    this.snap = { ...this.snap, status: 'playing', state };
+    this.snap = { ...this.snap, status: 'playing', state, waitingSince: this.nextWaiting(state) };
     this.listenActions();
     this.emit({});
     this.scheduleBots();
+    this.watchOffline();
   }
 
-  /** Кнопки хоста: пропустить ход, сбросить карты за игрока. */
+  /** Кнопки хоста: пропустить ход, сбросить карты за игрока, отдать игрока боту. */
   hostAction(action: HostAction): Promise<ActionResult> {
     return this.enqueue(async () => {
       const state = this.snap.state;
       if (!state) return { ok: false, error: 'Игра ещё не началась' };
       const res = applyHostAction(state, action, cryptoRng);
+      if (res.ok && action.type === 'handToBot') delete this.botMemory[action.player];
       if (res.ok) await this.commit(res.state);
       return res;
     });
@@ -215,6 +246,8 @@ export class HostRoom {
     this.disposed = true;
     clearTimeout(this.botTimer);
     this.botTimer = undefined;
+    clearInterval(this.offlineTimer);
+    this.offlineTimer = undefined;
     this.unsubs.forEach((u) => u());
     this.unsubs = [];
     this.actionsUnsub?.();
@@ -261,7 +294,37 @@ export class HostRoom {
     if (this.snap.status === 'playing') {
       this.listenActions();
       this.scheduleBots();
+      this.watchOffline();
     }
+  }
+
+  // ───────────────────────── отвалившиеся игроки ─────────────────────────
+
+  /** Раз в пару секунд: кто из тех, кого ждёт игра, не вернулся вовремя — того заменяем ботом. */
+  private watchOffline(): void {
+    if (this.offlineTimer || this.disposed) return;
+    this.offlineTimer = setInterval(() => this.checkOffline(), OFFLINE_CHECK_MS);
+  }
+
+  private checkOffline(): void {
+    const state = this.snap.state;
+    if (!state || state.phase === 'finished' || !this.snap.settings.offlineBot) return;
+    const now = this.conn.now();
+    for (const pid of Object.keys(this.snap.waitingSince)) {
+      const deadline = takeoverDeadline(this.snap, pid);
+      if (deadline === null || now < deadline || this.takingOver.has(pid)) continue;
+      this.takingOver.add(pid);
+      void this.hostAction({ type: 'handToBot', player: pid, level: OFFLINE_BOT_LEVEL, auto: true }).finally(() =>
+        this.takingOver.delete(pid),
+      );
+    }
+  }
+
+  /** Обновить «с какого момента ждём» для нового состояния. */
+  private nextWaiting(state: GameState): Record<PlayerId, number> {
+    const prev = this.snap?.waitingSince ?? {};
+    const now = this.conn.now();
+    return Object.fromEntries(waitingOn(state).map((pid) => [pid, prev[pid] ?? now]));
   }
 
   private listenActions(): void {
@@ -290,7 +353,12 @@ export class HostRoom {
       await this.write(updates);
       return;
     }
-    const res = applyAction(state, queued.uid, queued.action, cryptoRng);
+    const type = queued.action?.type;
+    const res: ActionResult =
+      state.players[queued.uid]?.bot && type !== 'returnFromBot'
+        ? { ok: false, error: 'За тебя сейчас играет бот — нажми «Вернуться в игру»' }
+        : applyAction(state, queued.uid, queued.action, cryptoRng);
+    if (res.ok && (type === 'handToBot' || type === 'returnFromBot')) delete this.botMemory[queued.uid];
     updates[`results/${queued.uid}`] = {
       actionId: key,
       ok: res.ok,
@@ -310,7 +378,7 @@ export class HostRoom {
   private setState(state: GameState): void {
     const status: RoomStatus = state.phase === 'finished' ? 'finished' : 'playing';
     if (status !== this.snap.status) void this.write({ 'meta/status': status });
-    this.emit({ state, status });
+    this.emit({ state, status, waitingSince: this.nextWaiting(state) });
     this.scheduleBots();
   }
 

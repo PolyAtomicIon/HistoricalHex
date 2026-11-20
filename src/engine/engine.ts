@@ -8,7 +8,9 @@ import type { GameEvent } from './events';
 import type { GameState, Phase, TradeResponse } from './state';
 import { currentPlayerId } from './state';
 import type { HexId, PlayerId, Resource, ResourceMap } from './types';
+import type { BotLevel } from './types';
 import {
+  BOT_LEVELS,
   RESOURCES,
   addResources,
   emptyResources,
@@ -63,6 +65,8 @@ export function applyHostAction(state: GameState, action: HostAction, rng: Rng):
         return skipTurn(s, rng, events);
       case 'forceDiscard':
         return forceDiscard(s, action.player, rng, events);
+      case 'handToBot':
+        return handToBot(s, action.player, action.level, !!action.auto, events);
       default:
         fail('Неизвестное действие хоста');
     }
@@ -383,6 +387,18 @@ const HANDLERS: Handlers = {
     delete s.trade;
   },
 
+  handToBot(c, a) {
+    handToBot(c.s, c.actor, a.level, false, c.events);
+  },
+
+  returnFromBot(c) {
+    const p = c.s.players[c.actor];
+    if (!p.away) fail('За тебя сейчас не играет бот');
+    delete p.bot;
+    delete p.away;
+    c.events.push({ type: 'playerReturned', player: c.actor });
+  },
+
   cancelTrade(c) {
     requireTurn(c);
     if (!c.s.trade) fail('Нет активного предложения');
@@ -510,6 +526,24 @@ function validateTradeTerms(giveRaw: unknown, wantRaw: unknown): { give: Resourc
   if (totalResources(give) === 0 || totalResources(want) === 0) fail('Нужно и отдать, и получить хотя бы по одной карте');
   if (RESOURCES.some((r) => give[r] > 0 && want[r] > 0)) fail('Один и тот же ресурс не может быть с обеих сторон');
   return { give, want };
+}
+
+// ───────────────────────── выход и возвращение ─────────────────────────
+
+/** Игрок выходит из партии: его карты, постройки и очки остаются, ходит бот. */
+function handToBot(s: GameState, pid: PlayerId, level: BotLevel, auto: boolean, events: GameEvent[]): void {
+  const p = s.players[pid];
+  if (!p) fail('Нет такого игрока');
+  if (p.bot) fail(p.away ? 'За этого игрока уже играет бот' : 'Это и так бот');
+  if (!BOT_LEVELS.includes(level)) fail('Неизвестный уровень бота');
+  p.bot = level;
+  p.away = true;
+  events.push({ type: 'playerLeft', player: pid, level, ...(auto ? { auto: true } : {}) });
+  // Предложение обмена от ушедшего игрока снимаем — бот начнёт свой ход с чистого листа
+  if (s.trade && currentPlayerId(s) === pid) {
+    delete s.trade;
+    events.push({ type: 'tradeCancelled', player: pid });
+  }
 }
 
 // ───────────────────────── действия хоста ─────────────────────────

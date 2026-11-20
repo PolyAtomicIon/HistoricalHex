@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState, HexId, PlayerColor, PlayerId, PublicPlayer, PublicState, Resource } from '../engine';
 import { TERRAIN_RESOURCE, toPublicView, topologyFor } from '../engine';
 import type { HostRoom, HostSnapshot, Presence } from '../net';
-import { describeError } from '../net';
+import { OFFLINE_BOT_LEVEL, describeError, takeoverDeadline } from '../net';
 import { Board } from '../board/Board';
 import { BOT_LEVEL_NAME } from '../bots';
 import { Dice } from '../ui/Dice';
@@ -65,7 +65,12 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds 
       : pub.phase === 'finished'
         ? []
         : [current];
-  const alerts = waitingOn.filter(overdue);
+  // Если включена замена ботом — хост сделает это сам, кнопки не нужны
+  const alerts = snap.settings.offlineBot ? [] : waitingOn.filter(overdue);
+  const botIn = (uid: PlayerId) => {
+    const d = takeoverDeadline({ ...snap, state }, uid);
+    return d === null ? -1 : Math.max(0, d - t);
+  };
   // «Ждать дальше» — даём ещё один полный срок ожидания с этого момента.
   const waitMore = (uid: PlayerId) => setExtraWait((w) => ({ ...w, [uid]: offlineFor(uid) }));
 
@@ -104,6 +109,7 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds 
             discard={pub.pendingDiscards?.[id]}
             offlineMs={offline(id) ? offlineFor(id) : -1}
             limitMs={limit + (extraWait[id] ?? 0)}
+            botInMs={botIn(id)}
           />
         ))}
       </aside>
@@ -140,6 +146,12 @@ export function GameScreen({ room, snap, state, now, onClose, onNewGame, sounds 
                 <div className="row">
                   <button className="btn" onClick={() => waitMore(uid)}>
                     Ждать дальше
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => run(room.hostAction({ type: 'handToBot', player: uid, level: OFFLINE_BOT_LEVEL }))}
+                  >
+                    🤖 Отдать боту
                   </button>
                   {pub.phase === 'discard' ? (
                     <button className="btn primary" onClick={() => run(room.hostAction({ type: 'forceDiscard', player: uid }))}>
@@ -207,6 +219,7 @@ function PlayerPanel({
   discard,
   offlineMs,
   limitMs,
+  botInMs,
 }: {
   p: PublicPlayer;
   current: boolean;
@@ -215,13 +228,19 @@ function PlayerPanel({
   discard?: number;
   offlineMs: number;
   limitMs: number;
+  /** Через сколько игрока заменит бот (-1 — не заменит). */
+  botInMs: number;
 }) {
   return (
     <div className={`player-panel ${current ? 'current' : ''} ${offlineMs >= 0 ? 'is-offline' : ''}`} data-player={p.id}>
       <div className="pp-head">
         <span className="chip" style={chipStyle(p.color)} />
         <span className="name">{p.name}</span>
-        {p.bot && <span className={`bot-badge ${p.bot}`}>{BOT_LEVEL_NAME[p.bot]}</span>}
+        {p.bot && (
+          <span className={`bot-badge ${p.bot}`} title={p.away ? 'Игрок вышел — вместо него играет бот' : undefined}>
+            {BOT_LEVEL_NAME[p.bot]}
+          </span>
+        )}
         <span className="vp" title="Очки">
           ⭐ {p.points}
         </span>
@@ -245,7 +264,9 @@ function PlayerPanel({
       {current && p.bot && <div className="pp-note thinking">думает…</div>}
       {offlineMs >= 0 && (
         <div className="pp-offline">
-          {offlineMs === 0
+          {botInMs >= 0
+            ? `не в сети · бот через ${formatClock(botInMs)}`
+            : offlineMs === 0
             ? 'не в сети'
             : offlineMs < limitMs
               ? `переподключается… ${formatClock(limitMs - offlineMs)}`
@@ -430,12 +451,15 @@ function WinnerOverlay({ pub, onNewGame, onClose }: { pub: PublicState; onNewGam
       <Confetti />
       <div className="card winner">
         <div className="trophy">🏆</div>
-        <h1>{winner ? `${winner.name} побеждает!` : 'Игра окончена'}</h1>
+        <h1>{winner ? `${winner.name}${winner.away ? ' 🤖' : ''} побеждает!` : 'Игра окончена'}</h1>
         <ol className="ranking">
           {ranking.map((id) => (
             <li key={id}>
               <span className="chip" style={chipStyle(pub.players[id].color)} />
-              <span className="name">{pub.players[id].name}</span>
+              <span className="name">
+                {pub.players[id].name}
+                {pub.players[id].away && ' 🤖'}
+              </span>
               <span>{points(pub.players[id].points)}</span>
             </li>
           ))}

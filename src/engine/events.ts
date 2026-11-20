@@ -1,6 +1,6 @@
 // События игры: для лога на экране хоста и для анимаций.
 
-import type { DevCardType, EdgeId, HexId, PlayerId, Resource, ResourceMap, VertexId } from './types';
+import type { BotLevel, DevCardType, EdgeId, HexId, PlayerId, Resource, ResourceMap, VertexId } from './types';
 
 export type GameEvent =
   | { type: 'gameStarted'; order: PlayerId[] }
@@ -26,6 +26,9 @@ export type GameEvent =
   | { type: 'largestArmy'; player: PlayerId; knights: number }
   | { type: 'turnStarted'; player: PlayerId; turn: number }
   | { type: 'turnSkipped'; player: PlayerId }
+  /** Игрок вышел (auto — не вернулся вовремя), за него играет бот. */
+  | { type: 'playerLeft'; player: PlayerId; level: BotLevel; auto?: boolean }
+  | { type: 'playerReturned'; player: PlayerId }
   | { type: 'gameWon'; player: PlayerId; points: number };
 
 export type LogEntry = GameEvent & { seq: number };

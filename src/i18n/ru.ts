@@ -1,10 +1,12 @@
 // Все тексты интерфейса на русском.
 
-import type { DevCardType, GameEvent, PlayerColor, PlayerId, PublicState, Resource, ResourceMap, Terrain } from '../engine';
+import type { BotLevel, DevCardType, GameEvent, PlayerColor, PlayerId, PublicState, Resource, ResourceMap, Terrain } from '../engine';
 import { RESOURCES } from '../engine';
 import { RESOURCE_ICON } from '../ui/theme';
 
 export const GAME_TITLE = 'Хексленд';
+
+const BOT_LEVEL_TEXT: Record<BotLevel, string> = { easy: 'лёгкий', medium: 'средний', hard: 'сложный' };
 
 export const RESOURCE_NAME: Record<Resource, string> = {
   brick: 'кирпич',
@@ -164,6 +166,12 @@ export function eventText(e: GameEvent, name: Names): string | null {
       return `Ход ${e.turn}: ходит ${name(e.player)}`;
     case 'turnSkipped':
       return `Ход ${name(e.player)} пропущен`;
+    case 'playerLeft':
+      return e.auto
+        ? `🤖 ${name(e.player)} не вернулся вовремя — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`
+        : `🤖 ${name(e.player)} выходит из игры — вместо игрока теперь бот (${BOT_LEVEL_TEXT[e.level]})`;
+    case 'playerReturned':
+      return `👋 ${name(e.player)} возвращается в игру`;
     case 'gameWon':
       return `🏆 ${name(e.player)} побеждает с ${points(e.points ?? 0)}!`;
     default:

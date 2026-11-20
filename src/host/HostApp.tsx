@@ -191,6 +191,16 @@ function Menu({ onCreate }: { onCreate: (s: RoomSettings) => Promise<void> }) {
           </select>
         </label>
         <label>
+          Если игрок не вернулся
+          <select
+            value={settings.offlineBot ? 'bot' : 'host'}
+            onChange={(e) => setSettings({ ...settings, offlineBot: e.target.value === 'bot' })}
+          >
+            <option value="bot">за него играет бот</option>
+            <option value="host">решает ведущий</option>
+          </select>
+        </label>
+        <label>
           Очков для победы
           <select value={settings.vpToWin} onChange={(e) => setSettings({ ...settings, vpToWin: Number(e.target.value) })}>
             <option value={8}>8 (быстрая игра)</option>

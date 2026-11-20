@@ -150,6 +150,7 @@ export function Lobby({
         </p>
         <p className="muted small">
           Победа: {snap.settings.vpToWin} очков · ждём отвалившихся {Math.round(snap.settings.reconnectSeconds / 60)} мин
+          {snap.settings.offlineBot ? ', потом за них играет бот' : ''}
         </p>
         {error && <p className="error">{error}</p>}
       </section>

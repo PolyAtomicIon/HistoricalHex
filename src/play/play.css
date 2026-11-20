@@ -690,3 +690,44 @@ img.pick-icon {
     animation: none;
   }
 }
+
+/* ── выход из игры: бот вместо игрока ── */
+.leave-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.leave-row .btn {
+  flex: 1;
+}
+.bot-choice {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.bot-choice .btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.bot-choice .btn small {
+  font-weight: 600;
+  opacity: 0.7;
+}
+.away-card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 12px;
+  margin: 8px 0 18px;
+  padding: 12px 16px;
+}
+.away-card small {
+  flex-basis: 100%;
+  text-align: center;
+}
+.away .btn.ghost {
+  margin-top: 10px;
+}

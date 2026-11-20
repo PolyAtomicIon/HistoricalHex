@@ -8,6 +8,7 @@ import { GAME_TITLE } from '../i18n/ru';
 import { JoinScreen } from './JoinScreen';
 import { LobbyScreen } from './LobbyScreen';
 import { GameView } from './GameView';
+import { AwayScreen } from './AwayScreen';
 import { Emblem } from '../ui/Logo';
 
 const SAVED_KEY = 'hexland.player';
@@ -129,6 +130,10 @@ function RoomView({ room, onLeave }: { room: PlayerRoom; onLeave: (message?: str
   if (!snap.meta) return <Splash text="Загружаем…" spin />;
   if (snap.meta.status === 'lobby') return <LobbyScreen room={room} snap={snap} onLeave={() => onLeave()} />;
   if (!snap.public || !snap.private) return <Splash text="Загружаем игру…" spin />;
+  // Вышел из партии — за него играет бот; можно вернуться
+  if (snap.public.players[snap.uid]?.away && snap.public.phase !== 'finished') {
+    return <AwayScreen room={room} snap={snap} pub={snap.public} onLeave={() => onLeave()} />;
+  }
   return <GameView room={room} snap={snap} pub={snap.public} priv={snap.private} onLeave={() => onLeave()} />;
 }
 

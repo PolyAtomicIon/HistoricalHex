@@ -8,9 +8,14 @@ export interface RoomSettings {
   /** Сколько секунд ждать отвалившегося игрока, прежде чем хост решает. */
   reconnectSeconds: number;
   vpToWin: number;
+  /** Не вернулся за reconnectSeconds, пока игра ждёт его хода — за него играет бот (иначе решает ведущий). */
+  offlineBot: boolean;
 }
 
-export const DEFAULT_ROOM_SETTINGS: RoomSettings = { reconnectSeconds: 120, vpToWin: 10 };
+export const DEFAULT_ROOM_SETTINGS: RoomSettings = { reconnectSeconds: 120, vpToWin: 10, offlineBot: true };
+
+/** Уровень бота, который подменяет отвалившегося игрока. */
+export const OFFLINE_BOT_LEVEL = 'medium' as const;
 
 export interface RoomMeta {
   hostUid: string;

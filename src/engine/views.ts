@@ -21,6 +21,8 @@ export interface PublicPlayer {
   points: number;
   roadLength: number;
   bot?: BotLevel;
+  /** Живой игрок вышел — за него играет бот. */
+  away?: boolean;
 }
 
 export type PublicState = Omit<GameState, 'players' | 'devDeck' | 'log'> & {
@@ -67,6 +69,7 @@ export function toPublicView(s: GameState): PublicState {
       points: finished ? victoryPoints(s, pid) : publicVictoryPoints(s, pid),
       roadLength: longestRoadLength(s, pid),
       ...(p.bot ? { bot: p.bot } : {}),
+      ...(p.away ? { away: true } : {}),
     };
   }
   return {

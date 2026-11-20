@@ -1,6 +1,6 @@
 // Действия, которые игроки присылают хосту, и действия самого хоста.
 
-import type { EdgeId, HexId, PlayerId, Resource, ResourceMap, VertexId } from './types';
+import type { BotLevel, EdgeId, HexId, PlayerId, Resource, ResourceMap, VertexId } from './types';
 
 export type Action =
   | { type: 'buildSettlement'; vertex: VertexId }
@@ -23,7 +23,11 @@ export type Action =
   | { type: 'respondTrade'; tradeId: number; kind: 'counter'; give: ResourceMap; want: ResourceMap }
   | { type: 'confirmTrade'; tradeId: number; with: PlayerId }
   | { type: 'cancelTrade' }
-  | { type: 'endTurn' };
+  | { type: 'endTurn' }
+  /** Выйти из партии: дальше за игрока играет бот выбранного уровня. */
+  | { type: 'handToBot'; level: BotLevel }
+  /** Вернуться в партию и забрать место у бота. */
+  | { type: 'returnFromBot' };
 
 export type ActionType = Action['type'];
 
@@ -32,4 +36,6 @@ export type HostAction =
   /** Пропустить ход текущего игрока (на расстановке — поставить за него случайно). */
   | { type: 'skipTurn' }
   /** Сбросить за игрока случайные карты при семёрке. */
-  | { type: 'forceDiscard'; player: PlayerId };
+  | { type: 'forceDiscard'; player: PlayerId }
+  /** Отдать отвалившегося игрока боту (вручную или по таймеру — auto). */
+  | { type: 'handToBot'; player: PlayerId; level: BotLevel; auto?: boolean };
