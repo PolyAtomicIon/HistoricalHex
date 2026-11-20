@@ -342,6 +342,12 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
+      {myTurn && pub.phase === 'main' && !build && !planPick && !selected && hints[0] && (
+        <div key={hints[0]} className="board-hint glass turn-hint">
+          💡 {hints[0]}
+        </div>
+      )}
+
       {showFact && (
         <button key={fact.text} className="wait-fact glass" onClick={() => setSheet('lore')}>
           <Fact f={fact} />
