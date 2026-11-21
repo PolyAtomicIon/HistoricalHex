@@ -15,23 +15,65 @@ export interface Raid3DEvent {
 }
 
 // ---------- бомбардировщик (вдоль +X) ----------
-const cyl = (rt: number, rb: number, h: number, s = 8) => new THREE.CylinderGeometry(rt, rb, h, s);
+// Двухмоторный средний бомбардировщик: обтекаемый фюзеляж (тело вращения), трапециевидное крыло,
+// мотогондолы с вращающимися винтами, остеклённые нос и кабина, хвостовое оперение. Длина ≈1.25.
+const V2 = THREE.Vector2;
+const lathe = (pts: [number, number][], seg = 14) => {
+  const g = new THREE.LatheGeometry(pts.map(([r, y]) => new V2(r, y)), seg);
+  g.rotateZ(-Math.PI / 2); // ось вращения Y → +X (нос вперёд)
+  return g;
+};
+/** Плоская фигура в плоскости X (вдоль) × Z (размах), толщина t по Y. */
+const slab = (pts: [number, number][], t: number) => {
+  const sh = new THREE.Shape(pts.map(([x, z]) => new V2(x, z)));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false });
+  g.rotateX(Math.PI / 2); // Y фигуры → Z, толщина → вниз
+  g.translate(0, t / 2, 0);
+  return g;
+};
+/** Киль: фигура в плоскости X × Y, толщина по Z. */
+const fin = (pts: [number, number][], t: number) => {
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new V2(x, y))), { depth: t, bevelEnabled: false });
+  g.translate(0, 0, -t / 2);
+  return g;
+};
+const OLIVE = '#5e6a43';
+const OLIVE_D = '#4a5534';
+const WING = '#67744b';
+const GLASS = '#a9cfe0';
+const fuselage = lathe([[0, -0.62], [0.016, -0.6], [0.032, -0.5], [0.05, -0.32], [0.066, -0.08], [0.07, 0.18], [0.064, 0.38], [0.05, 0.5], [0.032, 0.58], [0, 0.62]]);
+const nacelle = lathe([[0, -0.17], [0.022, -0.15], [0.04, -0.04], [0.042, 0.06], [0.034, 0.13], [0, 0.16]], 10);
+const wing = slab([[0.17, -0.06], [0.17, 0.06], [0.06, 0.76], [0.02, 0.8], [-0.05, 0.78], [-0.11, 0.06], [-0.11, -0.06], [-0.05, -0.78], [0.02, -0.8], [0.06, -0.76]], 0.018);
+const tailplane = slab([[0.06, -0.03], [0.06, 0.03], [0.0, 0.24], [-0.03, 0.25], [-0.07, 0.23], [-0.07, -0.23], [-0.03, -0.25], [0.0, -0.24]], 0.012);
+const finGeo = fin([[0.05, 0], [-0.05, 0.17], [-0.1, 0.18], [-0.11, 0.15], [-0.1, 0]], 0.012);
+const glass = (r: number) => new THREE.SphereGeometry(r, 12, 8);
 export const planeGeo = merge([
-  part(cyl(0.075, 0.06, 1.15, 8), '#5b6b3a', [0, 0, 0], [0, 0, Math.PI / 2]),
-  part(new THREE.ConeGeometry(0.075, 0.22, 8), '#4b5a2f', [0.68, 0, 0], [0, 0, -Math.PI / 2]),
-  part(new THREE.SphereGeometry(0.06, 8, 6), '#9fc7d8', [0.55, 0.05, 0]),
-  part(box(0.2, 0.025, 1.25), '#61723f', [0.08, 0, 0]),
-  part(cyl(0.05, 0.05, 0.22, 8), '#3d4826', [0.2, -0.02, 0.32], [0, 0, Math.PI / 2]),
-  part(cyl(0.05, 0.05, 0.22, 8), '#3d4826', [0.2, -0.02, -0.32], [0, 0, Math.PI / 2]),
-  part(box(0.02, 0.16, 0.02), '#2b2b2b', [0.32, -0.02, 0.32]),
-  part(box(0.02, 0.16, 0.02), '#2b2b2b', [0.32, -0.02, -0.32]),
-  part(box(0.12, 0.018, 0.42), '#56663a', [-0.52, 0.02, 0]),
-  part(box(0.14, 0.16, 0.02), '#56663a', [-0.52, 0.1, 0]),
+  part(fuselage, OLIVE),
+  part(glass(0.04), GLASS, [0.57, 0.004, 0], [0, 0, 0], [1.35, 0.85, 0.85]), // остеклённый нос
+  part(glass(0.05), GLASS, [0.34, 0.05, 0], [0, 0, 0], [1.7, 0.62, 0.72]), // фонарь кабины
+  part(glass(0.026), GLASS, [-0.02, 0.064, 0]), // верхняя турель
+  part(wing, WING, [0.06, -0.012, 0]),
+  part(nacelle, OLIVE_D, [0.13, -0.022, 0.27]),
+  part(nacelle, OLIVE_D, [0.13, -0.022, -0.27]),
+  part(new THREE.ConeGeometry(0.018, 0.05, 8), '#2a2a2a', [0.315, -0.022, 0.27], [0, 0, -Math.PI / 2]),
+  part(new THREE.ConeGeometry(0.018, 0.05, 8), '#2a2a2a', [0.315, -0.022, -0.27], [0, 0, -Math.PI / 2]),
+  part(tailplane, WING, [-0.52, 0.012, 0]),
+  part(finGeo, OLIVE, [-0.47, 0.03, 0]),
 ]);
-export const planeMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.7, metalness: 0.1 });
-const shadowGeo = new THREE.CircleGeometry(0.75, 16);
+export const planeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.25 });
+// Винт: три лопасти (крутятся) и едва заметный диск-размытие
+const PROP_AT: [number, number, number][] = [
+  [0.3, -0.022, 0.27],
+  [0.3, -0.022, -0.27],
+];
+const bladesGeo = merge([0, 1, 2].map((k) => part(box(0.006, 0.2, 0.022), '#1e1e1e', [0, 0.1, 0], [0, 0, 0]).rotateX((k * Math.PI * 2) / 3)));
+const bladesMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 });
+const discGeo = new THREE.CircleGeometry(0.2, 20);
+discGeo.rotateY(Math.PI / 2);
+const discMat = new THREE.MeshBasicMaterial({ color: '#d8d8d8', transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide });
+const shadowGeo = new THREE.CircleGeometry(0.5, 16);
 shadowGeo.rotateX(-Math.PI / 2);
-shadowGeo.scale(1.4, 1, 0.8);
+shadowGeo.scale(1.2, 1, 1.5);
 const shadowMat = new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.28, depthWrite: false });
 const bombGeo = new THREE.CapsuleGeometry(0.04, 0.1, 4, 8);
 bombGeo.rotateZ(Math.PI / 2);
@@ -41,10 +83,10 @@ const debrisMat = new THREE.MeshStandardMaterial({ color: '#1c1612', roughness: 
 
 const FORMATION: [number, number][] = [
   [0, 0],
-  [-1.3, 1.45],
-  [-1.3, -1.45],
-  [-2.6, 2.9],
-  [-2.6, -2.9],
+  [-0.95, 0.95],
+  [-0.95, -0.95],
+  [-1.9, 1.9],
+  [-1.9, -1.9],
 ];
 const T = 7.5;
 const PASS = 0.45;
@@ -60,6 +102,7 @@ const HITS: [number, number, number][] = [
 export function Raid3D({ ev }: { ev: Raid3DEvent }) {
   const t0 = useRef<number | null>(null);
   const planes = useRef<(THREE.Object3D | null)[]>([]);
+  const props = useRef<(THREE.Object3D | null)[]>([]);
   const shadows = useRef<(THREE.Object3D | null)[]>([]);
   const bombs = useRef<(THREE.Object3D | null)[]>([]);
   const flames = useRef<(THREE.Sprite | null)[]>([]);
@@ -69,7 +112,7 @@ export function Raid3D({ ev }: { ev: Raid3DEvent }) {
   const [x, y, z] = ev.at;
   const dir = useMemo(() => new THREE.Vector3(1, 0, -0.4).normalize(), []);
   const side = useMemo(() => new THREE.Vector3(-dir.z, 0, dir.x), [dir]);
-  const ALT = 3;
+  const ALT = 2.5;
   const SPAN = 12;
   const flameMats = useMemo(
     () => Array.from({ length: HITS.length * FLAMES }, () => new THREE.SpriteMaterial({ map: fireT(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })),
@@ -110,6 +153,7 @@ export function Raid3D({ ev }: { ev: Raid3DEvent }) {
         sh.visible = u < 1;
       }
     });
+    props.current.forEach((pr) => pr && (pr.rotation.x = t * 38));
     // серия бомб от ведущих
     const tRelease = PASS * T - 0.35;
     bombs.current.forEach((b, i) => {
@@ -182,7 +226,17 @@ export function Raid3D({ ev }: { ev: Raid3DEvent }) {
     <group>
       {FORMATION.map((_, i) => (
         <group key={`p${i}`}>
-          <mesh ref={(el) => (planes.current[i] = el)} geometry={planeGeo} material={planeMat} castShadow scale={1.85} />
+          <group ref={(el) => (planes.current[i] = el)} scale={1.05}>
+            <mesh geometry={planeGeo} material={planeMat} castShadow />
+            {PROP_AT.map((at, k) => (
+              <group key={k} position={at}>
+                <group ref={(el) => (props.current[i * 2 + k] = el)}>
+                  <mesh geometry={bladesGeo} material={bladesMat} />
+                </group>
+                <mesh geometry={discGeo} material={discMat} renderOrder={11} />
+              </group>
+            ))}
+          </group>
           <mesh ref={(el) => (shadows.current[i] = el)} geometry={shadowGeo} material={shadowMat} renderOrder={4} />
         </group>
       ))}
