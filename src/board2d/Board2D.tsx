@@ -52,6 +52,8 @@ export interface Board2DProps {
   recent?: string[];
   selected?: string;
   flash?: { hexes: HexId[]; key: number };
+  /** Идёт атака на гекс — остальные гексы уходят в серое. */
+  attack?: { hex?: HexId; key: number };
   focus?: { hex?: string; vertex?: string; edge?: string; key: number };
   ghosts?: Ghost[];
   shake?: number;
@@ -70,6 +72,13 @@ export interface Board2DProps {
 
 export function Board2D(props: Board2DProps) {
   const { view, era, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, focus, ghosts = [], shake = 0 } = props;
+  const [atk, setAtk] = useState<HexId | null>(null);
+  useEffect(() => {
+    if (!props.attack?.hex) return;
+    setAtk(props.attack.hex);
+    const t = setTimeout(() => setAtk(null), 5200);
+    return () => clearTimeout(t);
+  }, [props.attack?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const topo = topologyFor(view.board.layout);
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const id = (s: string) => `b2-${uid}-${s}`;
@@ -330,13 +339,13 @@ export function Board2D(props: Board2DProps) {
           </g>
 
           {/* Тайлы */}
-          <g className="b2d-tiles">
+          <g className={`b2d-tiles ${atk ? 'attack' : ''}`}>
             {view.board.hexes.map((h, i) => {
               const c = geo.hexPos.get(h.id)!;
               const mirror = (i * 7) % 3 === 1;
               const robbed = h.id === view.robberHex;
               return (
-                <g key={h.id} transform={`translate(${c.x} ${c.y})`} className={`tile t-${h.terrain} ${robbed ? 'robbed' : ''}`}>
+                <g key={h.id} transform={`translate(${c.x} ${c.y})`} className={`tile t-${h.terrain} ${robbed ? 'robbed' : ''} ${h.id === atk ? 'atk' : ''}`}>
                   <g clipPath={`url(#${id('hex')})`}>
                     <rect x={-S} y={-S} width={2 * S} height={2 * S} fill={BASE_FILL[h.terrain]} />
                     {tiles.has(eraIcon(era, `tile-${h.terrain}`)) && (

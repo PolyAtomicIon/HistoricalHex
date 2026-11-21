@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { dimmable } from './dim';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { PlayerColor } from '../engine';
@@ -31,7 +32,7 @@ function prism(w: number, h: number, d: number): THREE.BufferGeometry {
 // Фундамент — отдельной тёмной сваей под домом (без контура), чтобы не было «кольца» на земле
 const foundGeo = new THREE.CylinderGeometry(0.1, 0.12, 0.3, 8);
 foundGeo.translate(0, -0.15, 0);
-const foundMat = new THREE.MeshStandardMaterial({ color: '#4a4540', roughness: 0.9 });
+const foundMat = dimmable(new THREE.MeshStandardMaterial({ color: '#4a4540', roughness: 0.9 }));
 
 // Дом (поселение): одноэтажная хата — белые стены, тёмная крыша, труба.
 const houseGeo = merge([
@@ -205,7 +206,7 @@ const matCache = new Map<string, THREE.MeshStandardMaterial>();
 function pieceMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = matCache.get(color);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.5, metalness: 0.05, emissive: PLAYER_HEX[color], emissiveIntensity: color === 'white' ? 0.18 : 0.08 });
+    m = dimmable(new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.5, metalness: 0.05, emissive: PLAYER_HEX[color], emissiveIntensity: color === 'white' ? 0.18 : 0.08 }));
     matCache.set(color, m);
   }
   return m;
@@ -214,7 +215,7 @@ const roadMatCache = new Map<string, THREE.MeshStandardMaterial>();
 function roadMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = roadMatCache.get(color);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], roughness: 0.45, metalness: 0.05 });
+    m = dimmable(new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], roughness: 0.45, metalness: 0.05 }));
     roadMatCache.set(color, m);
   }
   return m;

@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { DIM } from './dim';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { HarborType, PlayerColor } from '../engine';
 import { TERRAIN_RESOURCE } from '../engine';
@@ -535,6 +536,23 @@ function Scene(props: Board3DProps & { rig: Rig }) {
     const t = setTimeout(() => (raid.kind === 'robber' ? setRaid3d(null) : setTanks3d(null)), 8000);
     return () => clearTimeout(t);
   }, [raid?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Атака: остальные гексы уходят в серое, пока идёт сцена
+  const dimUntil = useRef(0);
+  useEffect(() => {
+    if (!raid?.target) return;
+    const p = world.hex.get(raid.target);
+    if (!p) return;
+    DIM.uFocus.value.set(p[0], p[1]);
+    const len = raid.era === 'ww2' ? (raid.kind === 'robber' ? 7500 : 6800) : (ATTACK3D_MS[`${raid.era}:${raid.kind === 'knight' ? 'knight' : 'robber'}`] ?? 6500);
+    dimUntil.current = performance.now() + len;
+  }, [raid?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useFrame((_, dt) => {
+    const want = performance.now() < dimUntil.current ? 1 : 0;
+    const a = DIM.uAmt.value;
+    if (a === want) return;
+    // плавно: в серое за ~0.5 с, обратно за ~0.8 с
+    DIM.uAmt.value = want > a ? Math.min(1, a + dt * 2) : Math.max(0, a - dt * 1.25);
+  });
 
   return (
     <EnvCtx.Provider value={env}>

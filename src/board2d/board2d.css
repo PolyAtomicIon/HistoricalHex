@@ -569,3 +569,7 @@ html.lite .b2d .rz-smoke { animation: none; opacity: 0.6; }
   stroke: #6b4a00;
   stroke-width: 0.02;
 }
+
+/* атака: остальные гексы в серое, цель — в цвете */
+.b2d-tiles .tile { transition: filter 500ms ease; }
+.b2d-tiles.attack .tile:not(.atk) { filter: grayscale(1) brightness(0.72); }

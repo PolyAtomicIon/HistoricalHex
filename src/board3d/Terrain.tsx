@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { dimmable } from './dim';
 import { useFrame } from '@react-three/fiber';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Terrain } from '../engine';
@@ -483,7 +484,7 @@ const ANIM: Partial<Record<PropKind, 'sway' | 'bob' | 'wave'>> = { tree: 'sway',
 
 let propMat: THREE.MeshStandardMaterial | null = null;
 const getPropMat = () =>
-  (propMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85, metalness: 0 }));
+  (propMat ??= dimmable(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85, metalness: 0 })));
 
 function PropField({ kind, insts }: { kind: PropKind; insts: Inst[] }) {
   const { reduced, lowPower } = useEnv();
@@ -557,7 +558,7 @@ const TERRAINS: Terrain[] = ['forest', 'hills', 'pasture', 'fields', 'mountains'
 
 function TileGroup({ terrain, tiles }: { terrain: Terrain; tiles: TileInfo[] }) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  const mat = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92 }), []);
+  const mat = useMemo(() => dimmable(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92 })), []);
   useEffect(() => () => mat.dispose(), [mat]);
   useLayoutEffect(() => {
     const m = ref.current;
@@ -595,7 +596,7 @@ function Skirt({ tiles }: { tiles: TileInfo[] }) {
     m.instanceMatrix.needsUpdate = true;
   }, [tiles]);
   if (tiles.length === 0) return null;
-  skirtMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });
+  skirtMat ??= dimmable(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }));
   return <instancedMesh key={tiles.length} ref={ref} args={[skirtGeo(), skirtMat, tiles.length]} receiveShadow frustumCulled={false} />;
 }
 

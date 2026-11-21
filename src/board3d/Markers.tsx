@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { dimmable } from './dim';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { HarborType } from '../engine';
 import { HEIGHT, harborSpot, type World } from './world';
@@ -235,7 +236,7 @@ const faceGeo = (() => {
   g.rotateX(-Math.PI / 2);
   return g;
 })();
-const discMat = new THREE.MeshStandardMaterial({ color: '#e6bd66', roughness: 0.3, metalness: 0.35, emissive: '#6b4a12', emissiveIntensity: 0.3 });
+const discMat = dimmable(new THREE.MeshStandardMaterial({ color: '#e6bd66', roughness: 0.3, metalness: 0.35, emissive: '#6b4a12', emissiveIntensity: 0.3 }));
 const pinGeo = new THREE.CylinderGeometry(0.02, 0.028, 1, 6);
 pinGeo.translate(0, 0.5, 0);
 const pinMat = new THREE.MeshStandardMaterial({ color: '#4a3826', roughness: 0.7 });
@@ -282,7 +283,7 @@ export function Tokens({ tiles, numbers, hide }: { tiles: TileInfo[]; numbers: M
 
 // ---------- гавани ----------
 
-const woodMat = new THREE.MeshStandardMaterial({ color: '#8a5a33', roughness: 0.9, flatShading: true });
+const woodMat = dimmable(new THREE.MeshStandardMaterial({ color: '#8a5a33', roughness: 0.9, flatShading: true }));
 const plankGeo = new THREE.BoxGeometry(1, 0.05, 0.09);
 const deckGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.06, 10);
 
@@ -312,7 +313,7 @@ const shipGeo = merge([
   part(box(0.012, 0.24, 0.22), '#f4ecd8', [0.06, 0.32, 0]),
 ]);
 shipGeo.scale(1.45, 1.45, 1.45);
-const shipMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.8 });
+const shipMat = dimmable(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.8 }));
 
 /** Кораблик у причала: покачивается; при обмене через эту гавань уходит в рейс и возвращается. */
 function Ship({ spot, sailKey }: { spot: { a: [number, number]; b: [number, number]; p: [number, number] }; sailKey?: number }) {

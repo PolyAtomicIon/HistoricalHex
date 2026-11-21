@@ -128,6 +128,7 @@ export function GameBoard({
   const { lite } = useLite();
   const svg = (
     <Board2D
+      attack={fx?.raid ? { hex: fx.raid.target, key: fx.raid.key } : undefined}
       view={pub}
       era={era}
       colors={colors}
