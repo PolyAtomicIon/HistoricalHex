@@ -130,6 +130,7 @@ export function GameBoard({
           ghosts={ghosts}
           shake={fx.shake}
           lowPower={lowPower}
+          era={era}
         />
       </Suspense>
     </Fallback>

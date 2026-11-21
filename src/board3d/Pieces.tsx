@@ -1,6 +1,6 @@
 // Фишки игроков (дороги, поселения, города), призраки планов, разбойник, облачко при постройке.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -350,11 +350,25 @@ const eyeGeo = new THREE.SphereGeometry(0.02, 8, 6);
 const eyeMat = new THREE.MeshBasicMaterial({ color: '#ffcf4a', toneMapped: false });
 const robberMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.7 });
 
-export function Robber({ target, hexH }: { target: [number, number] | null; hexH: number }) {
+export function Robber({ target, hexH, sprite }: { target: [number, number] | null; hexH: number; sprite?: string }) {
   const { rig, reduced } = useEnv();
   const g = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const cur = useRef<{ from: [number, number]; to: [number, number]; t0: number | null; at: [number, number] } | null>(null);
+  // Спрайт эпохи (лучники / ниндзя / бомбардировщики) — если загрузился; иначе фигурка
+  const [spriteMat, setSpriteMat] = useState<THREE.SpriteMaterial | null>(null);
+  useEffect(() => {
+    if (!sprite) return;
+    let alive = true;
+    new THREE.TextureLoader().load(sprite, (tex) => {
+      if (!alive) return;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      setSpriteMat(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [sprite]);
 
   useEffect(() => {
     if (!target) return;
@@ -387,10 +401,76 @@ export function Robber({ target, hexH }: { target: [number, number] | null; hexH
   return (
     <group ref={g} position={[target[0], hexH, target[1]]}>
       <group ref={body}>
-        <mesh geometry={robberGeo} material={robberMat} castShadow />
-        <mesh geometry={eyeGeo} material={eyeMat} position={[-0.035, 0.405, 0.085]} />
-        <mesh geometry={eyeGeo} material={eyeMat} position={[0.035, 0.405, 0.085]} />
+        {spriteMat ? (
+          <sprite material={spriteMat} position={[0, 0.5, 0]} scale={[1.15, 1.15, 1.15]} />
+        ) : (
+          <>
+            <mesh geometry={robberGeo} material={robberMat} castShadow />
+            <mesh geometry={eyeGeo} material={eyeMat} position={[-0.035, 0.405, 0.085]} />
+            <mesh geometry={eyeGeo} material={eyeMat} position={[0.035, 0.405, 0.085]} />
+          </>
+        )}
       </group>
+    </group>
+  );
+}
+
+// ---------- захваченный гекс: тлеющий контур, тень, дым (и огонь во ВОВ) ----------
+
+let smokeTex: THREE.Texture | undefined;
+function smokeTexture(): THREE.Texture {
+  if (smokeTex) return smokeTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(32, 32, 2, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 64, 64);
+  smokeTex = new THREE.CanvasTexture(c);
+  return smokeTex;
+}
+
+const zoneRing = new THREE.RingGeometry(0.8, 0.92, 6, 1, Math.PI / 2);
+const zoneDisc = new THREE.CircleGeometry(0.9, 6, Math.PI / 2);
+
+export function RaidZone({ target, hexH, era }: { target: [number, number] | null; hexH: number; era?: string }) {
+  const { reduced } = useEnv();
+  const ring = useRef<THREE.MeshBasicMaterial>(null);
+  const light = useRef<THREE.PointLight>(null);
+  const puffs = useRef<(THREE.Sprite | null)[]>([]);
+  const color = era === 'genghis' ? '#c9a676' : era === 'ww2' ? '#3a3a3a' : '#2e2c38';
+  const mats = useMemo(
+    () => Array.from({ length: 6 }, () => new THREE.SpriteMaterial({ map: smokeTexture(), color, transparent: true, depthWrite: false, opacity: 0 })),
+    [color],
+  );
+  useFrame(({ clock }) => {
+    const t = reduced ? 1 : clock.elapsedTime;
+    if (ring.current) ring.current.opacity = 0.55 + Math.sin(t * 3) * 0.3;
+    if (light.current) light.current.intensity = 1.6 + Math.sin(t * 17) * 0.4 + Math.sin(t * 7.3) * 0.3;
+    puffs.current.forEach((p, i) => {
+      if (!p) return;
+      const k = ((t * 0.32 + i / 6) % 1 + 1) % 1;
+      p.position.set(Math.sin(i * 2.1) * 0.35, 0.25 + k * 1.3, Math.cos(i * 1.7) * 0.3);
+      const s = 0.35 + k * 0.75;
+      p.scale.set(s, s, s);
+      (p.material as THREE.SpriteMaterial).opacity = Math.sin(k * Math.PI) * 0.75;
+    });
+  });
+  if (!target) return null;
+  return (
+    <group position={[target[0], hexH + 0.02, target[1]]}>
+      <mesh geometry={zoneDisc} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} renderOrder={5}>
+        <meshBasicMaterial color="#14060a" transparent opacity={0.35} depthWrite={false} />
+      </mesh>
+      <mesh geometry={zoneRing} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} renderOrder={6}>
+        <meshBasicMaterial ref={ring} color="#ff3b2f" transparent opacity={0.8} depthWrite={false} />
+      </mesh>
+      {mats.map((m, i) => (
+        <sprite key={i} ref={(el) => (puffs.current[i] = el)} material={m} />
+      ))}
+      {era === 'ww2' && <pointLight ref={light} color="#ff7a1a" distance={2.6} intensity={1.6} position={[0, 0.4, 0]} />}
     </group>
   );
 }

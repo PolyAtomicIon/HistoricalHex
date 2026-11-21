@@ -191,6 +191,18 @@ export function Board2D(props: Board2DProps) {
               <stop offset="0%" stopColor="#fffaf0" />
               <stop offset="100%" stopColor="#e6cf9f" />
             </radialGradient>
+            <pattern id={id('hatch')} patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(45)">
+              <rect width="6" height="16" fill="rgba(20, 0, 0, 0.32)" />
+            </pattern>
+            <radialGradient id={id('smoke')} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="var(--smoke, #3a3a3e)" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="var(--smoke, #3a3a3e)" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id={id('fire')} cx="50%" cy="60%" r="50%">
+              <stop offset="0%" stopColor="#fff3b0" stopOpacity="0.95" />
+              <stop offset="40%" stopColor="#ff8a1f" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#c21d0e" stopOpacity="0" />
+            </radialGradient>
             <linearGradient id={id('shade')} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#fff" stopOpacity="0.45" />
               <stop offset="45%" stopColor="#fff" stopOpacity="0" />
@@ -241,7 +253,13 @@ export function Board2D(props: Board2DProps) {
                     <polygon points={hexPath(0.965)} fill={`url(#${id('bevel')})`} />
                   </g>
                   <polygon className="tile-edge" points={hexPath(0.955)} />
-                  {robbed && <polygon className="tile-dim" points={hexPath(0.965)} />}
+                  {robbed && (
+                    <g className="raid-zone-base">
+                      <polygon className="tile-dim" points={hexPath(0.965)} />
+                      <polygon points={hexPath(0.965)} fill={`url(#${id('hatch')})`} />
+                      <polygon className="rz-glow" points={hexPath(0.93)} />
+                    </g>
+                  )}
                   {flash?.hexes.includes(h.id) && <polygon key={`fl${flash.key}`} className="tile-flash" points={hexPath(0.965)} />}
                 </g>
               );
@@ -268,6 +286,7 @@ export function Board2D(props: Board2DProps) {
                   {Array.from({ length: pips }, (_, k) => (
                     <circle key={k} className="tk-pip" cx={(k - (pips - 1) / 2) * S * 0.07} cy={S * 0.16} r={S * 0.022} />
                   ))}
+                  {robbed && <line className="tk-slash" x1={-S * 0.22} y1={S * 0.22} x2={S * 0.22} y2={-S * 0.22} />}
                 </g>
               );
             })}
@@ -355,6 +374,32 @@ export function Board2D(props: Board2DProps) {
                 );
               })}
           </g>
+
+          {/* Захваченный гекс: дым / пожар / пыль — видно сразу, что он не приносит доход */}
+          {(() => {
+            const c = geo.hexPos.get(view.robberHex);
+            if (!c) return null;
+            return (
+              <g key={`rz${view.robberHex}`} className={`raid-zone era-${era}`} transform={`translate(${c.x} ${c.y})`} aria-hidden>
+                {era === 'ww2' && (
+                  <>
+                    <ellipse className="rz-fire f1" cx={-S * 0.42} cy={S * 0.34} rx={S * 0.16} ry={S * 0.2} fill={`url(#${id('fire')})`} />
+                    <ellipse className="rz-fire f2" cx={S * 0.45} cy={S * 0.3} rx={S * 0.13} ry={S * 0.17} fill={`url(#${id('fire')})`} />
+                  </>
+                )}
+                {[0, 1, 2, 3, 4].map((k) => (
+                  <circle
+                    key={k}
+                    className={`rz-smoke s${k}`}
+                    cx={[-0.42, 0.45, -0.1, 0.25, -0.3][k] * S}
+                    cy={[0.3, 0.26, 0.5, 0.48, -0.1][k] * S}
+                    r={S * 0.22}
+                    fill={`url(#${id('smoke')})`}
+                  />
+                ))}
+              </g>
+            );
+          })()}
 
           {/* Разбойник эпохи */}
           {(() => {

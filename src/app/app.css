@@ -135,7 +135,7 @@ textarea {
 }
 .btn.danger {
   background: rgba(255, 107, 91, 0.18);
-  border-color: rgba(255, 107, 91, 0.4);
+  border-color: var(--glass-border);
   color: #ffd3cd;
 }
 .btn.wide {
@@ -174,7 +174,7 @@ textarea {
   transition: border-color 160ms;
 }
 .field:focus {
-  border-color: var(--accent);
+  border-color: var(--glass-border);
 }
 .pin-field {
   font-size: 28px;
@@ -267,7 +267,8 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* центр через auto-отступы: если контент выше экрана, верх не уезжает за край */
+  justify-content: flex-start;
   gap: 18px;
   padding: calc(var(--safe-t) + 24px) 16px calc(var(--safe-b) + 24px);
   overflow-y: auto;
@@ -525,7 +526,7 @@ textarea {
 .act.on {
   background: rgba(var(--accent-rgb), 0.40);
   background: color-mix(in oklab, var(--accent) 40%, transparent);
-  border-color: var(--accent);
+  border-color: var(--glass-border);
 }
 .act .badge {
   position: absolute;
@@ -641,7 +642,7 @@ textarea {
   animation: toast-in 420ms var(--spring);
 }
 .toast.bad {
-  border-color: rgba(255, 107, 91, 0.5);
+  border-color: var(--glass-border);
 }
 @keyframes toast-in {
   from {
@@ -725,13 +726,13 @@ button.item {
   color: var(--ink-2);
 }
 .item.ok {
-  border-color: rgba(88, 214, 141, 0.45);
+  border-color: var(--glass-border);
 }
 .item.warn {
-  border-color: rgba(242, 181, 68, 0.5);
+  border-color: var(--glass-border);
 }
 .item.broken {
-  border-color: rgba(255, 107, 91, 0.55);
+  border-color: var(--glass-border);
   background: rgba(255, 107, 91, 0.08);
 }
 
@@ -740,8 +741,8 @@ button.item {
   padding: 12px 14px;
   background: rgba(var(--accent-rgb), 0.16);
   background: color-mix(in oklab, var(--accent) 16%, transparent);
-  border: 1px solid rgba(var(--accent-rgb), 0.40);
-  border: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
+  border: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-border);
   font-size: 14px;
 }
 
@@ -814,3 +815,6 @@ button.item {
     opacity: 0;
   }
 }
+
+.center-col > :first-child { margin-top: auto; }
+.center-col > :last-child { margin-bottom: auto; }

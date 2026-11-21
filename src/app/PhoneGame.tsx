@@ -65,6 +65,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const current = pub.order[pub.current];
   const myTurn = current === me && pub.phase !== 'finished';
   const fx = useGameFx(pub, pack, me);
+  const connStatus = useConn().status;
   const [mode, setMode] = useBoardMode();
   const [muted, setMuted] = useMuted();
   const { pref: litePref, auto: liteAuto, lite: liteOn } = useLite();
@@ -116,10 +117,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
   // Входящее предложение обмена — открываем шторку
   const tradeId = pub.trade?.id;
+  // Входящее предложение не открывает шторку само (раньше рвало план и чтение) — показываем плашку над доком
   useEffect(() => {
-    if (tradeId !== undefined && !myTurn && pub.phase === 'main') setSheet('incoming');
-    if (tradeId === undefined) setSheet((s) => (s === 'incoming' || s === 'trade' ? null : s));
-  }, [tradeId, myTurn, pub.phase]);
+    if (tradeId === undefined) setSheet((s) => (s === 'incoming' ? null : s));
+  }, [tradeId]);
 
   // Обязательный сброс на 7
   const mustDiscard = pub.phase === 'discard' && priv.mustDiscard > 0;
@@ -273,15 +274,16 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </button>
       </header>
 
-      {fx.narration ? (
-        <div key={`n${fx.narration.key}`} className="status-pill glass narr" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }} aria-live="polite">
+      <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
+        {status}
+      </div>
+      {fx.narration && (
+        <div key={`n${fx.narration.key}`} className="narr-line" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }}>
+          <i />
           {fx.narration.text}
         </div>
-      ) : (
-        <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
-          {status}
-        </div>
       )}
+      {connStatus !== 'online' && <div className="reconnect glass">Переподключаемся…</div>}
 
       {myTurn && <TurnBanner key={`tb${pub.turn}`} color={PLAYER_HEX[meP.color]} />}
 
@@ -355,6 +357,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </button>
       )}
 
+      {pub.trade && !myTurn && pub.phase === 'main' && !planPick && sheet === null && (
+        <IncomingBanner pub={pub} priv={priv} me={me} busy={busy} send={sendVoid} open={() => setSheet('incoming')} />
+      )}
+
       <section ref={dockRef} className="dock glass strong">
         <Hand hand={priv.resources} />
         <Actions
@@ -388,7 +394,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         )}
       </Sheet>
 
-      <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn} onClose={() => setSheet(null)} title="Предложение обмена">
+      <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn} onClose={() => setSheet(null)} title={`${pub.players[current]?.name ?? 'Игрок'} предлагает обмен`}>
         {pub.trade && <IncomingTrade key={pub.trade.id} pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} />}
       </Sheet>
 
@@ -428,7 +434,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} карт`} description="Выпало 7: у кого больше 7 карт — сбрасывает половину">
+      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} ${plural(priv.mustDiscard, 'карту', 'карты', 'карт')}`} description="Выпало 7: у кого больше 7 карт — сбрасывает половину">
         <Discard priv={priv} busy={busy} send={sendVoid} />
       </Sheet>
 
@@ -594,8 +600,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 /** Игроки сверху: аватары с цветом, очками и таймером у того, кто ходит. Тап — подробности. */
 export function PlayersBar({ pub, room, onOpen, deadline }: { pub: PublicState; room: RoomView; onOpen?: () => void; deadline?: number }) {
   const current = pub.order[pub.current];
+  const wide = pub.order.length <= 4;
   return (
-    <button className="players-bar glass" onClick={onOpen} aria-label="Игроки">
+    <button className={`players-bar glass ${wide ? 'wide' : ''}`} onClick={onOpen} aria-label="Игроки">
       {pub.order.map((id) => {
         const p = pub.players[id];
         const turn = id === current && pub.phase !== 'finished';
@@ -615,6 +622,11 @@ export function PlayersBar({ pub, room, onOpen, deadline }: { pub: PublicState; 
               )}
             </span>
             <span className="pav-vp">{p.points}</span>
+            {wide && (
+              <span className="pav-info">
+                <b>{id === room.me ? 'Ты' : p.name}</b>
+              </span>
+            )}
           </span>
         );
       })}
@@ -655,10 +667,10 @@ function PlayersSheet({ pub, room, pack }: { pub: PublicState; room: RoomView; p
                 {!room.online[id] && !p.bot && <span className="faint"> · не в сети</span>}
               </div>
               <div className="pl-stats">
-                <span><Icon name="hand" size={14} /> {p.resourceCount}</span>
-                <span><Icon name="cards" size={14} /> {p.devCardCount}</span>
-                <span><Icon name="road" size={14} /> {p.roadLength}</span>
-                <span><ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={16} /> {p.knightsPlayed}</span>
+                <span title="Карт на руке"><Icon name="hand" size={14} /> {p.resourceCount} карт</span>
+                <span title="Карт развития"><Icon name="cards" size={14} /> {p.devCardCount} разв.</span>
+                <span title="Самая длинная дорога"><Icon name="road" size={14} /> {p.roadLength} дор.</span>
+                <span title="Сыграно рыцарей"><ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={16} /> {p.knightsPlayed}</span>
               </div>
               {(pub.longestRoad === id || pub.largestArmy === id) && (
                 <div className="pl-bonus">
@@ -719,6 +731,39 @@ function TurnBanner({ color }: { color: string }) {
     <div className="turn-banner" style={{ ['--me' as string]: color }} aria-hidden>
       <div className="tb-edge" />
       <div className="tb-plate display">Твой ход</div>
+    </div>
+  );
+}
+
+/** Чужое предложение обмена: компактная плашка над доком. Тап — подробности и встречное. */
+function IncomingBanner({ pub, priv, me, busy, send, open }: { pub: PublicState; priv: PrivateView; me: PlayerId; busy: boolean; send: (a: Action) => Promise<void>; open: () => void }) {
+  const t = pub.trade!;
+  const from = pub.players[pub.order[pub.current]];
+  const mine = t.responses?.[me];
+  const can = hasResources(priv.resources, t.want);
+  return (
+    <div key={t.id} className="incoming-bar glass strong" style={{ ['--pc' as string]: PLAYER_HEX[from.color] }}>
+      <button className="ib-body" onClick={open}>
+        <span className="ib-ava">{from.name.charAt(0).toUpperCase()}</span>
+        <span className="ib-terms">
+          <small>{from.name} предлагает</small>
+          <span className="counter-line">
+            <ResChips value={t.want} /> → <ResChips value={t.give} />
+          </span>
+        </span>
+      </button>
+      {mine ? (
+        <span className="ib-answer faint">{mine.kind === 'accept' ? 'Ты согласен' : mine.kind === 'decline' ? 'Отказ' : 'Встречное'}</span>
+      ) : (
+        <>
+          <button className="btn small-act" disabled={busy} onClick={() => void send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
+            Нет
+          </button>
+          <button className="btn primary small-act" disabled={busy || !can} onClick={() => void send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
+            Да
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -785,27 +830,28 @@ function Actions(props: {
       {priv.devCards.length > 0 && <span className={`cnt ${canPlayNow ? 'hot' : ''}`}>{priv.devCards.length}</span>}
     </button>
   );
-  const planBtn = (
-    <button className="btn" onClick={() => openSheet('plan')}>
-      <Icon name="plan" /> План
-      {props.planCount > 0 && <span className={`cnt ${props.planBroken ? 'bad' : ''}`}>{props.planBroken || props.planCount}</span>}
-    </button>
-  );
-  const smile = (
-    <button className="btn icon-only" onClick={() => openSheet('react')} aria-label="Реакция">
-      <Icon name="smile" />
-    </button>
-  );
-
   if (!myTurn || pub.phase === 'discard') {
     return (
-      <div className="actions">
-        {planBtn}
-        <button className={`btn ${pub.trade ? 'glow' : ''}`} onClick={() => openSheet(pub.trade ? 'incoming' : 'trade')}>
-          <Icon name="trade" /> {pub.trade ? 'Предложение' : 'Обмен'}
+      <div className="actions tools">
+        <button className="tool" onClick={() => openSheet('plan')}>
+          <Icon name="plan" />
+          <small>План</small>
+          {props.planCount > 0 && <span className={`cnt dot ${props.planBroken ? 'bad' : ''}`}>{props.planBroken || props.planCount}</span>}
         </button>
-        {cardsBtn}
-        {smile}
+        <button className="tool" onClick={() => openSheet(pub.trade ? 'incoming' : 'trade')}>
+          <Icon name="trade" />
+          <small>Обмен</small>
+          {pub.trade && <span className="cnt dot hot">1</span>}
+        </button>
+        <button className="tool" onClick={() => openSheet('dev')}>
+          <Icon name="cards" />
+          <small>Карты</small>
+          {priv.devCards.length > 0 && <span className="cnt dot">{priv.devCards.length}</span>}
+        </button>
+        <button className="tool" onClick={() => openSheet('react')}>
+          <Icon name="smile" />
+          <small>Реакция</small>
+        </button>
       </div>
     );
   }
@@ -840,20 +886,20 @@ function Actions(props: {
       return (
         <>
           <div className="actions builds">
-            <button className={`act ${build === 'road' ? 'on' : ''}`} disabled={!road && build !== 'road'} onClick={() => t('road')}>
-              <span className="act-top"><Icon name="road" className="i" size={18} /> Дорога</span>
+            <button className={`act ${build === 'road' ? 'on' : ''}`} disabled={!road && build !== 'road'} onClick={() => t('road')} aria-label="Дорога" title="Дорога">
+              <Icon name="road" className="i" size={24} />
               <Cost cost={COSTS.road} />
             </button>
-            <button className={`act ${build === 'settlement' ? 'on' : ''}`} disabled={!settl && build !== 'settlement'} onClick={() => t('settlement')}>
-              <span className="act-top"><Icon name="house" className="i" size={18} /> Поселение</span>
+            <button className={`act ${build === 'settlement' ? 'on' : ''}`} disabled={!settl && build !== 'settlement'} onClick={() => t('settlement')} aria-label="Поселение" title="Поселение">
+              <Icon name="house" className="i" size={24} />
               <Cost cost={COSTS.settlement} />
             </button>
-            <button className={`act ${build === 'city' ? 'on' : ''}`} disabled={!city && build !== 'city'} onClick={() => t('city')}>
-              <span className="act-top"><Icon name="castle" className="i" size={18} /> Город</span>
+            <button className={`act ${build === 'city' ? 'on' : ''}`} disabled={!city && build !== 'city'} onClick={() => t('city')} aria-label="Город" title="Город">
+              <Icon name="castle" className="i" size={24} />
               <Cost cost={COSTS.city} />
             </button>
-            <button className="act" disabled={!dev || busy} onClick={() => void send({ type: 'buyDevCard' })}>
-              <span className="act-top"><Icon name="cards" className="i" size={18} /> Карта</span>
+            <button className="act" disabled={!dev || busy} onClick={() => void send({ type: 'buyDevCard' })} aria-label="Купить карту развития" title="Карта развития">
+              <Icon name="cards" className="i" size={24} />
               <Cost cost={COSTS.devCard} />
             </button>
           </div>
@@ -883,6 +929,11 @@ function Actions(props: {
 
 const pieceNames: { road: string; settlement: string; city: string } = { road: 'дорога', settlement: 'поселение', city: 'город' };
 const shortName = (k: keyof typeof pieceNames) => pieceNames[k];
+const plural = (n: number, one: string, few: string, many: string) => {
+  const a = n % 10;
+  const b = n % 100;
+  return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
+};
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** Названия построек эпохи — только для рассказчика; в кнопках всегда короткие «Дорога/Поселение/Город». */
 export function setPieceNames(_p: { road: string; settlement: string; city: string }) {

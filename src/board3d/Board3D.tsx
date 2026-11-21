@@ -11,7 +11,7 @@ import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
 import { EdgeMarker, Flashes, Harbors, HexMarker, Tokens, VertexMarker, useResetCursor } from './Markers';
-import { Buildings, Ghosts, Robber, Roads, edgeY, vertexY, type GhostSpec, type PieceCtx } from './Pieces';
+import { Buildings, Ghosts, RaidZone, Robber, Roads, edgeY, vertexY, type GhostSpec, type PieceCtx } from './Pieces';
 
 export type BoardMode = '2d' | '25d' | '3d';
 
@@ -25,6 +25,8 @@ export interface Board3DProps extends BoardProps {
   /** Тряска экрана: смена значения — ~400 мс тряски. */
   shake?: number;
   lowPower?: boolean;
+  /** Эпоха — для разбойника и эффекта захваченного гекса. */
+  era?: string;
 }
 
 // ---------- камера ----------
@@ -375,7 +377,7 @@ function useReducedMotion(): boolean {
 }
 
 function Scene(props: Board3DProps & { rig: Rig }) {
-  const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig } = props;
+  const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era } = props;
   const palette = props.palette ?? DEFAULT_PALETTE;
   const lowPower = !!props.lowPower;
   const reduced = useReducedMotion();
@@ -461,7 +463,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Roads roads={view.roads} colors={colors} ctx={ctx} />
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
-      <Robber target={robberPos} hexH={robberH} />
+      <RaidZone target={robberPos} hexH={robberH} era={era} />
+      <Robber target={robberPos} hexH={robberH} sprite={era ? `${import.meta.env.BASE_URL}eras/${era}/robber-unit.webp` : undefined} />
       {flash && <Flashes tiles={tileMap} ids={flash.hexes} k={flash.key} />}
 
       {[...hl.hexes].map((id) => {

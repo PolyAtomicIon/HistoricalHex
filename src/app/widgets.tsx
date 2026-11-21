@@ -165,10 +165,11 @@ export function ResourcePicker({
             onPick(r);
           }}
           disabled={disabled?.(r)}
+          aria-label={cap(RESOURCE_NAME[r])}
+          title={cap(RESOURCE_NAME[r])}
         >
-          <ResIcon r={r} size={38} />
-          <small>{cap(RESOURCE_NAME[r])}</small>
-          {sub && <small className="faint">{sub(r)}</small>}
+          <ResIcon r={r} size={42} />
+          {sub && <small className="pick-sub">{sub(r)}</small>}
         </button>
       ))}
     </div>
