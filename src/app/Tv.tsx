@@ -62,7 +62,7 @@ function Harvest({ pub }: { pub: PublicState }) {
                 <span key={g.who} className="th-g" style={{ ['--pc' as string]: PLAYER_HEX[pub.players[g.who]?.color] }}>
                   {(Object.entries(g.res) as [Resource, number][]).map(([res, c]) => (
                     <span key={res} className="tf-r">
-                      <ResIcon r={res} size={18} />
+                      <ResIcon r={res} size={16} />
                       {c > 1 && <small>{c}</small>}
                     </span>
                   ))}
@@ -75,6 +75,12 @@ function Harvest({ pub }: { pub: PublicState }) {
       </div>
     </div>
   );
+}
+
+/** Факт на ТВ — коротко: только первое предложение. */
+function firstSentence(t: string): string {
+  const m = t.match(/^.+?[.!?](?=\s+[А-ЯЁA-Z«]|$)/);
+  return (m ? m[0] : t).trim();
 }
 
 const PIPS: Record<number, [number, number][]> = {
@@ -210,7 +216,8 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
             <small className="faint">{pub.phase === 'finished' ? 'Партия окончена' : pub.turn ? `Ход ${pub.turn}` : 'Расстановка'}</small>
             <b className="display">{pub.phase === 'finished' ? name(pub.winner) : pub.players[current].name}</b>
             <span className="tt-phase">
-              <Icon name={phase.icon} size={15} /> {phase.text}
+              <Icon name={phase.icon} size={15} />
+              <span>{phase.text}</span>
             </span>
           </div>
           {pub.dice && pub.phase !== 'setup' && (
@@ -260,7 +267,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
           </div>
         )}
         <div className="tv-fact glass">
-          <Fact f={fact} noSource />
+          <Fact f={{ ...fact, text: firstSentence(fact.text) }} noSource />
         </div>
         <div className="tv-join glass">
           <Qr text={joinLink(room.pin)} size={72} />

@@ -286,15 +286,37 @@ function smartAccepts(ctx: BotContext): boolean {
   const trade = pub.trade!;
   if (!hasResources(priv.resources, trade.want)) return false;
   const offerer = pub.order[pub.current];
+  // лидеру у самой победы не помогаем
   const danger = pub.settings.vpToWin - (level === 'hard' ? 3 : 2);
-  if (pub.players[offerer].points >= danger) return false; // лидеру не помогаем
-  const goal = chooseGoal(ctx);
-  if (!goal) return false;
-  const after = { ...priv.resources };
-  for (const r of RESOURCES) after[r] += trade.give[r] - trade.want[r];
-  const better = deficit(after, GOAL_COST[goal]) < deficit(priv.resources, GOAL_COST[goal]);
+  if (pub.players[offerer].points >= danger) return false;
+  // 1 к 1 или в нашу пользу; сложный бот не отдаёт больше, чем получает
   const fair = totalResources(trade.want) <= totalResources(trade.give) + (level === 'hard' ? 0 : 1);
-  return better && fair;
+  if (!fair) return false;
+  return tradeGain(ctx, trade.give, trade.want) > 0.05;
+}
+
+/**
+ * Насколько обмен полезен боту: ближе ли он ко всем своим целям (главная цель весит больше всех),
+ * плюс ценность карт — то, что бот сам почти не добывает, ценнее того, чего у него в избытке.
+ * > 0 — выгодно или хотя бы не вредно и даёт редкий ресурс.
+ */
+export function tradeGain(ctx: BotContext, getMap: ResourceMap, giveMap: ResourceMap): number {
+  const { pub, priv, me } = ctx;
+  const meP = pub.players[me];
+  const goals: Goal[] = [];
+  if (meP.pieces.cities > 0 && legalCityVertices(pub, me).length) goals.push('city');
+  if (meP.pieces.settlements > 0 && legalSettlementVertices(pub, me).length) goals.push('settlement');
+  if (meP.pieces.roads > 0 && legalRoadEdges(pub, me).length) goals.push('road');
+  if (pub.devDeckCount > 0) goals.push('devCard');
+  if (!goals.length) return -1;
+  const main = chooseGoal(ctx);
+  const need = (hand: ResourceMap) => goals.reduce((s, g) => s + (g === main ? 1 : 0.4) * deficit(hand, GOAL_COST[g]), 0);
+  const after = { ...priv.resources };
+  for (const r of RESOURCES) after[r] += getMap[r] - giveMap[r];
+  const prod = production(pub, me);
+  const rare = (r: Resource) => 1 / (1 + prod[r] / 4);
+  const cards = (m: ResourceMap) => RESOURCES.reduce((s, r) => s + m[r] * rare(r), 0);
+  return need(priv.resources) - need(after) + 0.25 * (cards(getMap) - cards(giveMap));
 }
 
 /** Какие карты сбросить на семёрке: оставляем то, что нужно для цели. */
