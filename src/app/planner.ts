@@ -305,3 +305,41 @@ export function doneSteps(plan: PlanStep[], pub: Pick<PublicState, 'roads' | 'bu
   }
   return done;
 }
+
+/**
+ * Оценка входящего обмена для экрана предложения.
+ * want — что просят у тебя, give — что дают тебе (поля TradeOffer с точки зрения предлагающего).
+ * fair: −1 (ты отдаёшь сильно больше) … 0 (поровну) … +1 (получаешь сильно больше), с поправкой на пользу.
+ */
+export function tradeVerdict(want: ResourceMap, give: ResourceMap, hand: ResourceMap) {
+  const out = RESOURCES.reduce((a, r) => a + (want[r] ?? 0), 0);
+  const inn = RESOURCES.reduce((a, r) => a + (give[r] ?? 0), 0);
+  const canAccept = hasResources(hand, want);
+  const after = emptyResources();
+  for (const r of RESOURCES) after[r] = hand[r] - (want[r] ?? 0) + (give[r] ?? 0);
+  const goals: [string, ResourceMap][] = [
+    ['город', COSTS.city],
+    ['поселение', COSTS.settlement],
+    ['карту развития', COSTS.devCard],
+    ['дорогу', COSTS.road],
+  ];
+  const unlocks = canAccept ? goals.filter(([, c]) => !hasResources(hand, c) && hasResources(after, c)).map(([n]) => n) : [];
+  const loses = canAccept ? goals.filter(([, c]) => hasResources(hand, c) && !hasResources(after, c)).map(([n]) => n) : [];
+  let fair = (inn - out) / Math.max(1, inn + out);
+  if (unlocks.length) fair += 0.35;
+  if (loses.length) fair -= 0.35;
+  fair = Math.max(-1, Math.min(1, fair));
+  const ratio = `${out}:${inn}`;
+  const text = !canAccept
+    ? `Нечем ответить: у тебя нет ${RESOURCES.filter((r) => (want[r] ?? 0) > hand[r]).map((r) => RESOURCE_NAME[r]).join(', ')}`
+    : unlocks.length
+      ? `Выгодно: после обмена хватит на ${unlocks[0]}`
+      : loses.length
+        ? `Осторожно: перестанет хватать на ${loses[0]}`
+        : inn > out
+          ? `Выгодно ${ratio}: получаешь больше, чем отдаёшь`
+          : inn < out
+            ? `Дорого ${ratio}: отдаёшь больше, чем получаешь`
+            : `Честно ${ratio}`;
+  return { canAccept, out, inn, after, unlocks, loses, fair, text };
+}

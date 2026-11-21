@@ -84,3 +84,25 @@ describe('план: выполненные шаги убираются сами'
     expect([...doneSteps(plan, pub, 'a')].sort()).toEqual(['c1', 'r1', 's1']);
   });
 });
+
+import { tradeVerdict } from '../src/app/planner';
+import { emptyResources, resourceMap } from '../src/engine';
+describe('оценка входящего обмена', () => {
+  it('нечем ответить', () => {
+    const v = tradeVerdict(resourceMap({ ore: 1 }), resourceMap({ wood: 1 }), emptyResources());
+    expect(v.canAccept).toBe(false);
+    expect(v.text).toContain('Нечем ответить');
+  });
+  it('открывает поселение — выгодно', () => {
+    const hand = resourceMap({ brick: 2, wood: 1, wheat: 1 });
+    const v = tradeVerdict(resourceMap({ brick: 1 }), resourceMap({ sheep: 1 }), hand);
+    expect(v.unlocks).toContain('поселение');
+    expect(v.fair).toBeGreaterThan(0);
+    expect(v.text).toContain('поселение');
+  });
+  it('2 за 1 — дорого, 1 за 2 — выгодно', () => {
+    const hand = resourceMap({ ore: 3 });
+    expect(tradeVerdict(resourceMap({ ore: 2 }), resourceMap({ wood: 1 }), hand).fair).toBeLessThan(0);
+    expect(tradeVerdict(resourceMap({ ore: 1 }), resourceMap({ wood: 2 }), hand).fair).toBeGreaterThan(0);
+  });
+});

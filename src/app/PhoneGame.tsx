@@ -40,6 +40,8 @@ import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
 import { incomeByNumber } from './income';
+import { TRADE_UI_LABEL, TradeCard, TradeCaravan, TradeScales, setTradeUi, useTradeUi } from './TradeOffer';
+import type { TradeUi } from './TradeOffer';
 import type { LogEntry } from './gameLog';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
@@ -203,6 +205,16 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const sendVoid = async (a: Action) => {
     await send(a);
   };
+  // Входящий обмен: вид выбирает игрок (меню), по умолчанию — карточка сделки
+  const tradeUi = useTradeUi();
+  // DEV: показать входящее предложение без бота — window.__offer({brick:1},{sheep:1})
+  const [offerDbg, setOfferDbg] = useState<PublicState['trade'] | null>(null);
+  if (import.meta.env.DEV)
+    (window as unknown as { __offer: (w?: Partial<ResourceMap>, g?: Partial<ResourceMap>) => void }).__offer = (w, g) =>
+      setOfferDbg(w ? { id: Date.now(), want: { ...emptyResources(), ...w }, give: { ...emptyResources(), ...g }, responses: {} } : null);
+  const offerPub = offerDbg ? { ...pub, trade: offerDbg } : pub;
+  const showOffer = !!offerPub.trade && (offerDbg ? true : !myTurn && pub.phase === 'main') && !planPick && sheet === null;
+  const offerProps = { pub: offerPub, priv, me, pack, busy, send: offerDbg ? async () => setOfferDbg(null) : sendVoid, counter: () => setSheet('incoming') };
 
   // Новая фаза / ход — сбрасываем выбор
   useEffect(() => {
@@ -497,6 +509,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           </div>
         )}
 
+        {showOffer && tradeUi === 'caravan' && <TradeCaravan {...offerProps} />}
         {raidCap && (
           <div key={raidCap.key} className="raid-cap" role="status">
             <span className="rc-ic">
@@ -624,9 +637,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </button>
       )}
 
-      {pub.trade && !myTurn && pub.phase === 'main' && !planPick && sheet === null && (
-        <IncomingBanner pub={pub} priv={priv} me={me} busy={busy} send={sendVoid} open={() => setSheet('incoming')} />
-      )}
+      {showOffer && tradeUi === 'card' && <TradeCard {...offerProps} />}
+      {showOffer && tradeUi === 'scales' && <TradeScales {...offerProps} />}
 
       <section ref={dockRef} className="dock glass strong">
         <Hand hand={priv.resources} />
@@ -865,6 +877,14 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               </div>
             </>
           )}
+          <div className="label">Вид предложения обмена</div>
+          <div className="seg">
+            {(['card', 'caravan', 'scales'] as TradeUi[]).map((v) => (
+              <button key={v} aria-pressed={tradeUi === v} onClick={() => setTradeUi(v)}>
+                {TRADE_UI_LABEL[v]}
+              </button>
+            ))}
+          </div>
           <div className="label">Лёгкий режим (старые телефоны)</div>
           <div className="seg">
             {(['auto', 'on', 'off'] as const).map((v) => (

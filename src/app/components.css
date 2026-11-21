@@ -4326,3 +4326,218 @@ html.lite .home .era-card.on .era-cover {
   transform: rotate(-30deg);
 }
 .in-avg { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* ═══════════ Входящий обмен: три вида ═══════════ */
+/* A · Карточка сделки — над доком. Радиусы: 28 (отступ 14) → 16 → кнопки 16 */
+.tro-card {
+  position: absolute;
+  z-index: 8;
+  left: 10px;
+  right: 10px;
+  max-width: 520px;
+  margin: 0 auto;
+  bottom: calc(var(--safe-b) + var(--dock-h) + 12px);
+  padding: 14px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.45);
+  animation: rise 380ms var(--spring);
+  --tx: 0;
+}
+.tro-head { display: flex; align-items: center; gap: 12px; }
+.tro-ava {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pc);
+  color: #0b1020;
+  font-weight: 900;
+  font-size: 16px;
+  box-shadow: 0 0 0 3px rgba(255, 201, 60, 0.85);
+}
+.tro-who { display: flex; flex-direction: column; min-width: 0; }
+.tro-who b { font-size: 16px; line-height: 1.2; }
+.tro-who small { font-size: 13px; color: var(--ink-2); }
+.tro-swap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+.tro-side {
+  padding: 10px 8px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  min-width: 0;
+}
+.tro-side.get { background: rgba(47, 158, 87, 0.16); }
+.tro-side small { font-size: 12px; color: var(--ink-2); }
+.tro-side.get small, .tro-side.get .tro-cap { color: #9fe0b6; }
+.tro-cap { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.tro-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+}
+.tro-pile { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
+.tro-res { position: relative; display: inline-flex; align-items: flex-end; }
+.tro-res b { font-size: 14px; font-weight: 900; margin-left: -6px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); }
+.tro-hint {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.35;
+  background: rgba(255, 201, 60, 0.1);
+}
+.tro-hint.good { background: rgba(47, 158, 87, 0.16); }
+.tro-hint.bad { background: rgba(216, 67, 47, 0.18); }
+.tro-btns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+.tro-btns .btn { min-height: 52px; border-radius: 16px; font-size: 16px; font-weight: 800; }
+.tro-link {
+  align-self: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: #f3d9a4;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* B · Караван — компактная полоса в колонке сверху. 24 (отступ 8) → 16 */
+.tro-caravan {
+  width: min(100%, 460px);
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.trc-row { display: flex; align-items: center; gap: 8px; }
+.trc-ava {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--pc);
+  color: #0b1020;
+  font: inherit;
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+}
+.trc-terms { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.trc-chips { display: inline-flex; gap: 4px; }
+.trc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px 2px 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 14px;
+}
+.trc-chips.get .trc-chip { background: rgba(47, 158, 87, 0.24); }
+.trc-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: inherit;
+}
+.trc-btn.no { background: rgba(255, 255, 255, 0.08); }
+.trc-btn.yes { background: #e3b04a; color: #2a1d00; }
+.trc-btn:disabled { opacity: 0.35; }
+.trc-ans { font-size: 13px; font-weight: 800; color: var(--ink-2); padding: 0 8px; }
+.trc-verdict { padding: 0 6px 2px; font-size: 12px; font-weight: 700; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-verdict.good { color: #9fe0b6; }
+.trc-verdict.bad { color: #ff9a8a; }
+
+/* C · Весы сделки — во весь экран */
+.tro-scales {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--safe-t) + 36px) 16px calc(var(--safe-b) + 20px);
+  box-sizing: border-box;
+  background: radial-gradient(90% 60% at 50% 30%, rgba(58, 42, 26, 0.97) 0%, rgba(26, 19, 13, 0.98) 55%, #0b0907 100%);
+  animation: ei-in 320ms ease-out;
+  overflow-y: auto;
+}
+.trs-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(60% 40% at 50% 36%, rgba(243, 200, 120, 0.16), transparent 70%); }
+.trs-head { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.trs-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.3em; text-transform: uppercase; color: #f3d9a4; }
+.trs-head h2 { margin: 0; font-family: 'Unbounded', 'Manrope', sans-serif; font-size: 24px; line-height: 1.15; }
+.trs-head p { margin: 0; font-size: 14px; color: rgba(246, 243, 236, 0.72); }
+.trs-scale { position: relative; width: 300px; height: 190px; margin-top: 18px; flex: none; }
+.trs-post { position: absolute; left: 50%; top: 34px; bottom: 0; width: 10px; margin-left: -5px; border-radius: 4px; background: #8a6a3a; box-shadow: 0 0 0 0 transparent; }
+.trs-post::after { content: ''; position: absolute; left: -45px; right: -45px; bottom: -6px; height: 12px; border-radius: 6px; background: #6b5030; }
+.trs-beam {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 30px;
+  height: 8px;
+  border-radius: 4px;
+  background: #c9a14a;
+  z-index: 1;
+  transition: transform 900ms var(--spring);
+}
+.trs-pan {
+  position: absolute;
+  top: 8px;
+  width: 110px;
+  height: 96px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 14px;
+  transform-origin: 50% 0;
+  transition: transform 900ms var(--spring);
+}
+.trs-pan::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 12px; width: 2px; background: #c9a14a; }
+.trs-pan::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: 6px; height: 12px; border-radius: 50%; background: #b08a40; }
+.trs-pan .tro-pile { position: relative; z-index: 1; margin-bottom: 4px; }
+.trs-pan.left { left: -20px; }
+.trs-pan.right { right: -20px; }
+.trs-labels { width: 300px; display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: rgba(246, 243, 236, 0.8); }
+.trs-labels .get { color: #9fe0b6; }
+.trs-meter { width: 100%; max-width: 420px; margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+.trs-meter-ends { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: rgba(246, 243, 236, 0.6); }
+.trs-bar { position: relative; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #a2412f, #6b6346 50%, #2f9e57); }
+.trs-bar i { position: absolute; top: -5px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: #f6f3ec; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); transition: left 900ms var(--spring); }
+.trs-after { margin: 0; padding: 12px 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.06); font-size: 14px; line-height: 1.4; }
+.trs-btns { width: 100%; max-width: 420px; margin-top: auto; padding-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+.trs-btns .btn { min-height: 50px; border-radius: 18px; font-weight: 800; }
+.trs-btns .btn.big { min-height: 56px; font-size: 17px; }
+.trs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.trs-ans { margin: 0; text-align: center; color: var(--ink-2); }
