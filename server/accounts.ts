@@ -6,6 +6,7 @@
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { ProfileView, LeaderRow } from '../src/proto';
+import { PERSONAS, personaById, simulateGame } from './personas';
 
 export interface Profile {
   id: string;
@@ -22,6 +23,8 @@ export interface Profile {
   lastDay?: string;
   eras: Record<string, { games: number; wins: number }>;
   created: number;
+  /** ИИ-персонаж (src: server/personas.ts). */
+  ai?: { persona: string; style: string; bio: string; level: 'easy' | 'medium' | 'hard' };
 }
 
 export interface FinishedGame {
@@ -29,7 +32,7 @@ export interface FinishedGame {
   era: string;
   finishedAt: number;
   /** Места по порядку: победитель первым. */
-  players: { pid: string; name: string; bot?: 'easy' | 'medium' | 'hard'; vp: number; winner: boolean }[];
+  players: { pid: string; name: string; bot?: 'easy' | 'medium' | 'hard'; persona?: string; vp: number; winner: boolean }[];
 }
 
 interface Store {
@@ -41,6 +44,7 @@ interface Store {
   hasGame(id: string): boolean;
   putGame(g: FinishedGame): void;
   top(n: number): Profile[];
+  aiGames(): number;
 }
 
 // ───────────────────────── хранилища ─────────────────────────
@@ -57,6 +61,7 @@ class MemoryStore implements Store {
   hasGame = (id: string) => this.games.has(id);
   putGame = (g: FinishedGame) => void this.games.add(g.id);
   top = (n: number) => [...this.profiles.values()].filter((p) => p.games > 0).sort((a, b) => b.rating - a.rating).slice(0, n);
+  aiGames = () => [...this.profiles.values()].filter((p) => p.ai).reduce((a, p) => a + p.games, 0);
 }
 
 type Db = {
@@ -87,6 +92,7 @@ class SqliteStore implements Store {
   hasGame = (id: string) => !!this.db.prepare('SELECT 1 FROM games WHERE id = ?').get(id);
   putGame = (g: FinishedGame) => void this.db.prepare('INSERT OR IGNORE INTO games (id, data, finished_at) VALUES (?, ?, ?)').run(g.id, JSON.stringify(g), g.finishedAt);
   top = (n: number) => this.db.prepare('SELECT data FROM profiles WHERE games > 0 ORDER BY rating DESC LIMIT ?').all(n).map((r) => this.row(r)!);
+  aiGames = () => (this.db.prepare("SELECT COALESCE(SUM(games), 0) AS g FROM profiles WHERE id LIKE 'ai-%'").get() as { g: number }).g;
 }
 
 let store: Store = new MemoryStore();
@@ -155,11 +161,12 @@ export function view(p: Profile): ProfileView {
     streakBest: p.streakBest,
     playedToday: p.lastDay === today,
     eras: p.eras,
+    ...(p.ai ? { ai: { style: p.ai.style, bio: p.ai.bio, level: p.ai.level } } : {}),
   };
 }
 
 export function leaderboard(n = 30): LeaderRow[] {
-  return store.top(n).map((p, i) => ({ place: i + 1, id: p.id, name: p.name, rating: Math.round(p.rating), games: p.games, wins: p.wins, photo: p.photo }));
+  return store.top(n).map((p, i) => ({ place: i + 1, id: p.id, name: p.name, rating: Math.round(p.rating), games: p.games, wins: p.wins, photo: p.photo, ...(p.ai ? { ai: true } : {}) }));
 }
 
 // ───────────────────────── итоги партии ─────────────────────────
@@ -170,34 +177,40 @@ const BOT_RATING = { easy: 800, medium: 1000, hard: 1200 } as const;
 export function recordGame(g: FinishedGame): void {
   if (store.hasGame(g.id)) return;
   store.putGame(g);
-  const humans = g.players.filter((p) => !p.bot);
-  if (!humans.length) return;
-  const rated = humans.length >= 2;
-  const profiles = new Map(humans.map((h) => [h.pid, profileOf(h.pid, h.name)]));
-  const ratingOf = (p: FinishedGame['players'][number]) => (p.bot ? BOT_RATING[p.bot] : profiles.get(p.pid)!.rating);
-  // Места: по очкам, победитель первый
+  // Участники с профилем: люди и ИИ-персонажи. Безымянные боты — неподвижные ориентиры рейтинга.
+  const rated = g.players.filter((p) => !p.bot || p.persona);
+  if (!rated.length) return;
+  const humansN = g.players.filter((p) => !p.bot).length;
+  const profiles = new Map(
+    rated.map((h) => [h.pid, h.persona ? personaProfile(h.persona) : profileOf(h.pid, h.name)] as const).filter((x): x is [string, Profile] => !!x[1]),
+  );
+  const ratingOf = (p: FinishedGame['players'][number]) => profiles.get(p.pid)?.rating ?? BOT_RATING[p.bot ?? 'medium'];
   const place = (p: FinishedGame['players'][number]) => (p.winner ? 1e9 : p.vp);
   const day = dayOf(g.finishedAt);
 
   const deltas = new Map<string, number>();
-  for (const h of humans) {
-    const prof = profiles.get(h.pid)!;
+  for (const h of rated) {
+    const prof = profiles.get(h.pid);
+    if (!prof) continue;
     const K = prof.rated < 10 ? 40 : 24;
     let d = 0;
     for (const o of g.players) {
       if (o.pid === h.pid) continue;
-      const w = o.bot ? 0.5 : 1;
+      // Человеку бот засчитывается вполсилы; ИИ между собой — полностью
+      const w = !h.bot && o.bot ? 0.5 : 1;
       const s = place(h) > place(o) ? 1 : place(h) < place(o) ? 0 : 0.5;
       const e = 1 / (1 + Math.pow(10, (ratingOf(o) - prof.rating) / 400));
       d += w * (s - e);
     }
-    // С ботами рейтинг меняется вдвое слабее; без живых соперников — ещё слабее
-    deltas.set(h.pid, (K / Math.max(1, g.players.length - 1)) * d * (rated ? 1 : 0.5));
+    // Человек без живых соперников — рейтинг вдвое слабее
+    const soft = !h.bot && humansN < 2 ? 0.5 : 1;
+    deltas.set(h.pid, (K / Math.max(1, g.players.length - 1)) * d * soft);
   }
 
-  for (const h of humans) {
-    const p = profiles.get(h.pid)!;
-    p.name = p.tgId ? p.name : h.name || p.name;
+  for (const h of rated) {
+    const p = profiles.get(h.pid);
+    if (!p) continue;
+    if (!p.tgId && !p.ai) p.name = h.name || p.name;
     p.games += 1;
     if (h.winner) p.wins += 1;
     p.rating = Math.max(100, p.rating + (deltas.get(h.pid) ?? 0));
@@ -212,6 +225,52 @@ export function recordGame(g: FinishedGame): void {
     }
     store.putProfile(p);
   }
+}
+
+// ───────────────────────── ИИ-персонажи ─────────────────────────
+
+const START_RATING = { easy: 850, medium: 1000, hard: 1150 } as const;
+
+/** Профиль ИИ-персонажа (создаётся при первом обращении). */
+export function personaProfile(id: string): Profile | undefined {
+  const per = personaById(id);
+  if (!per) return undefined;
+  const pid = `ai-${per.id}`;
+  let p = store.getProfile(pid);
+  if (!p) {
+    p = { ...newProfile(pid, per.name), rating: START_RATING[per.level] };
+    p.ai = { persona: per.id, style: per.style, bio: per.bio, level: per.level };
+    store.putProfile(p);
+  }
+  return p;
+}
+
+/** Профиль по id игрока за столом (человек — по устройству, ИИ — по персонажу). Не создаёт новых. */
+export function findProfile(pid: string, persona?: string): Profile | undefined {
+  if (persona) return personaProfile(persona);
+  const linked = store.deviceProfile(pid);
+  return (linked && store.getProfile(linked)) || store.getProfile(pid);
+}
+
+/** ИИ-лига: если у персонажей мало партий, они доигрывают в фоне (по партии за тик, не блокируя сервер). */
+export function runAiLeague(target = 120, eras = ['genghis', 'japan', 'ww2']): void {
+  for (const per of PERSONAS) personaProfile(per.id);
+  let left = Math.max(0, Math.ceil((target * 4 - store.aiGames()) / 4));
+  if (!left) return;
+  console.log(`ai league: ${left} games to simulate`);
+  const step = () => {
+    if (left-- <= 0) return console.log('ai league: done');
+    const pool = [...PERSONAS].sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 2));
+    const era = eras[Math.floor(Math.random() * eras.length)];
+    try {
+      const r = simulateGame(pool, era);
+      if (r) recordGame({ id: `league-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, era: r.era, finishedAt: Date.now(), players: r.players });
+    } catch (e) {
+      console.error('ai league game failed', e);
+    }
+    setTimeout(step, 50);
+  };
+  setTimeout(step, 2000);
 }
 
 // ───────────────────────── Telegram ─────────────────────────

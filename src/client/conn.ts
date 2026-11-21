@@ -59,6 +59,8 @@ export interface ConnState {
   profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string };
   /** Ссылка на бота для входа (живёт 10 минут). */
   tgLink?: string;
+  /** Профиль игрока за столом (по запросу). */
+  playerProfile?: { pid: string; profile: ProfileView | null };
 }
 
 export type EventListener = (events: GameEvent[], source?: DiceSource) => void;
@@ -121,6 +123,8 @@ class Connection {
       }
       case 'tgLink':
         return this.patch({ tgLink: m.url });
+      case 'playerProfile':
+        return this.patch({ playerProfile: { pid: m.pid, profile: m.profile } });
       case 'profile':
         return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot } });
       case 'created':

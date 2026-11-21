@@ -44,6 +44,8 @@ export interface Seat {
   name: string;
   color?: PlayerColor;
   bot?: BotLevel;
+  /** ИИ-персонаж (server/personas.ts) — у него свой профиль и рейтинг. */
+  persona?: string;
   online: boolean;
   joinedAt: number;
 }
@@ -97,6 +99,8 @@ export type ClientMsg =
   | { t: 'rename'; name: string }
   /** Ссылка на бота для входа из обычного браузера. */
   | { t: 'tgLink' }
+  /** Профиль игрока за столом (человек или ИИ). */
+  | { t: 'playerProfile'; pid: string }
   | { t: 'ping' };
 
 export interface ProfileView {
@@ -113,6 +117,8 @@ export interface ProfileView {
   streakBest: number;
   playedToday: boolean;
   eras: Record<string, { games: number; wins: number }>;
+  /** ИИ-персонаж: стиль, описание, уровень. */
+  ai?: { style: string; bio: string; level: 'easy' | 'medium' | 'hard' };
 }
 
 export interface LeaderRow {
@@ -123,6 +129,7 @@ export interface LeaderRow {
   games: number;
   wins: number;
   photo?: string;
+  ai?: boolean;
 }
 
 export type ServerMsg =
@@ -135,6 +142,7 @@ export type ServerMsg =
   | { t: 'error'; message: string; fatal?: boolean }
   | { t: 'pong'; now: number }
   | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string }
-  | { t: 'tgLink'; url: string };
+  | { t: 'tgLink'; url: string }
+  | { t: 'playerProfile'; pid: string; profile: ProfileView | null };
 
 export const REACTIONS = ['👍', '😂', '😱', '🔥', '😤', '🤝', '👀', '🙏', '💀', '🎉'] as const;

@@ -65,3 +65,24 @@ describe('accounts', () => {
     expect(v.name).toBe('Бекзат');
   });
 });
+
+import { PERSONAS, simulateGame } from '../server/personas';
+import { findProfile } from '../server/accounts';
+
+describe('ИИ-персонажи', () => {
+  beforeEach(() => useMemoryAccounts());
+
+  it('партия ботов-персонажей доигрывается и пишет им статистику', () => {
+    let r = null;
+    for (let i = 0; i < 3 && !r; i++) r = simulateGame(PERSONAS.slice(0, 4), 'ww2');
+    expect(r).not.toBeNull();
+    expect(r!.players.filter((p) => p.winner)).toHaveLength(1);
+    recordGame({ id: 'sim1', era: r!.era, finishedAt: Date.now(), players: r!.players });
+    const w = r!.players.find((p) => p.winner)!;
+    const prof = findProfile(w.pid, w.persona)!;
+    expect(prof.ai?.style).toBeTruthy();
+    expect(prof.games).toBe(1);
+    expect(prof.wins).toBe(1);
+    expect(leaderboard().length).toBe(4);
+  }, 20000);
+});

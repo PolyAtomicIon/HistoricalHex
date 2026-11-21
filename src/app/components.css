@@ -74,10 +74,8 @@
 }
 .era.on {
   transform: translateY(-3px);
-  box-shadow: 0 0 0 2px var(--era) inset;
-  box-shadow:
-    0 0 0 2px var(--era) inset,
-    0 14px 40px color-mix(in oklab, var(--era) 35%, transparent);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
 }
 .era:active {
   transform: scale(0.96);
@@ -2724,4 +2722,190 @@ html.lite .game.my-turn.phase-roll::after {
 }
 .pcell .pc-stats .icon:first-child {
   opacity: 0.8;
+}
+
+/* ═══════════ Скругления: концентрическая система ═══════════
+   Правило Apple: внутренний радиус = внешний радиус − отступ между ними.
+   Внешние поверхности:  шторка 34 (отступ 16) → карточки 18 → строки в карточке (отступ 6) → 12
+                         док 28 (отступ 10) → всё внутри дока 18
+                         полоса игроков 22 (отступ 5) → ячейки 17
+                         панели главной/лобби 34 (отступ 18) → содержимое 16
+   Капсулы (999) — только у самостоятельных плавающих элементов: статус, тизер, тосты. */
+:root {
+  --r-sheet: 34px;
+  --r-sheet-in: 18px;
+  --r-row-in: 12px;
+  --r-dock: 28px;
+  --r-dock-in: 18px;
+  --r-panel: 34px;
+  --r-panel-in: 16px;
+}
+
+/* Шторки */
+.sheet {
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+}
+.sheet-head {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.sheet-body {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.sheet .item,
+.sheet .devcard,
+.sheet .plan-sum,
+.sheet .pstep,
+.sheet .terms-card,
+.sheet .hand-mini,
+.sheet .hint-card,
+.sheet .fact-card,
+.sheet .tg-row,
+.sheet .pf-stat,
+.sheet .pf-era,
+.sheet .res-picker button,
+.sheet .plan-add .act,
+.sheet .glossary .item {
+  border-radius: var(--r-sheet-in);
+}
+.sheet .seg {
+  border-radius: var(--r-sheet-in);
+  padding: 4px;
+}
+.sheet .seg button {
+  border-radius: calc(var(--r-sheet-in) - 4px);
+}
+.sheet .btn {
+  border-radius: var(--r-sheet-in);
+}
+/* внутри строки обмена (радиус 18, отступ 6) — 12 */
+.tg-row {
+  padding: 6px;
+}
+.tg-row .step,
+.tg-row .step button {
+  border-radius: var(--r-row-in);
+}
+.pstep-ic,
+.pstep-ctl .btn.icon {
+  border-radius: var(--r-row-in);
+}
+.devcard .dc-btn {
+  border-radius: var(--r-row-in);
+}
+.res-chip {
+  border-radius: 10px;
+}
+
+/* Док */
+.dock {
+  border-radius: var(--r-dock);
+  padding: 10px;
+}
+.dock .rcard,
+.dock .act,
+.dock .tool,
+.dock .btn,
+.dock .actions .btn.icon-only {
+  border-radius: var(--r-dock-in);
+}
+
+/* Полоса игроков и меню рядом — одной высоты и одного радиуса */
+.pbar {
+  border-radius: 22px;
+  padding: 5px;
+}
+.pcell {
+  border-radius: 17px;
+}
+.hud-top > .fab {
+  border-radius: 22px;
+}
+
+/* Плашка входящего обмена: 22 − 8 = 14 */
+.incoming-bar {
+  border-radius: 22px;
+  padding: 8px;
+}
+.incoming-bar .btn {
+  border-radius: 14px;
+}
+
+/* Панели на главной и в лобби */
+.panel {
+  border-radius: var(--r-panel);
+  padding: 18px;
+}
+.panel .btn,
+.panel .seg,
+.panel .item,
+.panel .field,
+.panel .seat {
+  border-radius: var(--r-panel-in);
+}
+.panel .seg button {
+  border-radius: calc(var(--r-panel-in) - 4px);
+}
+.panel .color {
+  border-radius: 50%;
+}
+
+/* Карточка фокуса и карточка новой карты */
+.focus-card {
+  border-radius: 22px;
+}
+.ai-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink-2);
+  vertical-align: middle;
+}
+.pf-bio {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+div.pf-name {
+  font-size: 19px;
+  font-weight: 800;
+}
+.seat-style { display: block; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+/* полоса игроков: плотнее, чтобы влезали имя и цифры на 375–390px */
+.pcell {
+  gap: 6px;
+  padding: 4px 6px 4px 4px;
+}
+.pc-ava {
+  width: 28px;
+  height: 28px;
+}
+.pc-face {
+  font-size: 13px;
+}
+.pc-info {
+  overflow: hidden;
+}
+.pc-name {
+  font-size: 12px;
+}
+.pc-stats {
+  gap: 2px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pc-dot {
+  margin: 0 1px;
+}
+.pc-ava .pav-timer {
+  inset: -4px;
+  width: 36px;
+  height: 36px;
+}
+.pc-hand {
+  margin-left: 4px;
 }

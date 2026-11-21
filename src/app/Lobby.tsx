@@ -13,6 +13,7 @@ import { savedName, saveName } from './Home';
 import { eraCover, eraIcon, useEra } from './era';
 import { ArtIcon, Icon } from './icons';
 import { TurnSettings } from './TurnSettings';
+import { PERSONAS } from '../bots/personas';
 
 const DICE: { id: DiceMode; label: string; hint: string }[] = [
   { id: 'randomOrg', label: 'random.org', hint: 'Настоящий случай из атмосферного шума' },
@@ -84,6 +85,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
                     {s.name}
                     {s.id === room.hostId && <span className="faint small"> · ведущий</span>}
                     {s.id === room.me && <span className="faint small"> · ты</span>}
+                    {s.persona && <span className="seat-style">ИИ · {PERSONAS.find((x) => x.id === s.persona)?.style}</span>}
                   </span>
                   {!s.online && <span className="faint small">не в сети</span>}
                   {host && s.id !== room.me && (

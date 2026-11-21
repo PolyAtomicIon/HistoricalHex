@@ -133,7 +133,10 @@ export function ProfileView() {
               <span className={`ld-place p${r.place}`}>{r.place}</span>
               <span className="pf-ava sm">{r.photo ? <img src={r.photo} alt="" /> : r.name.charAt(0).toUpperCase()}</span>
               <div className="grow">
-                <div className="t">{r.name}</div>
+                <div className="t">
+                  {r.name}
+                  {r.ai && <span className="ai-tag">ИИ</span>}
+                </div>
                 <div className="s">
                   {r.games} парт. · {r.wins} побед
                 </div>
@@ -152,6 +155,71 @@ function Stat({ n, l, hot }: { n: number | string; l: string; hot?: boolean }) {
     <div className={`pf-stat ${hot ? 'hot' : ''}`}>
       <b className="display">{n}</b>
       <small>{l}</small>
+    </div>
+  );
+}
+
+/** Профиль другого игрока (человек или ИИ) — в шторке по тапу. */
+export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; name: string; color: string; onShow?: () => void }) {
+  const { playerProfile, status } = useConn();
+  useEffect(() => {
+    if (status === 'online') conn.send({ t: 'playerProfile', pid });
+  }, [pid, status]);
+  const p = playerProfile?.pid === pid ? playerProfile.profile : undefined;
+  return (
+    <div className="stack profile">
+      <div className="pf-head">
+        <span className="pf-ava" style={{ background: color }}>
+          {p?.photo ? <img src={p.photo} alt="" /> : name.charAt(0).toUpperCase()}
+        </span>
+        <div className="grow">
+          <div className="pf-name">{name}</div>
+          <div className="faint small">
+            {p?.ai ? `ИИ · ${p.ai.style} · ${p.ai.level === 'easy' ? 'лёгкий' : p.ai.level === 'medium' ? 'средний' : 'сложный'}` : p?.telegram ? 'Telegram' : 'Игрок'}
+          </div>
+        </div>
+        {p && (
+          <div className="pf-rating">
+            <b className="display">{p.rating}</b>
+            <small>рейтинг</small>
+          </div>
+        )}
+      </div>
+      {p === undefined && (
+        <div className="center" style={{ padding: 20 }}>
+          <div className="spinner" />
+        </div>
+      )}
+      {p === null && <p className="muted">Профиля пока нет — это первая партия игрока.</p>}
+      {p && (
+        <>
+          {p.ai && <p className="muted pf-bio">{p.ai.bio}</p>}
+          <div className="pf-stats">
+            <Stat n={p.games} l="партий" />
+            <Stat n={p.wins} l="побед" />
+            <Stat n={`${p.games ? Math.round((p.wins / p.games) * 100) : 0}%`} l="побед из всех" />
+            <Stat n={p.streakBest} l="лучшая серия, дн." />
+          </div>
+          <div className="label">Эпохи</div>
+          <div className="pf-eras">
+            {LORE_PACKS.map((e) => {
+              const s = p.eras[e.id];
+              return (
+                <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraCover(e.id)})` }}>
+                  <ArtIcon src={eraIcon(e.id, 'emblem')} size={36} />
+                  <b>{e.title}</b>
+                  <small>{s ? `${s.games} парт. · ${s.wins} побед` : 'не играл'}</small>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {onShow && (
+        <button className="btn wide" onClick={onShow}>
+          <Icon name="layers" /> Показать постройки на карте
+        </button>
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { cryptoRng, victoryPoints } from '../src/engine';
 import type { Client, SavedRoom } from './room';
 import { Room } from './room';
 import { TgBot } from './tgbot';
-import { leaderboard, openAccounts, profileByTg, profileOf, recordGame, renameProfile, signInTelegram, verifyMiniApp, verifyWidget, view } from './accounts';
+import { findProfile, leaderboard, openAccounts, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInTelegram, verifyMiniApp, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
 const TG_BOT = process.env.TG_BOT_NAME ?? '';
@@ -59,7 +59,10 @@ function drop(pin: string): void {
   rmSync(join(DATA_DIR, `${pin}.json`), { force: true });
 }
 
-void openAccounts(join(DATA_DIR, 'hh.sqlite')).then((kind) => console.log(`accounts: ${kind}`));
+void openAccounts(join(DATA_DIR, 'hh.sqlite')).then((kind) => {
+  console.log(`accounts: ${kind}`);
+  if (process.env.AI_LEAGUE !== '0') runAiLeague();
+});
 Room.onFinished = (room) => {
   try {
     const st = room.state!;
@@ -70,7 +73,7 @@ Room.onFinished = (room) => {
       players: st.order.map((pid) => {
         const seat = room.seats.get(pid);
         const pl = st.players[pid];
-        return { pid, name: pl.name, bot: seat?.bot, vp: victoryPoints(st, pid), winner: st.winner === pid };
+        return { pid, name: pl.name, bot: seat?.bot, persona: seat?.persona, vp: victoryPoints(st, pid), winner: st.winner === pid };
       }),
     });
   } catch (e) {
@@ -187,6 +190,13 @@ wss.on('connection', (ws: WebSocket) => {
         if (typeof msg.name !== 'string') throw new Error('Плохое имя');
         renameProfile(me, msg.name);
         return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+      }
+      case 'playerProfile': {
+        if (typeof msg.pid !== 'string' || msg.pid.length > 64) throw new Error('Нет такого игрока');
+        // Ищем место за столом в любой комнате этого соединения: ИИ — по персонажу
+        const seat = room?.seats.get(msg.pid);
+        const prof = findProfile(msg.pid, seat?.persona);
+        return send({ t: 'playerProfile', pid: msg.pid, profile: prof ? view(prof) : null });
       }
       case 'tgLink': {
         if (!bot) throw new Error('Вход через Telegram ещё не настроен');

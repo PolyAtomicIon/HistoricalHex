@@ -27,6 +27,7 @@ import { setLitePref, useLite } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, myPhaseText, phaseText } from '../i18n/ru';
 import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
 import { Sheet } from './Sheet';
+import { PlayerProfileCard } from './Profile';
 import { TurnSettings } from './TurnSettings';
 import { IncomingTrade, TradeSheet } from './trade';
 import { HandMini, RES_COLOR, ResChips, ResourcePicker, ResourceStepper, TradeGrid, sum } from './widgets';
@@ -38,7 +39,7 @@ import { STEP_ICON, STEP_LABEL, checkPlan, goalHints, loadPlan, newStepId, saveP
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
-type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact';
+type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile';
 type PlanPick = null | 'road' | 'settlement' | 'city';
 
 interface Targets {
@@ -73,6 +74,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const [sheet, setSheet] = useState<SheetId>(null);
   // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
   const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number } | null>(null);
+  const [profileOf, setProfileOf] = useState<PlayerId | null>(null);
   useEffect(() => {
     if (!focusPlayer) return;
     const t = setTimeout(() => setFocusPlayer(null), 4200);
@@ -298,7 +300,17 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       </header>
 
       {focusPlayer ? (
-        <FocusCard key={focusPlayer.key} pub={pub} id={focusPlayer.id} pack={pack} me={me} onMore={() => setSheet('players')} />
+        <FocusCard
+          key={focusPlayer.key}
+          pub={pub}
+          id={focusPlayer.id}
+          pack={pack}
+          me={me}
+          onMore={() => {
+            setProfileOf(focusPlayer.id);
+            setSheet('pprofile');
+          }}
+        />
       ) : (
         <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
           {status}
@@ -507,10 +519,24 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           room={room}
           pack={pack}
           onPick={(id) => {
-            setSheet(null);
-            setFocusPlayer({ id, key: Date.now() });
+            setProfileOf(id);
+            setSheet('pprofile');
           }}
         />
+      </Sheet>
+
+      <Sheet open={sheet === 'pprofile' && !!profileOf} onClose={() => setSheet(null)} title="Профиль игрока">
+        {profileOf && pub.players[profileOf] && (
+          <PlayerProfileCard
+            pid={profileOf}
+            name={pub.players[profileOf].name}
+            color={PLAYER_HEX[pub.players[profileOf].color]}
+            onShow={() => {
+              setSheet(null);
+              setFocusPlayer({ id: profileOf, key: Date.now() });
+            }}
+          />
+        )}
       </Sheet>
 
       <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
@@ -679,8 +705,7 @@ export function PlayersBar({
                   {bot && <Icon name="bot" size={11} />}
                   <Icon name="star" size={11} />
                   <b>{p.points}</b>
-                  <span className="pc-dot" />
-                  <Icon name="hand" size={11} />
+                  <Icon name="hand" size={11} className="pc-hand" />
                   {p.resourceCount}
                 </span>
               </span>

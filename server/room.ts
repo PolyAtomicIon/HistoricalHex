@@ -16,6 +16,7 @@ import {
 import type { ActionResult } from '../src/engine';
 import type { BotMemory } from '../src/bots';
 import { BOT_NAMES, botsToAct, decide } from '../src/bots';
+import { pickPersona } from './personas';
 import type { DiceSource, RoomSettings, RoomStatus, RoomView, Seat, ServerMsg } from '../src/proto';
 import { DEFAULT_SETTINGS, OFFLINE_BOT_LEVEL } from '../src/proto';
 import { RandomOrgDice } from '../src/net/randomOrg';
@@ -241,11 +242,12 @@ export class Room {
     this.lobbyOnly();
     if (!['easy', 'medium', 'hard'].includes(level)) throw new Error('Нет такого уровня');
     if (this.seats.size >= MAX_PLAYERS) throw new Error(`Уже ${MAX_PLAYERS} игроков`);
-    const used = new Set([...this.seats.values()].map((s) => s.name));
+    const used = new Set([...this.seats.values()].flatMap((s) => [s.name, s.persona ?? '']));
     const color = PLAYER_COLORS.find((c) => ![...this.seats.values()].some((s) => s.color === c));
-    const base = BOT_NAMES.find((n) => !used.has(n)) ?? `Бот ${this.seats.size + 1}`;
+    const per = pickPersona(level, used);
+    const base = per?.name ?? BOT_NAMES.find((n) => !used.has(n)) ?? `Бот ${this.seats.size + 1}`;
     const id = `bot-${Math.floor(cryptoRng() * 1e9).toString(36)}`;
-    this.seats.set(id, { id, name: base, color, bot: level, joinedAt: Date.now() });
+    this.seats.set(id, { id, name: base, color, bot: level, ...(per ? { persona: per.id } : {}), joinedAt: Date.now() });
     this.changed();
   }
 
