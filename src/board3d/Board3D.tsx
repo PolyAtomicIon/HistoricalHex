@@ -11,6 +11,7 @@ import { HEIGHT, worldFor, type World } from './world';
 import { boardLocator } from '../fx/util';
 import { Raid3D, type Raid3DEvent } from './Raid3D';
 import { Tanks3D, type Tanks3DEvent } from './Tanks3D';
+import { ATTACK3D_MS, Warriors3D, type Attack3DEvent } from './Warriors3D';
 import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig';
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
@@ -507,11 +508,19 @@ function Scene(props: Board3DProps & { rig: Rig }) {
   // ВОВ: налёт — звено бомбардировщиков над картой; рыцарь — танковая колонна бьёт по лагерю
   const [raid3d, setRaid3d] = useState<Raid3DEvent | null>(null);
   const [tanks3d, setTanks3d] = useState<Tanks3DEvent | null>(null);
+  // Чингисхан и Япония: низкополигональные отряды (конница, ниндзя, самураи)
+  const [war3d, setWar3d] = useState<Attack3DEvent | null>(null);
   useEffect(() => {
-    if (!raid || raid.era !== 'ww2' || !raid.target) return;
+    if (!raid || !raid.target) return;
     const p = world.hex.get(raid.target);
     if (!p) return;
     const ev = { key: raid.key, at: [p[0], HEIGHT[tileMap.get(raid.target)?.terrain ?? 'desert'], p[1]] as [number, number, number] };
+    if (raid.era !== 'ww2') {
+      const kind = raid.kind === 'knight' ? 'knight' : 'robber';
+      setWar3d({ ...ev, era: raid.era, kind });
+      const t = setTimeout(() => setWar3d(null), (ATTACK3D_MS[`${raid.era}:${kind}`] ?? 6500) + 400);
+      return () => clearTimeout(t);
+    }
     if (raid.kind === 'robber') setRaid3d(ev);
     else setTanks3d(ev);
     const t = setTimeout(() => (raid.kind === 'robber' ? setRaid3d(null) : setTanks3d(null)), 8000);
@@ -555,6 +564,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <ViewShift on={!props.viewStatic} />
       {raid3d && <Raid3D key={raid3d.key} ev={raid3d} />}
       {tanks3d && <Tanks3D key={tanks3d.key} ev={tanks3d} />}
+      {war3d && <Warriors3D key={war3d.key} ev={war3d} />}
       <Locator world={world} tileMap={tileMap} />
       <RaidZone
         target={robberPos}

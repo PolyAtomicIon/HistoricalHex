@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 export type SfxName =
   | 'diceShake' | 'diceLand' | 'tick' | 'pop' | 'coin' | 'chime' | 'whoosh' | 'tudum'
   | 'attack' | 'fanfare' | 'victory' | 'error' | 'yourTurn' | 'react' | 'steal'
-  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank' | 'siren' | 'drama' | 'cannon';
+  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank' | 'siren' | 'drama' | 'cannon' | 'fire' | 'slash';
 
 export interface SfxOpts {
   /** 0..1.5 extra gain for this call */
@@ -191,6 +191,18 @@ const RECIPES: Record<SfxName, (x: Ctx, o: SfxOpts) => void> = {
     [[3.9, 329.6], [4.45, 293.7], [5.0, 261.6], [5.55, 246.9]].forEach(([t, f]) => brass(x, t, f, 0.7, 0.07));
     brass(x, 6.1, 220, 1.6, 0.08);
     brass(x, 6.1, 164.8, 1.6, 0.05);
+  },
+  fire: (x) => {
+    // огненные стрелы ударили: глухой «фух» и треск
+    hiss(x, { dur: 0.6, type: 'lowpass', f: 900, to: 200, gain: 0.45, attack: 0.02 });
+    tone(x, { f: 90, to: 50, dur: 0.4, gain: 0.35 });
+    for (let i = 0; i < 6; i++) knock(x, 0.05 + i * 0.07 + Math.random() * 0.03, 900 + Math.random() * 600, 0.12);
+  },
+  slash: (x) => {
+    // взмах катаны: свист + звон стали
+    hiss(x, { dur: 0.18, type: 'bandpass', f: 2500, to: 6000, q: 3, gain: 0.3, attack: 0.03 });
+    tone(x, { at: 0.12, f: 2400, to: 2100, dur: 0.5, type: 'triangle', gain: 0.08 });
+    tone(x, { at: 0.12, f: 3700, dur: 0.35, gain: 0.05 });
   },
   cannon: (x) => {
     drum(x, 0, 70, 1, 0.9);

@@ -4076,3 +4076,18 @@ html.lite .home .era-card.on .era-cover {
 /* титры не накладываются: старый уходит быстро, новый появляется после паузы */
 .ei-lines p.out { transition-duration: 350ms; transition-delay: 0ms; }
 .ei-lines p.in { transition-delay: 380ms; }
+
+/* Полоса игроков на широком экране: не растягивается — ячейки ~200px, полоса и меню по центру */
+.hud-top {
+  justify-content: center;
+}
+.pbar {
+  flex: 0 1 auto;
+  max-width: calc(100% - 66px);
+}
+.pcell {
+  flex: 0 1 200px;
+}
+.pbar.compact .pcell {
+  flex: 0 1 64px;
+}

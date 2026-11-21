@@ -12,6 +12,7 @@ import {
   emptyResources,
   hasResources,
   resourceMap,
+  topologyFor,
   tradeRatios,
 } from '../engine';
 import { RESOURCE_NAME, resourcesText } from '../i18n/ru';
@@ -240,3 +241,53 @@ export function incomingTradeHint(
 }
 
 export { emptyResources };
+
+/**
+ * Куда можно спланировать поселение и какие дороги к нему нужно проложить.
+ * Ключ — свободный перекрёсток (правило расстояния соблюдено), значение — кратчайшая цепочка
+ * новых дорог от своей сети (пусто — дорога уже подведена). Чужие постройки путь перекрывают,
+ * чужие дороги заняты. Не дальше maxRoads дорог.
+ */
+export function settlementRoutes(
+  view: { board: PublicState['board']; buildings: PublicState['buildings']; roads: PublicState['roads'] },
+  me: PlayerId,
+  maxRoads = 3,
+): Map<VertexId, EdgeId[]> {
+  const topo = topologyFor(view.board.layout);
+  const out = new Map<VertexId, EdgeId[]>();
+  // старт: перекрёстки своей сети (свои постройки и концы своих дорог)
+  const dist = new Map<VertexId, EdgeId[]>();
+  const queue: VertexId[] = [];
+  const start = (v: VertexId) => {
+    if (dist.has(v)) return;
+    const b = view.buildings[v];
+    if (b && b.owner !== me) return;
+    dist.set(v, []);
+    queue.push(v);
+  };
+  for (const [v, b] of Object.entries(view.buildings)) if (b.owner === me) start(v);
+  for (const [e, owner] of Object.entries(view.roads)) if (owner === me) for (const v of topo.edges.get(e)!.vertices) start(v);
+  while (queue.length) {
+    const v = queue.shift()!;
+    const path = dist.get(v)!;
+    if (path.length >= maxRoads) continue;
+    for (const e of topo.vertices.get(v)!.edges) {
+      if (view.roads[e]) continue; // занято (свои уже учтены как сеть)
+      const [a, b] = topo.edges.get(e)!.vertices;
+      const w = a === v ? b : a;
+      if (dist.has(w)) continue;
+      const occ = view.buildings[w];
+      if (occ && occ.owner !== me) continue; // через чужое не пройти
+      dist.set(w, [...path, e]);
+      queue.push(w);
+    }
+  }
+  for (const [v, path] of dist) {
+    if (view.buildings[v]) continue;
+    if (!topo.vertices.get(v)!.neighbors.every((n) => !view.buildings[n])) continue;
+    // без дорог — только если к перекрёстку уже подходит своя дорога
+    if (path.length === 0 && !topo.vertices.get(v)!.edges.some((e) => view.roads[e] === me)) continue;
+    out.set(v, path);
+  }
+  return out;
+}

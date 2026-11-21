@@ -620,7 +620,7 @@ export function Robber({ target, hexH, sprite, era }: { target: [number, number]
     const land = u >= 1 && c.t0 !== -99 ? Math.max(0, 1 - (clock.elapsedTime - c.t0 - T) * 4) : 0;
     if (era) {
       // Лагерь не прыгает: стоит на старом месте, пока идёт налёт, потом вырастает на новом гексе
-      const D = reduced || c.t0 === -99 ? 0 : era === 'ww2' ? 6.4 : 1.1;
+      const D = reduced || c.t0 === -99 ? 0 : era === 'ww2' ? 6.4 : era === 'japan' ? 4.6 : 5.6;
       const el = c.t0 === -99 ? 99 : clock.elapsedTime - c.t0;
       if (el < D) {
         o.position.set(c.from[0], hexH, c.from[1]);

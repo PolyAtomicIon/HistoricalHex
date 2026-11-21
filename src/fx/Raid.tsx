@@ -37,8 +37,11 @@ export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBombe
     setShown(event);
     const st = styleOf(event);
     // В 3D самолёты/танки идут по длинному сценарию (7.5 / 6.8 с) — звук подстраивается под него
-    const long = !!skipBomber && !!event.target && (st === 'bomber' || st === 'tank');
-    const dur = long ? (st === 'bomber' ? 7500 : 6800) : DURATION[st];
+    const in3d = !!skipBomber && !!event.target;
+    const long = in3d && (st === 'bomber' || st === 'tank');
+    const LONG3D: Record<Style, number> = { bomber: 7500, tank: 6800, archers: 6500, ninja: 5600, samurai: 5200 };
+    const charge = event.era === 'genghis' && event.kind === 'knight';
+    const dur = in3d ? (charge ? 5200 : LONG3D[st]) : DURATION[st];
     const timers: ReturnType<typeof setTimeout>[] = [];
     const at = (ms: number, f: () => void) => timers.push(setTimeout(f, ms));
     sfx.play('drama', { volume: long ? 1 : 0.7 });
@@ -59,6 +62,33 @@ export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBombe
         sfx.play('cannon');
         haptic('heavy');
       }));
+    } else if (in3d && st === 'archers') {
+      // барымта: топот подходит, кружат, два залпа огненных стрел
+      sfx.play('gallop', { volume: 0.8 });
+      at(1100, () => sfx.play('gallop', { volume: 1.1 }));
+      at(2300, () => sfx.play('gallop', { volume: 1 }));
+      at(2600, () => sfx.play('arrows'));
+      at(3150, () => sfx.play('fire'));
+      at(3500, () => sfx.play('arrows'));
+      at(4050, () => sfx.play('fire'));
+      at(4800, () => sfx.play('gallop', { volume: 0.6 }));
+      at(3200, () => haptic('heavy'));
+    } else if (in3d && charge) {
+      // тяжёлая конница: разгон и таран
+      sfx.play('gallop', { volume: 0.9 });
+      at(1000, () => sfx.play('gallop', { volume: 1.3 }));
+      at(2350, () => sfx.play('cannon', { volume: 0.7, pitch: 0.7 }));
+      at(2350, () => haptic('heavy'));
+      at(2700, () => sfx.play('gallop', { volume: 0.8 }));
+    } else if (in3d && st === 'ninja') {
+      [200, 420, 640, 860].forEach((ms) => at(ms, () => sfx.play('whoosh', { volume: 0.7 })));
+      [2000, 2200, 2400, 2700, 2900, 3100].forEach((ms) => at(ms, () => sfx.play('shuriken', { volume: 0.6 })));
+      at(2400, () => haptic('heavy'));
+      at(4300, () => sfx.play('whoosh', { volume: 1 }));
+    } else if (in3d && st === 'samurai' && event.era === 'japan') {
+      at(300, () => sfx.play('gallop', { volume: 0.5, pitch: 1.4 }));
+      [2200, 2600, 3000, 3500].forEach((ms) => at(ms, () => sfx.play('slash')));
+      at(3000, () => haptic('heavy'));
     } else switch (st) {
       case 'archers':
         sfx.play('gallop');
@@ -90,7 +120,7 @@ export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBombe
 
   if (!shown) return null;
   // В 3D самолёты и танки летают/едут прямо над картой — здесь только звук
-  if (skipBomber && (styleOf(shown) === 'bomber' || styleOf(shown) === 'tank') && shown.target) return null;
+  if (skipBomber && shown.target) return null;
   return (
     <FxPortal>
       <RaidScene key={shown.key} ev={shown} />

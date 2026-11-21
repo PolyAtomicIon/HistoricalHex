@@ -39,7 +39,7 @@ import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
-import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
+import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
@@ -215,7 +215,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     }
     const topo = topologyFor(pub.board.layout);
     if (planPick === 'road') return { kind: 'edge' as const, ids: [...topo.edges.keys()].filter((e) => canBuildRoad(view, me, e)) };
-    if (planPick === 'settlement') return { kind: 'vertex' as const, ids: [...topo.vertices.keys()].filter((v) => canBuildSettlement(view, me, v)) };
+    if (planPick === 'settlement') {
+      // места в 0–3 дорогах от своей сети: дороги план добавит сам
+      const routes = settlementRoutes(view, me);
+      return { kind: 'vertex' as const, ids: [...routes.keys()], routes };
+    }
     return {
       kind: 'vertex' as const,
       ids: Object.entries(view.buildings)
@@ -249,7 +253,12 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       if (!planTargets?.ids.includes(id)) return;
       const step: PlanStep =
         planPick === 'road' ? { id: newStepId(), kind: 'road', at: id } : { id: newStepId(), kind: planPick, at: id };
-      setPlan([...plan, step]);
+      // к дальнему поселению — сначала нужные дороги
+      const roads: PlanStep[] =
+        planPick === 'settlement' && 'routes' in planTargets && planTargets.routes
+          ? (planTargets.routes.get(id) ?? []).map((e) => ({ id: newStepId(), kind: 'road' as const, at: e }))
+          : [];
+      setPlan([...plan, ...roads, step]);
       setPlanPick(null);
       setSheet('plan');
       haptic('tap');
@@ -422,7 +431,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       {(planPick || (targets && !selected)) && (
         <div className="board-hint glass">
-          {planPick ? `План: выбери место — ${STEP_LABEL[planPick].toLowerCase()}` : targets!.hint}
+          {planPick ? (planTargets && planTargets.ids.length === 0 ? `Нет свободных мест для: ${STEP_LABEL[planPick].toLowerCase()}` : planPick === 'settlement' ? 'План: место для дома — дороги добавлю' : `План: выбери место — ${STEP_LABEL[planPick].toLowerCase()}`) : targets!.hint}
           {planPick && (
             <button className="btn ghost small-btn" onClick={() => setPlanPick(null)}>
               <Icon name="close" size={16} />
@@ -507,7 +516,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           <span className="pa-ic">
             <Icon name="bell" size={18} />
           </span>
-          <span className="pa-text">Напомнить о твоём ходе?</span>
+          <span className="pa-text">Напомнить о ходе?</span>
           <button
             className="btn primary small-act"
             onClick={async () => {

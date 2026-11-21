@@ -66,8 +66,8 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       setFx((f) => ({ ...f, narration: { text, key: k.current++, color: color(who) } }));
     };
     const cine = (e: Omit<CinematicEvent, 'key'>) => setFx((f) => ({ ...f, cinematic: { ...e, key: k.current++ } }));
-    const raid = (kind: 'robber' | 'knight', target?: string) => {
-      const era = packRef.current.id;
+    const raid = (kind: 'robber' | 'knight', target?: string, eraOverride?: string) => {
+      const era = eraOverride ?? packRef.current.id;
       const sprite = kind === 'robber' ? eraIcon(era, 'attack') : era === 'ww2' ? eraIcon(era, 'tank') : eraIcon(era, 'dev-knight');
       const hex = target ? pubRef.current?.board.hexes.find((h) => h.id === target) : undefined;
       setFx((f) => ({ ...f, raid: { kind, era, sprite, target, key: k.current++ } }));
@@ -79,8 +79,10 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       } catch {
         /* ok */
       }
-      const late = era === 'ww2' && is3d && !!target;
-      setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), late ? (kind === 'robber' ? 3650 : 3250) : kind === 'robber' ? 1450 : 1000);
+      // момент удара в 3D-сценах: ВОВ — бомбы/залп; Чингисхан — стрелы/таран; Япония — сюрикены/катаны
+      const HIT3D: Record<string, number> = { 'ww2:robber': 3650, 'ww2:knight': 3250, 'genghis:robber': 3200, 'genghis:knight': 2400, 'japan:robber': 2400, 'japan:knight': 3000 };
+      const late = is3d && !!target ? HIT3D[`${era}:${kind}`] : undefined;
+      setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), late ?? (kind === 'robber' ? 1450 : 1000));
     };
     if (import.meta.env.DEV) {
       const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined; __focus: (id: string) => void };
