@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   ChartNoAxesColumn,
+  Undo2,
   Timer,
   Swords,
   ArrowLeftRight,
@@ -75,7 +76,8 @@ export type IconName =
   | 'bell'
   | 'timer'
   | 'army'
-  | 'stats';
+  | 'stats'
+  | 'undo';
 
 const L: Record<IconName, LucideIcon> = {
   menu: Menu,
@@ -111,6 +113,7 @@ const L: Record<IconName, LucideIcon> = {
   bell: Bell,
   timer: Timer,
   stats: ChartNoAxesColumn,
+  undo: Undo2,
   army: Swords,
 };
 

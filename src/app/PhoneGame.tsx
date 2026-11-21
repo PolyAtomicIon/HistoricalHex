@@ -600,6 +600,20 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
+      {room.canUndo && myTurn && !selected && !build && !planPick && (
+        <button
+          key={`undo${pub.turn}`}
+          className="undo-chip glass strong"
+          onClick={() => {
+            sfx.play('tick');
+            haptic('tap');
+            conn.send({ t: 'undo' });
+          }}
+        >
+          <Icon name="undo" size={18} /> Отменить: {room.canUndo === 'road' ? 'дорогу' : room.canUndo === 'settlement' ? 'поселение' : 'город'}
+        </button>
+      )}
+
       {notice && (
         <div key={notice.key} className="fact-pop notice-card glass strong" role="alert">
           <span className="nc-ic" style={{ ['--pc' as string]: notice.who && pub.players[notice.who] ? PLAYER_HEX[pub.players[notice.who].color] : 'var(--accent)' }}>

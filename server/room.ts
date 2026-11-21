@@ -112,6 +112,8 @@ export class Room {
   private botTimer?: ReturnType<typeof setTimeout>;
   /** Раньше этого момента бот не ходит: люди досматривают прошлое событие. */
   private paceUntil = 0;
+  /** Состояние до последней постройки игрока — для «Отменить» (живёт до любого следующего действия). */
+  private undoSnap?: { player: PlayerId; state: GameState; turn: number; kind: 'road' | 'settlement' | 'city' };
   /** До какого момента идёт сцена атаки: кубики (и людям, и автоброску) — только после неё. */
   private attackUntil = 0;
   private queue: Promise<unknown> = Promise.resolve();
@@ -367,12 +369,34 @@ export class Room {
       } catch (e) {
         return { ok: false, error: err(e) };
       }
+      const build = action.type === 'buildRoad' ? 'road' : action.type === 'buildSettlement' ? 'settlement' : action.type === 'buildCity' ? 'city' : null;
+      const before = build && (state.phase === 'main' || state.phase === 'roadBuilding') ? structuredClone(state) : null;
       const res = applyAction(state, me, action, rng);
       if (res.ok) {
         if (action.type === 'handToBot' || action.type === 'returnFromBot') delete this.botMemory[me];
         this.commit(res.state, res.events);
+        // commit сбросил прошлый снимок; новый — только для только что сделанной постройки
+        if (before && build) {
+          this.undoSnap = { player: me, state: before, turn: before.turn, kind: build };
+          this.broadcast();
+        }
       }
       return res;
+    });
+  }
+
+  /** Отменить свою последнюю постройку: ресурсы возвращаются, деталь снимается с карты. */
+  undo(me: PlayerId): Promise<{ ok: boolean; error?: string }> {
+    return this.enqueue(() => {
+      const snap = this.undoSnap;
+      const state = this.state;
+      if (!snap || !state || snap.player !== me || state.turn !== snap.turn || state.order[state.current] !== me) {
+        return { ok: false, error: 'Отменить уже нельзя — после постройки что-то произошло' };
+      }
+      this.undoSnap = undefined;
+      this.state = snap.state;
+      this.changed();
+      return { ok: true };
     });
   }
 
@@ -459,6 +483,7 @@ export class Room {
   }
 
   private commit(state: GameState, events: GameEvent[]): void {
+    this.undoSnap = undefined; // любое новое действие — отменить прошлую постройку уже нельзя
     this.state = state;
     if (state.phase === 'finished' && this.status !== 'finished') {
       this.status = 'finished';
@@ -623,6 +648,7 @@ export class Room {
       online,
       diceSource: this.diceSource,
       serverNow: Date.now(),
+      ...(this.undoSnap && this.undoSnap.player === me && state?.turn === this.undoSnap.turn ? { canUndo: this.undoSnap.kind } : {}),
     };
   }
 

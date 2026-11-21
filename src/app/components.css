@@ -6123,3 +6123,29 @@ div.lb-seat.empty { cursor: default; }
 body:has(.steal-pop.dock-pop) .board-hint,
 body:has(.steal-pop.dock-pop) .plan-nudge,
 body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; transition: opacity 160ms; }
+
+/* «Отменить постройку» — сразу после своей постройки, над подсказкой у дока */
+.undo-chip {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  width: max-content;
+  margin: 0 auto;
+  bottom: calc(var(--safe-b) + var(--dock-h) + 76px);
+  min-height: 44px;
+  padding: 0 18px 0 14px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  animation: deal-in 360ms var(--spring) both;
+}
+.undo-chip:active { transform: scale(0.96); }

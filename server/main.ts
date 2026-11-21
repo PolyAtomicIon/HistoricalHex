@@ -336,6 +336,11 @@ wss.on('connection', (ws: WebSocket) => {
       }
       case 'react':
         return r.react(me, msg.emoji);
+      case 'undo': {
+        const res = await r.undo(me);
+        if (!res.ok) send({ t: 'error', message: res.error ?? 'Отменить нельзя' });
+        return;
+      }
       case 'close':
         r.close(me);
         return drop(r.pin);

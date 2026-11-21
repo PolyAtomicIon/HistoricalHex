@@ -78,6 +78,8 @@ export interface RoomView {
   online: Record<PlayerId, boolean>;
   diceSource?: DiceSource;
   serverNow: number;
+  /** Мою последнюю постройку можно отменить — что это было. */
+  canUndo?: 'road' | 'settlement' | 'city';
 }
 
 export type ClientMsg =
@@ -98,6 +100,8 @@ export type ClientMsg =
   | { t: 'act'; id: string; action: Action; dice?: [number, number] }
   | { t: 'host'; id: string; action: HostAction }
   | { t: 'react'; emoji: string }
+  /** Отменить свою последнюю постройку (пока после неё никто ничего не сделал). */
+  | { t: 'undo' }
   | { t: 'close' }
   /** Профиль и рейтинг. */
   | { t: 'profile' }
