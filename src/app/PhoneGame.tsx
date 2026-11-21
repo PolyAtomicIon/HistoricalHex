@@ -421,8 +421,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       {askPush && (
         <div className="push-ask glass strong">
-          <Icon name="bell" size={20} />
-          <span className="grow">Напомнить, когда твой ход? Даже если игра свёрнута.</span>
+          <span className="pa-ic">
+            <Icon name="bell" size={18} />
+          </span>
+          <span className="pa-text">Напомнить о твоём ходе?</span>
           <button
             className="btn primary small-act"
             onClick={async () => {
