@@ -8,6 +8,7 @@ import { HEX_CORNERS, TERRAIN_RESOURCE, topologyFor } from '../engine';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
 import { eraIcon } from '../app/era';
 import { usePanZoom } from './usePanZoom';
+import { boardLocator } from '../fx/util';
 import './board2d.css';
 
 const S = 100;
@@ -53,6 +54,8 @@ export interface Board2DProps {
   static?: boolean;
   /** Обмен через гавань — кораблик уходит в рейс. */
   sail?: { type: HarborType; key: number };
+  /** Подсветить постройки этого игрока, остальные приглушить. */
+  spotlight?: string;
   className?: string;
 }
 
@@ -67,6 +70,7 @@ export function Board2D(props: Board2DProps) {
   const shipSrc = `${import.meta.env.BASE_URL}eras/ship.webp`;
   const ship = useImages([shipSrc]).has(shipSrc);
   // На захваченном гексе — лагерь эпохи (шатёр); самолёты/всадники только в анимации налёта
+  const robbedHex = view.board.hexes.find((h) => h.id === view.robberHex);
   const robberSrc = unit.has(eraIcon(era, 'camp')) ? eraIcon(era, 'camp') : unit.has(eraIcon(era, 'robber-unit')) ? eraIcon(era, 'robber-unit') : eraIcon(era, 'robber');
 
   const geo = useMemo(() => {
@@ -165,6 +169,41 @@ export function Board2D(props: Board2DProps) {
     }
   }, [hlKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Фокус на игроке: приблизить к его постройкам, через 4 с вернуть общий вид
+  useEffect(() => {
+    if (props.static) return;
+    const el = pz.ref.current;
+    if (!el) return;
+    if (!props.spotlight) {
+      pz.reset();
+      return;
+    }
+    const box = el.getBoundingClientRect();
+    let r: { left: number; top: number; right: number; bottom: number } | undefined;
+    el.querySelectorAll('.piece.lit, .road.lit').forEach((n) => {
+      const b = n.getBoundingClientRect();
+      const q = { left: b.left - box.left, top: b.top - box.top, right: b.right - box.left, bottom: b.bottom - box.top };
+      r = r ? { left: Math.min(r.left, q.left), top: Math.min(r.top, q.top), right: Math.max(r.right, q.right), bottom: Math.max(r.bottom, q.bottom) } : q;
+    });
+    if (r) pz.fitTo(r, 1.8);
+  }, [props.spotlight]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Для кино-атаки: где на экране центр гекса
+  useEffect(() => {
+    const fn = (hex: string) => {
+      const c = geo.hexPos.get(hex);
+      const svg = pz.ref.current?.querySelector<SVGSVGElement>('svg.b2d-svg');
+      const m = svg?.getScreenCTM();
+      if (!c || !svg || !m) return null;
+      const pt = new DOMPoint(c.x, c.y).matrixTransform(m);
+      return { x: pt.x, y: pt.y };
+    };
+    boardLocator.fn = fn;
+    return () => {
+      if (boardLocator.fn === fn) boardLocator.fn = null;
+    };
+  }, [geo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Тап мимо цели — берём ближайшую в радиусе 36 px (пальцу не нужно попадать точно)
   const onSnap = (e: React.MouseEvent) => {
     if (!interactive) return;
@@ -180,7 +219,7 @@ export function Board2D(props: Board2DProps) {
   };
 
   return (
-    <div className={`b2d ${props.className ?? ''} ${interactive ? 'picking' : ''}`} ref={pz.ref} {...pz.handlers} onClick={onSnap}>
+    <div className={`b2d ${props.className ?? ''} ${interactive ? 'picking' : ''} ${props.spotlight ? 'spot' : ''}`} ref={pz.ref} {...pz.handlers} onClick={onSnap}>
       <div className="b2d-sea" aria-hidden />
       <div className="b2d-inner" ref={pz.inner}>
         <svg key={`s${shaking}`} className={`b2d-svg ${shaking ? 'shake' : ''}`} viewBox={geo.viewBox} role="img" aria-label="Карта острова">
@@ -341,7 +380,7 @@ export function Board2D(props: Board2DProps) {
               const color = colors[owner];
               if (!l || !color) return null;
               return (
-                <g key={eid} className={`road ${recentSet.has(eid) ? 'recent' : ''}`}>
+                <g key={eid} className={`road ${recentSet.has(eid) ? 'recent' : ''} ${props.spotlight ? (owner === props.spotlight ? 'lit' : 'dim') : ''}`}>
                   <line {...l} className="rd-halo" pathLength={1} />
                   <line {...l} className="rd-edge" stroke={PLAYER_STROKE[color]} pathLength={1} />
                   <line {...l} className="rd-body" stroke={PLAYER_HEX[color]} pathLength={1} />
@@ -365,7 +404,7 @@ export function Board2D(props: Board2DProps) {
               if (!p || !color) return null;
               return (
                 <g key={vid} transform={`translate(${p.x} ${p.y})`}>
-                  <g className={`piece ${b.kind} ${recentSet.has(vid) ? 'recent' : ''}`}>
+                  <g className={`piece ${b.kind} ${recentSet.has(vid) ? 'recent' : ''} ${props.spotlight ? (b.owner === props.spotlight ? 'lit' : 'dim') : ''}`}>
                     <Piece kind={b.kind} color={color} shade={id('shade')} />
                   </g>
                 </g>
@@ -384,6 +423,32 @@ export function Board2D(props: Board2DProps) {
               })}
           </g>
 
+          {/* Разбойник эпохи */}
+          {(() => {
+            const c = geo.hexPos.get(view.robberHex);
+            if (!c) return null;
+            return (
+              <g className="b2d-robber" style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
+                <g key={view.robberHex} className="rb-land">
+                  <ellipse className="rb-shadow" cx={0} cy={S * 0.08} rx={S * 0.46} ry={S * 0.46} />
+                  <circle className="rb-halo" r={S * 0.62} fill={`url(#${id('halo')})`} />
+                  <circle className="rb-ring" r={S * 0.42} />
+                  <image href={robberSrc} x={-S * 0.47} y={-S * 0.52} width={S * 0.94} height={S * 0.94} />
+                  {robbedHex?.number !== undefined && robbedHex.terrain !== 'desert' && (
+                    <g className="rb-badge" transform={`translate(0 ${-S * 0.72})`}>
+                      <rect x={-S * 0.46} y={-S * 0.17} width={S * 0.92} height={S * 0.34} rx={S * 0.17} />
+                      <image href={eraIcon(era, `res-${TERRAIN_RESOURCE[robbedHex.terrain as Exclude<Terrain, 'desert'>]}`)} x={-S * 0.42} y={-S * 0.15} width={S * 0.3} height={S * 0.3} />
+                      <text x={S * 0.14} y={S * 0.01} className={`rb-num ${robbedHex.number === 6 || robbedHex.number === 8 ? 'red' : ''}`}>
+                        {robbedHex.number}
+                      </text>
+                      <line x1={-S * 0.36} y1={S * 0.11} x2={S * 0.36} y2={-S * 0.11} className="rb-strike" />
+                    </g>
+                  )}
+                </g>
+              </g>
+            );
+          })()}
+
           {/* Захваченный гекс: дым / пожар / пыль — видно сразу, что он не приносит доход */}
           {(() => {
             const c = geo.hexPos.get(view.robberHex);
@@ -396,13 +461,13 @@ export function Board2D(props: Board2DProps) {
                     <ellipse className="rz-fire f2" cx={S * 0.45} cy={S * 0.3} rx={S * 0.13} ry={S * 0.17} fill={`url(#${id('fire')})`} />
                   </>
                 )}
-                {[0, 1, 2, 3, 4].map((k) => (
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => (
                   <circle
                     key={k}
                     className={`rz-smoke s${k}`}
-                    cx={[-0.42, 0.45, -0.1, 0.25, -0.3][k] * S}
-                    cy={[0.3, 0.26, 0.5, 0.48, -0.1][k] * S}
-                    r={S * 0.22}
+                    cx={[-0.42, 0.45, -0.1, 0.25, -0.3, 0.1, 0.38, -0.5, 0][k] * S}
+                    cy={[0.3, 0.26, 0.5, 0.48, -0.1, 0.1, -0.05, 0.05, 0.3][k] * S}
+                    r={S * (k % 3 === 0 ? 0.34 : 0.27)}
                     fill={`url(#${id('smoke')})`}
                   />
                 ))}
@@ -410,23 +475,6 @@ export function Board2D(props: Board2DProps) {
             );
           })()}
 
-          {/* Разбойник эпохи */}
-          {(() => {
-            const c = geo.hexPos.get(view.robberHex);
-            if (!c) return null;
-            return (
-              <g className="b2d-robber" style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
-                <g key={view.robberHex} className="rb-land">
-                  <ellipse className="rb-shadow" cx={0} cy={S * 0.08} rx={S * 0.46} ry={S * 0.46} />
-                  <circle className="rb-halo" r={S * 0.62} fill={`url(#${id('halo')})`} />
-                  <circle className="rb-ring" r={S * 0.42} />
-                  <g className="rb-bob">
-                    <image href={robberSrc} x={-S * 0.45} y={-S * 0.5} width={S * 0.9} height={S * 0.9} />
-                  </g>
-                </g>
-              </g>
-            );
-          })()}
 
           {/* Место события (куда смотреть) */}
           {focusPos && (
@@ -511,7 +559,7 @@ const CITY = 'M -0.32 0.2 L -0.32 -0.04 L -0.1 -0.04 L -0.1 -0.2 L 0.06 -0.36 L 
 function Piece({ kind, color, shade }: { kind: 'settlement' | 'city'; color: PlayerColor; shade: string }) {
   const d = kind === 'city' ? CITY : HOUSE;
   return (
-    <g transform={`scale(${S})`}>
+    <g transform={`scale(${S * 1.3})`}>
       <ellipse className="pc-shadow" cx={0.02} cy={kind === 'city' ? 0.22 : 0.19} rx={kind === 'city' ? 0.34 : 0.24} ry={0.07} />
       <path d={d} className="pc-halo" />
       <path d={d} fill={PLAYER_HEX[color]} stroke={PLAYER_STROKE[color]} strokeWidth={0.04} strokeLinejoin="round" />

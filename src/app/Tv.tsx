@@ -20,6 +20,13 @@ import { savedName, saveName } from './Home';
 
 export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePack; screen?: boolean }) {
   const [panel, setPanel] = useState<null | 'host' | 'claim'>(null);
+  // Тап по игроку — подсветить его постройки на 4 секунды
+  const [spot, setSpot] = useState<{ id: string; key: number } | null>(null);
+  useEffect(() => {
+    if (!spot) return;
+    const t = setTimeout(() => setSpot(null), 4200);
+    return () => clearTimeout(t);
+  }, [spot]);
   const { lite } = useLite();
   const [claimName, setNameState] = useState(savedName());
   const pub = room.public!;
@@ -58,7 +65,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
   return (
     <main className="screen tv">
       <div className="stage">
-        <GameBoard pub={pub} era={pack.id} boardStatic colors={colors} mode={mode} palette={pack.palette} fx={fx} />
+        <GameBoard pub={pub} era={pack.id} boardStatic colors={colors} mode={mode} palette={pack.palette} fx={fx} spotlight={spot} />
       </div>
 
       <aside className="tv-left">
@@ -75,7 +82,12 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
           {pub.order.map((id) => {
             const p = pub.players[id];
             return (
-              <div key={id} className={`tv-player glass ${id === current ? 'turn' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}>
+              <div
+                key={id}
+                className={`tv-player glass ${id === current ? 'turn' : ''} ${spot?.id === id ? 'spot' : ''}`}
+                style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
+                onClick={() => setSpot((f) => (f?.id === id ? null : { id, key: Date.now() }))}
+              >
                 <span className="dot" style={{ background: PLAYER_HEX[p.color] }} />
                 <div className="grow">
                   <div className="t">

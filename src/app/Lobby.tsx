@@ -12,6 +12,7 @@ import { haptic, sfx } from '../fx';
 import { savedName, saveName } from './Home';
 import { eraCover, eraIcon, useEra } from './era';
 import { ArtIcon, Icon } from './icons';
+import { TurnSettings } from './TurnSettings';
 
 const DICE: { id: DiceMode; label: string; hint: string }[] = [
   { id: 'randomOrg', label: 'random.org', hint: 'Настоящий случай из атмосферного шума' },
@@ -182,6 +183,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
                       </button>
                     ))}
                   </div>
+                  <TurnSettings settings={room.settings} editable />
                   <button
                     className="btn primary big wide"
                     disabled={!canStart}
@@ -197,7 +199,8 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
               ) : (
                 <div className="stack">
                   <p className="muted">
-                    Кубики: <b>{DICE.find((d) => d.id === room.settings.dice)?.label}</b> · до {room.settings.vpToWin} очков
+                    Кубики: <b>{DICE.find((d) => d.id === room.settings.dice)?.label}</b> · до {room.settings.vpToWin} очков ·{' '}
+                    {room.settings.turnSeconds > 0 ? `${Math.round(room.settings.turnSeconds / 60 * 10) / 10} мин на ход` : 'без таймера'}
                   </p>
                   <p className="muted">Ждём, пока ведущий начнёт…</p>
                 </div>

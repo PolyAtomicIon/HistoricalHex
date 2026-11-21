@@ -459,3 +459,63 @@ html.lite .b2d .rz-smoke { animation: none; opacity: 0.55; }
 }
 html.lite .b2d .ship { animation: none; }
 html.lite .b2d .ship.sailing { animation: ship-sail 3.2s ease-in-out forwards; }
+
+/* Лагерь стоит неподвижно, без мерцания */
+.b2d .rb-halo {
+  animation: none;
+}
+.b2d .rb-badge rect {
+  fill: rgba(18, 12, 12, 0.88);
+}
+.b2d .rb-num {
+  font-family: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  fill: #f6f3ec;
+}
+.b2d .rb-num.red {
+  fill: #ff7a6e;
+}
+.b2d .rb-strike {
+  stroke: #ff3b2f;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+/* Дым гуще и выше */
+.b2d .rz-smoke {
+  animation-name: rz-smoke-big;
+  animation-duration: 4.2s;
+}
+.b2d .rz-smoke.s5 { animation-delay: 0.35s; }
+.b2d .rz-smoke.s6 { animation-delay: 1.05s; }
+.b2d .rz-smoke.s7 { animation-delay: 1.75s; }
+.b2d .rz-smoke.s8 { animation-delay: 2.45s; }
+@keyframes rz-smoke-big {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.95; }
+  100% { transform: translateY(-120px) scale(2.1); opacity: 0; }
+}
+html.lite .b2d .rz-smoke { animation: none; opacity: 0.6; }
+
+/* Фокус на игроке */
+.b2d.spot .piece.dim,
+.b2d.spot .road.dim {
+  opacity: 0.28;
+}
+.b2d .piece.lit {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: lit-hop 0.9s ease-in-out infinite alternate;
+}
+@keyframes lit-hop {
+  from { transform: translateY(0) scale(1); }
+  to { transform: translateY(-6px) scale(1.12); }
+}
+.b2d .road.lit .rd-halo {
+  stroke: #fff;
+  stroke-width: 30px;
+}
+.b2d .piece,
+.b2d .road {
+  transition: opacity 0.3s;
+}

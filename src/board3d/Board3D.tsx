@@ -5,8 +5,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type { HarborType, PlayerColor } from '../engine';
+import { TERRAIN_RESOURCE } from '../engine';
 import type { BoardProps } from '../board/Board';
 import { HEIGHT, worldFor, type World } from './world';
+import { boardLocator } from '../fx/util';
 import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig';
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
@@ -381,6 +383,26 @@ function useReducedMotion(): boolean {
 }
 
 /** Сдвиг кадра вверх: снизу экрана док, сверху игроки — центр острова должен быть в свободной области. */
+/** Для кино-атаки: экранная позиция гекса (проекция камеры). */
+function Locator({ world, tileMap }: { world: World; tileMap: Map<string, TileInfo> }) {
+  const { camera, gl } = useThree();
+  useEffect(() => {
+    const v = new THREE.Vector3();
+    const fn = (hex: string) => {
+      const p = world.hex.get(hex);
+      if (!p) return null;
+      v.set(p[0], HEIGHT[tileMap.get(hex)?.terrain ?? 'desert'] + 0.2, p[1]).project(camera);
+      const r = gl.domElement.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+    };
+    boardLocator.fn = fn;
+    return () => {
+      if (boardLocator.fn === fn) boardLocator.fn = null;
+    };
+  }, [camera, gl, world, tileMap]);
+  return null;
+}
+
 function ViewShift({ on }: { on: boolean }) {
   const { camera, size } = useThree();
   useEffect(() => {
@@ -487,7 +509,17 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
       <ViewShift on={!props.viewStatic} />
-      <RaidZone target={robberPos} hexH={robberH} era={era} />
+      <Locator world={world} tileMap={tileMap} />
+      <RaidZone
+        target={robberPos}
+        hexH={robberH}
+        era={era}
+        num={view.board.hexes.find((h) => h.id === view.robberHex)?.number}
+        res={(() => {
+          const t = tileMap.get(view.robberHex)?.terrain;
+          return t && t !== 'desert' ? TERRAIN_RESOURCE[t] : undefined;
+        })()}
+      />
       <Robber target={robberPos} hexH={robberH} sprite={era ? `${import.meta.env.BASE_URL}eras/${era}/camp.webp` : undefined} />
       {flash && <Flashes tiles={tileMap} ids={flash.hexes} k={flash.key} />}
 

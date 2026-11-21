@@ -484,3 +484,96 @@ body.fx-shake > *:not([data-fx-portal]):not(script):not(style) {
   opacity: 0;
   animation: raid-boom 0.4s 1.05s ease-out forwards;
 }
+
+/* ─── Налёт v2: элементы позиционируются JS (translate от левого верхнего угла) ─── */
+.fx-raid .raid-plane,
+.fx-raid .raid-plane-shadow,
+.fx-raid .raid-rider,
+.fx-raid .raid-ninja,
+.fx-raid .raid-tank,
+.fx-raid .raid-bomb,
+.fx-raid .raid-arrow,
+.fx-raid .raid-star,
+.fx-raid .raid-muzzle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.fx-raid .raid-plane {
+  width: min(62vw, 420px);
+  filter: drop-shadow(0 18px 20px rgba(0, 0, 0, 0.5));
+}
+.fx-raid .raid-plane-shadow {
+  width: min(50vw, 340px);
+  filter: brightness(0) blur(6px);
+  transform-origin: center;
+}
+.fx-raid .raid-rider {
+  width: min(50vw, 340px);
+  filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55));
+}
+.fx-raid .raid-ninja {
+  width: min(40vw, 260px);
+  filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55));
+}
+.fx-raid .raid-tank {
+  width: min(62vw, 420px);
+  filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.55));
+}
+.fx-raid .raid-bomb {
+  width: 10px;
+  height: 20px;
+  margin: -10px 0 0 -5px;
+  border-radius: 50% 50% 40% 40%;
+  background: #262626;
+}
+.fx-raid .raid-arrow {
+  width: 3px;
+  height: 34px;
+  margin: -17px 0 0 -1px;
+  border-radius: 2px;
+  background: linear-gradient(#f4e2b8, #5b3b1c);
+}
+.fx-raid .raid-star {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+}
+.fx-raid .raid-muzzle {
+  width: 90px;
+  height: 46px;
+  margin: -23px 0 0 -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #ffd23f 40%, transparent 70%);
+}
+.fx-raid .raid-hit {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, #fff6c8 0%, #ffb02e 28%, #e2461b 48%, rgba(60, 30, 20, 0.55) 62%, transparent 72%);
+  opacity: 0;
+}
+.fx-raid.raid-archers .raid-hit {
+  background: radial-gradient(circle, rgba(230, 200, 150, 0.9) 0%, rgba(180, 140, 90, 0.6) 45%, transparent 70%);
+}
+.fx-raid.raid-ninja .raid-hit {
+  background: radial-gradient(circle, rgba(60, 55, 75, 0.9) 0%, rgba(40, 35, 55, 0.6) 45%, transparent 70%);
+}
+.fx-raid .raid-hero {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: min(44vw, 280px);
+  animation: none;
+  opacity: 0;
+}
+/* стартуют за краем экрана — видимы сразу */
+.fx-raid .raid-plane,
+.fx-raid .raid-rider,
+.fx-raid .raid-tank {
+  opacity: 1;
+  transform: translate(-2000px, 0);
+}

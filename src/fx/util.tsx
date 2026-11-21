@@ -26,3 +26,6 @@ export function hashStr(s: string): number {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return (h >>> 0) / 4294967295;
 }
+
+/** Где на экране гекс (для кино-атаки). Карта (2D или 3D) регистрирует функцию, пока смонтирована. */
+export const boardLocator: { fn: ((hex: string) => { x: number; y: number } | null) | null } = { fn: null };

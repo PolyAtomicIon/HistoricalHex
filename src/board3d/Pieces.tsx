@@ -45,8 +45,8 @@ const cityGeo = merge([
 ]);
 
 // Фишки крупнее (критика: 10 px на телефоне не видно)
-houseGeo.scale(1.9, 1.9, 1.9);
-cityGeo.scale(1.7, 1.7, 1.7);
+houseGeo.scale(2.2, 2.2, 2.2);
+cityGeo.scale(1.95, 1.95, 1.95);
 
 // Толстый мультяшный контур: та же геометрия, чуть больше, тёмная, вывернута внутрь (BackSide)
 const hullCache = new Map<string, THREE.MeshBasicMaterial>();
@@ -59,7 +59,7 @@ function hullMat(color: PlayerColor): THREE.MeshBasicMaterial {
   return m;
 }
 // Площадка цвета игрока под постройкой — видно, чьё, даже когда дом закрыт деревом
-const padGeo = new THREE.CylinderGeometry(0.3, 0.33, 0.045, 24);
+const padGeo = new THREE.CylinderGeometry(0.36, 0.39, 0.045, 24);
 const padCache = new Map<string, THREE.MeshStandardMaterial>();
 function padMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = padCache.get(color);
@@ -386,7 +386,7 @@ export function Robber({ target, hexH, sprite }: { target: [number, number] | nu
     const done = (tex: THREE.Texture) => {
       if (!alive) return;
       tex.colorSpace = THREE.SRGBColorSpace;
-      setSpriteMat(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+      setSpriteMat(new THREE.SpriteMaterial({ map: tex, transparent: false, alphaTest: 0.5, depthWrite: true }));
     };
     const loader = new THREE.TextureLoader();
     // Лагерь эпохи; если его нет — отряд
@@ -416,11 +416,11 @@ export function Robber({ target, hexH, sprite }: { target: [number, number] | nu
     c.at = [x, z];
     const hop = u < 1 ? Math.sin(u * Math.PI) * 0.7 : 0;
     const t = reduced ? 0 : clock.elapsedTime;
-    const idle = Math.sin(t * 2) * 0.012;
+    const idle = spriteMat ? 0 : Math.sin(t * 2) * 0.012;
     const land = u >= 1 && c.t0 !== -99 ? Math.max(0, 1 - (clock.elapsedTime - c.t0 - T) * 4) : 0;
     o.position.set(x, hexH + hop + idle, z);
     body.current.scale.set(1 + land * 0.18 * Math.sin(land * 9), 1 - land * 0.18 * Math.sin(land * 9), 1 + land * 0.18 * Math.sin(land * 9));
-    body.current.rotation.y = rig.az + Math.sin(t * 0.7) * 0.15;
+    body.current.rotation.y = spriteMat ? 0 : rig.az + Math.sin(t * 0.7) * 0.15;
   });
 
   if (!target) return null;
@@ -461,14 +461,62 @@ function smokeTexture(): THREE.Texture {
 const zoneRing = new THREE.CircleGeometry(0.86, 6, Math.PI / 2);
 const zoneDisc = new THREE.CircleGeometry(0.9, 6, Math.PI / 2);
 
-export function RaidZone({ target, hexH, era }: { target: [number, number] | null; hexH: number; era?: string }) {
+/** Плашка над лагерем: какой ресурс и какое число сейчас заблокированы. */
+function useBlockedBadge(era?: string, res?: string, num?: number): THREE.SpriteMaterial | null {
+  const [mat, setMat] = useState<THREE.SpriteMaterial | null>(null);
+  useEffect(() => {
+    if (!era || !res || num === undefined) {
+      setMat(null);
+      return;
+    }
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 96;
+    const g = c.getContext('2d')!;
+    const draw = (img?: HTMLImageElement) => {
+      g.clearRect(0, 0, 256, 96);
+      g.fillStyle = 'rgba(18,12,12,0.9)';
+      g.beginPath();
+      g.roundRect(4, 4, 248, 88, 44);
+      g.fill();
+      if (img) g.drawImage(img, 22, 10, 76, 76);
+      g.fillStyle = num === 6 || num === 8 ? '#ff7a6e' : '#f6f3ec';
+      g.font = 'bold 56px Unbounded, Manrope, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(String(num), 170, 52);
+      g.strokeStyle = '#ff3b2f';
+      g.lineWidth = 9;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(40, 76);
+      g.lineTo(216, 20);
+      g.stroke();
+    };
+    draw();
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    setMat(m);
+    const img = new Image();
+    img.onload = () => {
+      draw(img);
+      tex.needsUpdate = true;
+    };
+    img.src = `${import.meta.env.BASE_URL}eras/${era}/res-${res}.webp`;
+  }, [era, res, num]);
+  return mat;
+}
+
+export function RaidZone({ target, hexH, era, res, num }: { target: [number, number] | null; hexH: number; era?: string; res?: string; num?: number }) {
+  const badge = useBlockedBadge(era, res, num);
   const { reduced } = useEnv();
   const ring = useRef<THREE.MeshBasicMaterial>(null);
   const light = useRef<THREE.PointLight>(null);
   const puffs = useRef<(THREE.Sprite | null)[]>([]);
   const color = era === 'genghis' ? '#c9a676' : era === 'ww2' ? '#3a3a3a' : '#2e2c38';
   const mats = useMemo(
-    () => Array.from({ length: 6 }, () => new THREE.SpriteMaterial({ map: smokeTexture(), color, transparent: true, depthWrite: false, opacity: 0 })),
+    () => Array.from({ length: 12 }, () => new THREE.SpriteMaterial({ map: smokeTexture(), color, transparent: true, depthWrite: false, opacity: 0 })),
     [color],
   );
   useFrame(({ clock }) => {
@@ -477,11 +525,11 @@ export function RaidZone({ target, hexH, era }: { target: [number, number] | nul
     if (light.current) light.current.intensity = 1.6 + Math.sin(t * 17) * 0.4 + Math.sin(t * 7.3) * 0.3;
     puffs.current.forEach((p, i) => {
       if (!p) return;
-      const k = ((t * 0.32 + i / 6) % 1 + 1) % 1;
-      p.position.set(Math.sin(i * 2.1) * 0.35, 0.25 + k * 1.3, Math.cos(i * 1.7) * 0.3);
-      const s = 0.35 + k * 0.75;
+      const k = ((t * 0.26 + i / 12) % 1 + 1) % 1;
+      p.position.set(Math.sin(i * 2.1) * 0.42 + k * 0.15, 0.3 + k * 2.0, Math.cos(i * 1.7) * 0.36);
+      const s = 0.45 + k * 1.25;
       p.scale.set(s, s, s);
-      (p.material as THREE.SpriteMaterial).opacity = Math.sin(k * Math.PI) * 0.75;
+      (p.material as THREE.SpriteMaterial).opacity = Math.sin(k * Math.PI) * 0.85;
     });
   });
   if (!target) return null;
@@ -497,6 +545,7 @@ export function RaidZone({ target, hexH, era }: { target: [number, number] | nul
         <sprite key={i} ref={(el) => (puffs.current[i] = el)} material={m} />
       ))}
       {era === 'ww2' && <pointLight ref={light} color="#ff7a1a" distance={2.6} intensity={1.6} position={[0, 0.4, 0]} />}
+      {badge && <sprite material={badge} position={[0, 1.45, 0]} scale={[0.95, 0.36, 1]} renderOrder={20} />}
     </group>
   );
 }

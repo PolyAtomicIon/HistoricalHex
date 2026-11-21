@@ -19,6 +19,10 @@ export interface RoomSettings {
   dice: DiceMode;
   /** id пакета эпохи (src/lore). */
   lore: string;
+  /** Секунд на ход (0 — без таймера). По истечении сервер сам заканчивает ход за игрока. */
+  turnSeconds: number;
+  /** Кубики бросает сервер для всех (через пару секунд после начала хода). */
+  autoRoll: boolean;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -27,6 +31,8 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   offlineBot: true,
   dice: 'randomOrg',
   lore: 'genghis',
+  turnSeconds: 180,
+  autoRoll: true,
 };
 
 export const OFFLINE_BOT_LEVEL: BotLevel = 'medium';

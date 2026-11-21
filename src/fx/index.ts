@@ -12,3 +12,4 @@ export { GainToast } from './GainToast';
 export type { Gain } from './GainToast';
 export { Raid } from './Raid';
 export type { RaidEvent } from './Raid';
+export { boardLocator } from './util';

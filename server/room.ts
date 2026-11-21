@@ -210,8 +210,20 @@ export class Room {
 
   updateSettings(me: PlayerId, patch: Partial<RoomSettings>): void {
     this.hostOnly(me);
-    this.lobbyOnly();
     const next = { ...this.settings };
+    // Таймер хода и автобросок ведущий может менять и посреди партии
+    if (typeof patch.turnSeconds === 'number' && Number.isFinite(patch.turnSeconds)) {
+      next.turnSeconds = patch.turnSeconds <= 0 ? 0 : Math.min(3600, Math.max(20, Math.round(patch.turnSeconds)));
+    }
+    if (patch.autoRoll !== undefined) next.autoRoll = !!patch.autoRoll;
+    if (this.status !== 'lobby') {
+      this.settings = { ...this.settings, turnSeconds: next.turnSeconds, autoRoll: next.autoRoll };
+      // новый таймер считается с этого момента
+      const now = Date.now();
+      for (const k of this.waitingSince.keys()) this.waitingSince.set(k, now);
+      this.changed();
+      return;
+    }
     if (patch.vpToWin !== undefined && [8, 10, 12].includes(patch.vpToWin)) next.vpToWin = patch.vpToWin;
     if (patch.reconnectSeconds !== undefined && patch.reconnectSeconds >= 15 && patch.reconnectSeconds <= 600) {
       next.reconnectSeconds = Math.round(patch.reconnectSeconds);
@@ -426,8 +438,22 @@ export class Room {
     if (this.status !== 'lobby') throw new Error('Это можно только в лобби');
   }
 
-  /** Кто будет заменён ботом и когда. */
+  /** Дедлайны для экрана: что наступит раньше — таймер хода или замена отвалившегося ботом. */
   deadlines(): Record<PlayerId, number> {
+    const out = this.offlineDeadlines();
+    const state = this.state;
+    const sec = this.settings.turnSeconds;
+    if (!state || !sec) return out;
+    for (const [pid, since] of this.waitingSince) {
+      if (state.players[pid]?.bot) continue;
+      const t = since + sec * 1000;
+      out[pid] = out[pid] === undefined ? t : Math.min(out[pid], t);
+    }
+    return out;
+  }
+
+  /** Кто будет заменён ботом (насовсем) и когда — только отвалившиеся. */
+  offlineDeadlines(): Record<PlayerId, number> {
     const out: Record<PlayerId, number> = {};
     const state = this.state;
     if (!state || !this.settings.offlineBot) return out;
@@ -444,13 +470,58 @@ export class Room {
   tick(): void {
     if (this.disposed || !this.state || this.state.phase === 'finished') return;
     const now = Date.now();
-    for (const [pid, deadline] of Object.entries(this.deadlines())) {
+    for (const [pid, deadline] of Object.entries(this.offlineDeadlines())) {
       if (now < deadline) continue;
       void this.enqueue(() => {
         if (this.state?.players[pid]?.bot) return;
         this.applyHost({ type: 'handToBot', player: pid, level: OFFLINE_BOT_LEVEL, auto: true });
       }).catch((e) => console.error('takeover failed', this.pin, e));
     }
+    const state = this.state;
+    // Автобросок: сервер бросает за человека через пару секунд (если есть рыцарь — даём время сыграть его до броска)
+    if (this.settings.autoRoll && this.settings.dice !== 'physical' && state.phase === 'roll') {
+      const pid = state.order[state.current];
+      const since = this.waitingSince.get(pid);
+      const knight = state.players[pid]?.devCards?.some((c) => c.type === 'knight' && c.boughtTurn !== state.turn);
+      if (!state.players[pid]?.bot && since !== undefined && now - since > (knight ? 8000 : 2500)) {
+        void this.enqueue(() => this.autoMove(pid, 'roll')).catch((e) => console.error('autoroll failed', this.pin, e));
+        return;
+      }
+    }
+    // Таймер хода: время вышло — сервер делает за игрока минимальный ход (не забирая место насовсем)
+    const sec = this.settings.turnSeconds;
+    if (sec > 0) {
+      for (const [pid, since] of this.waitingSince) {
+        if (state.players[pid]?.bot || now - since < sec * 1000) continue;
+        void this.enqueue(() => this.autoMove(pid, 'timeout')).catch((e) => console.error('timeout move failed', this.pin, e));
+        break;
+      }
+    }
+  }
+
+  /** Минимальный ход за человека: бросок, сброс, разбойник/постройка как у лёгкого бота, конец хода. */
+  private autoMove(pid: PlayerId, why: 'roll' | 'timeout'): void {
+    const state = this.state;
+    if (!state || state.phase === 'finished' || state.players[pid]?.bot) return;
+    const waiting = waitingOn(state);
+    if (!waiting.includes(pid)) return;
+    let res: ActionResult;
+    if (state.phase === 'roll') {
+      res = applyAction(state, pid, { type: 'rollDice' }, this.botRng({ type: 'rollDice' }));
+    } else if (why === 'roll') {
+      return;
+    } else if (state.phase === 'discard') {
+      res = applyHostAction(state, { type: 'forceDiscard', player: pid }, cryptoRng);
+    } else if (state.phase === 'main') {
+      res = applyAction(state, pid, { type: 'endTurn' }, cryptoRng);
+      if (!res.ok) res = applyHostAction(state, { type: 'skipTurn' }, cryptoRng);
+    } else {
+      const pub = toPublicView(state);
+      const action = decide({ level: 'easy', pub, priv: toPrivateView(state, pid), me: pid, rng: cryptoRng, memory: {}, now: Date.now() });
+      res = action ? applyAction(state, pid, action, this.botRng(action)) : { ok: false, error: 'нет хода' };
+      if (!res.ok) res = applyHostAction(state, { type: 'skipTurn' }, cryptoRng);
+    }
+    if (res.ok) this.commit(res.state, res.events);
   }
 
   view(me: PlayerId): RoomView {

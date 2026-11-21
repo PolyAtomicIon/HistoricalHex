@@ -27,6 +27,7 @@ import { setLitePref, useLite } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, myPhaseText, phaseText } from '../i18n/ru';
 import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
 import { Sheet } from './Sheet';
+import { TurnSettings } from './TurnSettings';
 import { IncomingTrade, TradeSheet } from './trade';
 import { HandMini, RES_COLOR, ResChips, ResourcePicker, ResourceStepper, TradeGrid, sum } from './widgets';
 import { ResIcon } from './ResIcon';
@@ -70,6 +71,13 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const [muted, setMuted] = useMuted();
   const { pref: litePref, auto: liteAuto, lite: liteOn } = useLite();
   const [sheet, setSheet] = useState<SheetId>(null);
+  // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
+  const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number } | null>(null);
+  useEffect(() => {
+    if (!focusPlayer) return;
+    const t = setTimeout(() => setFocusPlayer(null), 4200);
+    return () => clearTimeout(t);
+  }, [focusPlayer]);
   const [build, setBuild] = useState<BuildMode | null>(null);
   const [selected, setSelected] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -136,6 +144,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       setSheet('dice');
       return;
     }
+    if (room.settings.autoRoll) return; // бросает сервер
     if (!autoRoll) return;
     // Есть карта, которую можно сыграть до броска (рыцарь) — не бросаем сами, ждём решения
     if (playable.some((c) => c.type === 'knight')) return;
@@ -268,19 +277,33 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           selected={selected}
           fx={fx}
           ghosts={ghosts}
+          spotlight={focusPlayer}
         />
       </div>
 
       <header className="hud-top">
-        <PlayersBar pub={pub} room={room} onOpen={() => setSheet('players')} deadline={deadline ? deadline - conn.getState().clockSkew : undefined} />
+        <PlayersBar
+          pub={pub}
+          room={room}
+          deadline={deadline ? deadline - conn.getState().clockSkew : undefined}
+          focused={focusPlayer?.id}
+          onFocus={(id) => {
+            sfx.play('tick');
+            setFocusPlayer((f) => (f?.id === id ? null : { id, key: Date.now() }));
+          }}
+        />
         <button className="fab glass" onClick={() => setSheet('menu')} aria-label="Меню">
           <Icon name="menu" />
         </button>
       </header>
 
-      <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
-        {status}
-      </div>
+      {focusPlayer ? (
+        <FocusCard key={focusPlayer.key} pub={pub} id={focusPlayer.id} pack={pack} me={me} onMore={() => setSheet('players')} />
+      ) : (
+        <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
+          {status}
+        </div>
+      )}
       {fx.narration && (
         <div key={`n${fx.narration.key}`} className="narr-line" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }}>
           <i />
@@ -479,7 +502,15 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       </Sheet>
 
       <Sheet open={sheet === 'players'} onClose={() => setSheet(null)} title="Игроки" description={`До победы — ${room.settings.vpToWin} очков`}>
-        <PlayersSheet pub={pub} room={room} pack={pack} />
+        <PlayersSheet
+          pub={pub}
+          room={room}
+          pack={pack}
+          onPick={(id) => {
+            setSheet(null);
+            setFocusPlayer({ id, key: Date.now() });
+          }}
+        />
       </Sheet>
 
       <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
@@ -542,7 +573,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <Icon name={muted ? 'mute' : 'sound'} />
             <span className="grow t">{muted ? 'Звук выключен' : 'Звук включён'}</span>
           </button>
-          {!physical && (
+          {!physical && !room.settings.autoRoll && (
             <button
               className="item"
               onClick={() => {
@@ -606,38 +637,85 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 // ───────────────────────── части ─────────────────────────
 
 /** Игроки сверху: аватары с цветом, очками и таймером у того, кто ходит. Тап — подробности. */
-export function PlayersBar({ pub, room, onOpen, deadline }: { pub: PublicState; room: RoomView; onOpen?: () => void; deadline?: number }) {
+/** Игроки сверху: ячейка на игрока — аватар, имя, очки и карты. Тап — показать его постройки на карте. */
+export function PlayersBar({
+  pub,
+  room,
+  deadline,
+  onFocus,
+  focused,
+}: {
+  pub: PublicState;
+  room: RoomView;
+  deadline?: number;
+  onFocus?: (id: PlayerId) => void;
+  focused?: PlayerId;
+}) {
   const current = pub.order[pub.current];
-  const wide = pub.order.length <= 4;
+  const compact = pub.order.length > 4;
   return (
-    <button className={`players-bar glass ${wide ? 'wide' : ''}`} onClick={onOpen} aria-label="Игроки">
+    <div className={`pbar glass ${compact ? 'compact' : ''}`} role="list" aria-label="Игроки">
       {pub.order.map((id) => {
         const p = pub.players[id];
         const turn = id === current && pub.phase !== 'finished';
+        const bot = p.bot || p.away || p.kicked;
         return (
-          <span
+          <button
             key={id}
-            className={`pav ${turn ? 'turn' : ''} ${id === room.me ? 'me' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
+            role="listitem"
+            className={`pcell ${turn ? 'turn' : ''} ${focused === id ? 'focused' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
             style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
+            onClick={() => onFocus?.(id)}
+            aria-label={`${p.name}: ${p.points} очков. Показать постройки`}
           >
-            <span className="pav-ring">
+            <span className="pc-ava">
               {turn && deadline && <TimerRing until={deadline} />}
-              <span className="pav-face">{p.name.charAt(0).toUpperCase()}</span>
-              {(p.bot || p.away || p.kicked) && (
-                <span className="pav-bot">
-                  <Icon name="bot" size={11} />
-                </span>
-              )}
+              <span className="pc-face">{p.name.charAt(0).toUpperCase()}</span>
             </span>
-            <span className="pav-vp">{p.points}</span>
-            {wide && (
-              <span className="pav-info">
-                <b>{id === room.me ? 'Ты' : p.name}</b>
+            {!compact && (
+              <span className="pc-info">
+                <span className="pc-name">{id === room.me ? 'Ты' : p.name}</span>
+                <span className="pc-stats">
+                  {bot && <Icon name="bot" size={11} />}
+                  <Icon name="star" size={11} />
+                  <b>{p.points}</b>
+                  <span className="pc-dot" />
+                  <Icon name="hand" size={11} />
+                  {p.resourceCount}
+                </span>
               </span>
             )}
-          </span>
+            {compact && <span className="pc-vp">{p.points}</span>}
+          </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Карточка игрока под полосой, пока его постройки подсвечены. */
+function FocusCard({ pub, id, pack, me, onMore }: { pub: PublicState; id: PlayerId; pack: LorePack; me: PlayerId; onMore: () => void }) {
+  const p = pub.players[id];
+  const b = Object.values(pub.buildings).filter((x) => x.owner === id);
+  const towns = b.filter((x) => x.kind === 'settlement').length;
+  const cities = b.filter((x) => x.kind === 'city').length;
+  return (
+    <button className="focus-card glass strong" style={{ ['--pc' as string]: PLAYER_HEX[p.color] }} onClick={onMore}>
+      <span className="fc-ava">{p.name.charAt(0).toUpperCase()}</span>
+      <span className="fc-main">
+        <b>
+          {id === me ? 'Ты' : p.name} · <Icon name="star" size={13} /> {p.points}
+        </b>
+        <small>
+          <span><Icon name="house" size={12} /> {towns}</span>
+          <span><Icon name="castle" size={12} /> {cities}</span>
+          <span><Icon name="road" size={12} /> {p.roadLength}</span>
+          <span><Icon name="hand" size={12} /> {p.resourceCount}</span>
+          <span><Icon name="cards" size={12} /> {p.devCardCount}</span>
+          {pub.longestRoad === id && <span className="bonus">{pack.bonuses.longestRoad}</span>}
+          {pub.largestArmy === id && <span className="bonus">{pack.bonuses.largestArmy}</span>}
+        </small>
+      </span>
     </button>
   );
 }
@@ -659,14 +737,14 @@ function TimerRing({ until }: { until: number }) {
 }
 
 /** Подробно об игроках — шторка по тапу на аватары. */
-function PlayersSheet({ pub, room, pack }: { pub: PublicState; room: RoomView; pack: LorePack }) {
+function PlayersSheet({ pub, room, pack, onPick }: { pub: PublicState; room: RoomView; pack: LorePack; onPick?: (id: PlayerId) => void }) {
   const current = pub.order[pub.current];
   return (
     <div className="list">
       {pub.order.map((id) => {
         const p = pub.players[id];
         return (
-          <div key={id} className={`item pl-row ${id === current ? 'turn' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}>
+          <button key={id} className={`item pl-row ${id === current ? 'turn' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[p.color] }} onClick={() => onPick?.(id)}>
             <span className="pl-face">{p.bot || p.away || p.kicked ? <Icon name="bot" size={20} /> : p.name.charAt(0).toUpperCase()}</span>
             <div className="grow">
               <div className="t">
@@ -690,7 +768,7 @@ function PlayersSheet({ pub, room, pack }: { pub: PublicState; room: RoomView; p
             <b className="pl-vp">
               <Icon name="star" size={16} /> {p.points}
             </b>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -805,7 +883,7 @@ function Cost({ cost }: { cost: ResourceMap }) {
       {RESOURCES.filter((r) => cost[r] > 0).map((r) => (
         <span key={r} className="cost-i">
           <ResIcon r={r} size={15} />
-          {cost[r] > 1 && <small>{cost[r]}</small>}
+          {cost[r] > 1 && <small>×{cost[r]}</small>}
         </span>
       ))}
     </span>
@@ -1398,6 +1476,7 @@ function HostTools({ room, pub }: { room: RoomView; pub: PublicState }) {
       </button>
       {open && (
         <>
+          <TurnSettings settings={room.settings} editable />
           <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
             <Icon name="skip" /> Пропустить ход {pub.players[pub.order[pub.current]].name}
           </button>

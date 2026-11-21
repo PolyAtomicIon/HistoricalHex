@@ -67,6 +67,7 @@ export function GameBoard({
   mode,
   palette,
   boardStatic,
+  spotlight,
   highlight,
   onVertex,
   onEdge,
@@ -88,9 +89,18 @@ export function GameBoard({
   onHex?: (h: string) => void;
   selected?: string;
   fx: GameFx;
+  /** Показать постройки игрока (тап по игроку). */
+  spotlight?: { id: string; key: number } | null;
   ghosts?: { vertex?: string; edge?: string; kind: 'road' | 'settlement' | 'city'; color: PlayerColor; broken?: boolean }[];
 }) {
   const [gl] = useState(hasWebGL);
+  // Для 3D: постройка игрока ближе всего к центру его построек — туда летит камера
+  const spotFocus = (() => {
+    if (!spotlight) return undefined;
+    const mine = Object.entries(pub.buildings).filter(([, b]) => b.owner === spotlight.id).map(([v]) => v);
+    if (!mine.length) return undefined;
+    return { vertex: mine[Math.floor(mine.length / 2)], key: spotlight.key };
+  })();
   const { lite } = useLite();
   const svg = (
     <Board2D
@@ -108,6 +118,7 @@ export function GameBoard({
       ghosts={ghosts}
       shake={fx.shake}
       static={boardStatic}
+      spotlight={spotlight?.id}
       sail={fx.sail}
     />
   );
@@ -127,7 +138,7 @@ export function GameBoard({
           flash={fx.flash}
           mode="3d"
           palette={palette}
-          focus={fx.focus}
+          focus={spotFocus ?? fx.focus}
           ghosts={ghosts}
           shake={fx.shake}
           lowPower={lowPower}
