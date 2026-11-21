@@ -4894,3 +4894,34 @@ html.lite .home .era-card.on .era-cover {
 @media (max-width: 900px) {
   .tv-harvest { display: none; }
 }
+/* рынок — одной строкой */
+.th-market {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 28px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.th-market > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.th-market .bad { color: var(--bad); }
+.th-market .good { color: var(--good); }
+/* фаза хода — в одну строку */
+.tv-turn .tt-phase {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  display: block;
+}
+.tv-turn .tt-phase svg { vertical-align: -3px; margin-right: 4px; }
+.tt-dice .die { width: 22px; height: 22px; }
+.tv-turn { gap: 12px; }
+.tv-turn .tt-ava { width: 50px; height: 50px; }

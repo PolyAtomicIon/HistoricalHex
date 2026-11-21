@@ -21,28 +21,34 @@ import { ResIcon } from './ResIcon';
 import { tvFeed, tvPhase, type FeedRes } from './tvFeed';
 import { tableHarvest } from './income';
 import type { PublicState, Resource } from '../engine';
-import { RESOURCE_NAME } from '../i18n/ru';
 
-const TAG = { plenty: 'много', scarce: 'дефицит', none: 'никто' } as const;
 
 /** Урожай стола: что в достатке / в дефиците и кто что получит на каждом числе. */
 function Harvest({ pub }: { pub: PublicState }) {
   const { rows, supply } = useMemo(() => tableHarvest(pub), [pub.buildings, pub.robberHex, pub.bank]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!rows.length) return null;
-  const max = Math.max(0.01, ...supply.map((x) => x.perRoll));
+  const scarce = supply.filter((x) => x.tag === 'scarce' || x.tag === 'none');
+  const plenty = supply.filter((x) => x.tag === 'plenty');
+  const empty = supply.filter((x) => x.bank < 4);
   const hit = pub.dice && pub.phase !== 'setup' && pub.phase !== 'roll' ? pub.dice[0] + pub.dice[1] : 0;
   return (
     <div className="tv-harvest glass">
-      <div className="th-supply">
-        {supply.map((x) => (
-          <div key={x.r} className={`th-s ${x.tag ?? ''}`} title={`${RESOURCE_NAME[x.r]}: ≈${x.perRoll.toFixed(2)} за бросок, в банке ${x.bank}`}>
-            <ResIcon r={x.r} size={26} />
-            <span className="meter">
-              <i style={{ height: `${Math.max(6, (x.perRoll / max) * 100)}%` }} />
-            </span>
-            <small>{x.tag ? TAG[x.tag] : x.bank < 5 ? `банк ${x.bank}` : '\u00a0'}</small>
-          </div>
-        ))}
+      <div className="th-market">
+        {scarce.length > 0 && (
+          <span className="bad">
+            дефицит {scarce.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
+          </span>
+        )}
+        {plenty.length > 0 && (
+          <span className="good">
+            много {plenty.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
+          </span>
+        )}
+        {empty.length > 0 && (
+          <span className="faint">
+            банк пуст {empty.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
+          </span>
+        )}
       </div>
       <div className="th-rows">
         {rows.map((r) => (
