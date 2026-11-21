@@ -46,3 +46,37 @@ function put(req, res) {
   }
   return res;
 }
+
+// Уведомление «Твой ход» (Web Push)
+self.addEventListener('push', (e) => {
+  let d = { title: 'HistoricalHex', body: 'Твой ход!', url: BASE, tag: 'turn' };
+  try {
+    d = { ...d, ...e.data.json() };
+  } catch {
+    /* пустой пуш */
+  }
+  e.waitUntil(
+    self.registration.showNotification(d.title, {
+      body: d.body,
+      tag: d.tag,
+      renotify: true,
+      icon: BASE + 'icons/icon-192.png',
+      badge: BASE + 'icons/icon-192.png',
+      data: { url: d.url },
+      vibrate: [80, 40, 80],
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || BASE;
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (c.url.includes(BASE) && 'focus' in c) return c.focus();
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});

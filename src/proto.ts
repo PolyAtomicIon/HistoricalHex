@@ -99,6 +99,13 @@ export type ClientMsg =
   | { t: 'rename'; name: string }
   /** Ссылка на бота для входа из обычного браузера. */
   | { t: 'tgLink' }
+  /** Подписка на уведомления «Твой ход» (Web Push). */
+  | { t: 'pushSub'; sub: unknown }
+  | { t: 'pushOff' }
+  /** Вкладка свёрнута/развёрнута — чтобы слать пуш, когда игру не видно. */
+  | { t: 'vis'; hidden: boolean }
+  /** Сесть на место бота посреди партии. */
+  | { t: 'takeSeat'; pid: string; name: string }
   /** Профиль игрока за столом (человек или ИИ). */
   | { t: 'playerProfile'; pid: string }
   | { t: 'ping' };
@@ -133,7 +140,7 @@ export interface LeaderRow {
 }
 
 export type ServerMsg =
-  | { t: 'welcome'; me: PlayerId }
+  | { t: 'welcome'; me: PlayerId; vapid?: string; push?: boolean }
   | { t: 'created'; pin: string }
   | { t: 'room'; room: RoomView }
   | { t: 'events'; events: GameEvent[]; diceSource?: DiceSource }

@@ -73,7 +73,11 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       // тряска — в момент удара, а не в начале
       setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), kind === 'robber' ? 1450 : 1000);
     };
-    if (import.meta.env.DEV) (window as unknown as { __raid: typeof raid }).__raid = raid;
+    if (import.meta.env.DEV) {
+      const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined };
+      w.__raid = raid;
+      w.__robber = () => pubRef.current?.robberHex;
+    }
 
     const offEvents = conn.onEvents((events: GameEvent[], source) => {
       const p = packRef.current;

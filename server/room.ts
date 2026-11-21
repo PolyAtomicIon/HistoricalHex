@@ -64,6 +64,8 @@ function fixedDiceRng(d: [number, number]): Rng {
 export class Room {
   /** Вызывается один раз, когда партия закончилась (запись статистики). */
   static onFinished?: (room: Room) => void;
+  /** Партия начала ждать человека (его ход, сброс) — для уведомлений «Твой ход». */
+  static onWaiting?: (room: Room, pid: PlayerId) => void;
   readonly pin: string;
   hostId: PlayerId;
   created: number;
@@ -169,6 +171,29 @@ export class Room {
     }
     const color = PLAYER_COLORS.find((c) => ![...this.seats.values()].some((s) => s.color === c));
     this.seats.set(me, { id: me, name: clean, color, joinedAt: Date.now() });
+    this.changed();
+  }
+
+  /** Живой человек садится на место бота посреди партии: бот уходит, его постройки и карты — человеку. */
+  takeBotSeat(me: PlayerId, pid: PlayerId, name: string): void {
+    if (this.status !== 'playing' || !this.state) throw new Error('Занять место бота можно только во время партии');
+    if (this.kicked.has(me)) throw new Error('Ведущий убрал тебя из этой игры');
+    if (this.seats.has(me)) throw new Error('Ты уже за столом');
+    const seat = this.seats.get(pid);
+    if (!seat || !seat.bot) throw new Error('Это место не бота');
+    const clean = name.trim().replace(/\s+/g, ' ').slice(0, NAME_MAX);
+    if (!clean) throw new Error('Напиши имя');
+    if ([...this.seats.values()].some((x) => x.id !== pid && x.name.toLowerCase() === clean.toLowerCase())) throw new Error('Такое имя уже занято');
+    this.rebind(pid, me);
+    const s2 = this.seats.get(me)!;
+    this.seats.set(me, { ...s2, name: clean, bot: undefined, persona: undefined });
+    const st = this.state;
+    const pl = st.players[me];
+    if (pl) {
+      this.state = { ...st, players: { ...st.players, [me]: { ...pl, name: clean, bot: undefined } } };
+    }
+    const now = Date.now();
+    if (this.waitingSince.has(me)) this.waitingSince.set(me, now);
     this.changed();
   }
 
@@ -406,7 +431,9 @@ export class Room {
     const now = Date.now();
     const next = new Map<PlayerId, number>();
     for (const pid of waitingOn(state)) next.set(pid, this.waitingSince.get(pid) ?? now);
+    const fresh = [...next.keys()].filter((pid) => !this.waitingSince.has(pid) && !state.players[pid]?.bot);
     this.waitingSince = next;
+    for (const pid of fresh) Room.onWaiting?.(this, pid);
     this.changed();
     this.sendEvents(events);
     this.scheduleBots();
@@ -438,6 +465,11 @@ export class Room {
 
   private lobbyOnly(): void {
     if (this.status !== 'lobby') throw new Error('Это можно только в лобби');
+  }
+
+  /** Ждёт ли партия этого игрока прямо сейчас. */
+  isWaitingOn(pid: PlayerId): boolean {
+    return this.waitingSince.has(pid) && !!this.state && this.state.phase !== 'finished';
   }
 
   /** Дедлайны для экрана: что наступит раньше — таймер хода или замена отвалившегося ботом. */

@@ -59,6 +59,9 @@ export interface ConnState {
   profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string };
   /** Ссылка на бота для входа (живёт 10 минут). */
   tgLink?: string;
+  /** Web Push: публичный ключ сервера и включены ли уведомления для этого устройства. */
+  vapid?: string;
+  pushOn?: boolean;
   /** Профиль игрока за столом (по запросу). */
   playerProfile?: { pid: string; profile: ProfileView | null };
 }
@@ -119,7 +122,8 @@ class Connection {
         // Внутри Telegram Mini App — входим автоматически
         const init = tgInitData();
         if (init) this.ws?.send(JSON.stringify({ t: 'tgAuth', initData: init } satisfies ClientMsg));
-        return this.patch({ me: m.me });
+        if (typeof document !== 'undefined' && document.hidden) this.ws?.send(JSON.stringify({ t: 'vis', hidden: true } satisfies ClientMsg));
+        return this.patch({ me: m.me, vapid: m.vapid, pushOn: m.push });
       }
       case 'tgLink':
         return this.patch({ tgLink: m.url });
@@ -244,4 +248,11 @@ export const conn = new Connection();
 
 export function useConn(): ConnState {
   return useSyncExternalStore(conn.subscribe, conn.getState);
+}
+
+// Свёрнута ли игра — сервер шлёт пуш «Твой ход», только когда игру не видно
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    conn.send({ t: 'vis', hidden: document.hidden });
+  });
 }

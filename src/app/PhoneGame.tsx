@@ -27,7 +27,9 @@ import { setLitePref, useLite } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, myPhaseText, phaseText } from '../i18n/ru';
 import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted, useMusicOn } from '../fx';
 import { Sheet } from './Sheet';
+import { playerClusters } from './clusters';
 import { PlayerProfileCard } from './Profile';
+import { enablePush, pushSupport } from './pwa';
 import { TurnSettings } from './TurnSettings';
 import { IncomingTrade, TradeSheet } from './trade';
 import { HandMini, RES_COLOR, ResChips, ResourcePicker, ResourceStepper, TradeGrid, sum } from './widgets';
@@ -67,21 +69,50 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const current = pub.order[pub.current];
   const myTurn = current === me && pub.phase !== 'finished';
   const fx = useGameFx(pub, pack, me);
-  const connStatus = useConn().status;
+  const { status: connStatus, vapid, pushOn } = useConn();
+  // Один раз предложить уведомления «Твой ход» (через 20 с после входа в партию)
+  const [askPush, setAskPushState] = useState(false);
+  const setAskPush = (v: boolean) => {
+    setAskPushState(v);
+    if (!v) {
+      try {
+        localStorage.setItem('hh.pushAsk', '1');
+      } catch {
+        /* ok */
+      }
+    }
+  };
+  useEffect(() => {
+    if (pushOn || pushSupport() !== 'ok') return;
+    try {
+      if (localStorage.getItem('hh.pushAsk')) return;
+    } catch {
+      return;
+    }
+    const t = setTimeout(() => setAskPushState(true), 20000);
+    return () => clearTimeout(t);
+  }, [pushOn]);
   const [mode, setMode] = useBoardMode();
   const [muted, setMuted] = useMuted();
   const [music, setMusic] = useMusicOn();
   const { pref: litePref, auto: liteAuto, lite: liteOn } = useLite();
   const [sheet, setSheet] = useState<SheetId>(null);
   // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
-  const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number } | null>(null);
+  const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number; idx?: number } | null>(null);
+  const focusClusters = useMemo(() => (focusPlayer ? playerClusters(pub, focusPlayer.id) : []), [focusPlayer?.id, pub]); // eslint-disable-line react-hooks/exhaustive-deps
   const [profileOf, setProfileOf] = useState<PlayerId | null>(null);
   const [openFact, setOpenFact] = useState<LoreFact | null>(null);
+  // Районы показываются по очереди (≈4.5 с на район), потом фокус гаснет
   useEffect(() => {
     if (!focusPlayer) return;
-    const t = setTimeout(() => setFocusPlayer(null), 4200);
+    const idx = focusPlayer.idx ?? 0;
+    const last = idx >= focusClusters.length - 1;
+    const t = setTimeout(() => setFocusPlayer((f) => (f && f.key === focusPlayer.key ? (last ? null : { ...f, idx: idx + 1 }) : f)), 4500);
     return () => clearTimeout(t);
-  }, [focusPlayer]);
+  }, [focusPlayer, focusClusters.length]);
+  const focusSpot = focusPlayer ? { id: focusPlayer.id, key: focusPlayer.key * 10 + (focusPlayer.idx ?? 0), vertices: focusClusters[focusPlayer.idx ?? 0] ?? [] } : null;
+  const stepFocus = (d: number) =>
+    setFocusPlayer((f) => (f ? { ...f, idx: ((f.idx ?? 0) + d + focusClusters.length) % Math.max(1, focusClusters.length) } : f));
   const [build, setBuild] = useState<BuildMode | null>(null);
   const [selected, setSelected] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -281,7 +312,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           selected={selected}
           fx={fx}
           ghosts={ghosts}
-          spotlight={focusPlayer}
+          spotlight={focusSpot}
         />
       </div>
 
@@ -312,6 +343,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             setProfileOf(focusPlayer.id);
             setSheet('pprofile');
           }}
+          part={{ idx: focusPlayer.idx ?? 0, total: focusClusters.length, step: stepFocus }}
         />
       ) : (
         <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
@@ -386,6 +418,26 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       )}
 
       {showFact && <FactPopup pack={pack} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />}
+
+      {askPush && (
+        <div className="push-ask glass strong">
+          <Icon name="bell" size={20} />
+          <span className="grow">Напомнить, когда твой ход? Даже если игра свёрнута.</span>
+          <button
+            className="btn primary small-act"
+            onClick={async () => {
+              setAskPush(false);
+              const err = await enablePush(vapid, (sub) => conn.send({ t: 'pushSub', sub }));
+              if (err) conn.notify(err);
+            }}
+          >
+            Включить
+          </button>
+          <button className="btn ghost small-act" onClick={() => setAskPush(false)} aria-label="Не сейчас">
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+      )}
 
       {planReady && !build && !selected && !planPick && (
         <button className="plan-run glass" disabled={busy} onClick={() => void runPlan()}>
@@ -588,6 +640,26 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               </button>
             ))}
           </div>
+          <button
+            className="item"
+            onClick={async () => {
+              if (pushOn) {
+                conn.send({ t: 'pushOff' });
+                return;
+              }
+              const err = await enablePush(vapid, (sub) => conn.send({ t: 'pushSub', sub }));
+              if (err) conn.notify(err);
+            }}
+          >
+            <Icon name="bell" />
+            <span className="grow">
+              <span className="t">Уведомлять о моём ходе</span>
+              <span className="s" style={{ display: 'block' }}>
+                {pushSupport() === 'install' ? 'На iPhone — после установки на экран «Домой»' : 'Когда игра свёрнута или телефон спит'}
+              </span>
+            </span>
+            <span className={`switch ${pushOn ? 'on' : ''}`} aria-hidden />
+          </button>
           <button className="item" onClick={() => setMusic(!music)}>
             <Icon name="music" />
             <span className="grow t">Музыка эпохи</span>
@@ -649,7 +721,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       <DiceOverlay roll={fx.roll} />
       <NewCard cards={priv.devCards} pack={pack} />
-      <Raid event={fx.raid} />
+      <Raid event={fx.raid} skipBomber={mode === '3d' && !liteOn} />
       <Cinematic event={fx.cinematic} />
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
       <ReactionsLayer items={fx.reactions} />
@@ -761,13 +833,33 @@ function FactPopup({ pack, onRead }: { pack: LorePack; onRead: (f: LoreFact) => 
 }
 
 /** Карточка игрока под полосой, пока его постройки подсвечены. */
-function FocusCard({ pub, id, pack, me, onMore }: { pub: PublicState; id: PlayerId; pack: LorePack; me: PlayerId; onMore: () => void }) {
+function FocusCard({
+  pub,
+  id,
+  pack,
+  me,
+  onMore,
+  part,
+}: {
+  pub: PublicState;
+  id: PlayerId;
+  pack: LorePack;
+  me: PlayerId;
+  onMore: () => void;
+  part?: { idx: number; total: number; step: (d: number) => void };
+}) {
   const p = pub.players[id];
   const b = Object.values(pub.buildings).filter((x) => x.owner === id);
   const towns = b.filter((x) => x.kind === 'settlement').length;
   const cities = b.filter((x) => x.kind === 'city').length;
   return (
-    <button className="focus-card glass strong" style={{ ['--pc' as string]: PLAYER_HEX[p.color] }} onClick={onMore}>
+    <div className="focus-card glass strong" style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}>
+      {part && part.total > 1 && (
+        <button className="fc-nav" onClick={() => part.step(-1)} aria-label="Предыдущий район">
+          ‹
+        </button>
+      )}
+      <button className="fc-open" onClick={onMore}>
       <span className="fc-ava">{p.name.charAt(0).toUpperCase()}</span>
       <span className="fc-main">
         <b>
@@ -783,7 +875,18 @@ function FocusCard({ pub, id, pack, me, onMore }: { pub: PublicState; id: Player
           {pub.largestArmy === id && <span className="bonus">{pack.bonuses.largestArmy}</span>}
         </small>
       </span>
-    </button>
+      </button>
+      {part && part.total > 1 && (
+        <>
+          <span className="fc-count">
+            {part.idx + 1}/{part.total}
+          </span>
+          <button className="fc-nav" onClick={() => part.step(1)} aria-label="Следующий район">
+            ›
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 

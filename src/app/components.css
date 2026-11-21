@@ -3201,3 +3201,58 @@ html.lite .home .era-card.on .era-cover {
     animation: none;
   }
 }
+/* Фокус: районы игрока по очереди */
+.focus-card {
+  padding: 6px;
+  gap: 4px;
+}
+.fc-open {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  padding: 2px 6px 2px 2px;
+  cursor: pointer;
+}
+.fc-nav {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.fc-count {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  padding: 0 2px;
+}
+.push-ask {
+  position: absolute;
+  z-index: 7;
+  left: 10px;
+  right: 10px;
+  max-width: 540px;
+  margin: 0 auto;
+  top: calc(var(--safe-t) + 120px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  animation: pill-in 320ms var(--ease-out);
+}
+.push-ask .btn {
+  border-radius: 14px;
+}

@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ArrowUp,
   Ban,
+  Bell,
   BookOpen,
   Bot,
   Castle,
@@ -67,7 +68,8 @@ export type IconName =
   | 'play'
   | 'up'
   | 'feather'
-  | 'music';
+  | 'music'
+  | 'bell';
 
 const L: Record<IconName, LucideIcon> = {
   menu: Menu,
@@ -100,6 +102,7 @@ const L: Record<IconName, LucideIcon> = {
   up: ArrowUp,
   feather: Pencil,
   music: Music,
+  bell: Bell,
 };
 
 export function Icon({ name, size = 22, className, style }: { name: IconName; size?: number; className?: string; style?: CSSProperties }) {

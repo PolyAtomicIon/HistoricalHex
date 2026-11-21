@@ -90,14 +90,15 @@ export function GameBoard({
   selected?: string;
   fx: GameFx;
   /** Показать постройки игрока (тап по игроку). */
-  spotlight?: { id: string; key: number } | null;
+  spotlight?: { id: string; key: number; vertices?: string[] } | null;
   ghosts?: { vertex?: string; edge?: string; kind: 'road' | 'settlement' | 'city'; color: PlayerColor; broken?: boolean }[];
 }) {
   const [gl] = useState(hasWebGL);
   // Для 3D: постройка игрока ближе всего к центру его построек — туда летит камера
   const spotFocus = (() => {
     if (!spotlight) return undefined;
-    const mine = Object.entries(pub.buildings).filter(([, b]) => b.owner === spotlight.id).map(([v]) => v);
+    const own = (spotlight.vertices ?? []).filter((v) => pub.buildings[v]?.owner === spotlight.id);
+    const mine = own.length ? own : Object.entries(pub.buildings).filter(([, b]) => b.owner === spotlight.id).map(([v]) => v);
     if (!mine.length) return undefined;
     return { vertex: mine[Math.floor(mine.length / 2)], key: spotlight.key };
   })();
@@ -119,6 +120,8 @@ export function GameBoard({
       shake={fx.shake}
       static={boardStatic}
       spotlight={spotlight?.id}
+      spotKey={spotlight?.key}
+      spotVertices={spotlight?.vertices}
       sail={fx.sail}
     />
   );
@@ -145,6 +148,7 @@ export function GameBoard({
           era={era}
           sail={fx.sail}
           viewStatic={boardStatic}
+          raid={fx.raid}
         />
       </Suspense>
     </Fallback>

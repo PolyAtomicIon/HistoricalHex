@@ -186,7 +186,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         </div>
       </Sheet>
 
-      <Sheet open={panel === 'claim'} onClose={() => setPanel(null)} title="Вернуться на своё место" description="Новый телефон или браузер? Введи имя, под которым играешь в этой партии.">
+      <Sheet open={panel === 'claim'} onClose={() => setPanel(null)} title="Сесть за стол" description="Вернуться на своё место или занять место бота.">
         <form
           className="stack"
           onSubmit={(e) => {
@@ -201,7 +201,38 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
           <button className="btn primary wide" disabled={!claimName.trim()}>
             Занять место
           </button>
-          <p className="faint small">Сработает, если старое устройство сейчас не в сети.</p>
+          <p className="faint small">Вернуться на своё место: введи имя, под которым играешь (старое устройство должно быть не в сети).</p>
+          {room.lobby.some((x) => x.bot) && (
+            <>
+              <div className="label">Или замени бота — его постройки и карты станут твоими</div>
+              <div className="list">
+                {room.lobby
+                  .filter((x) => x.bot)
+                  .map((x) => (
+                    <button
+                      key={x.id}
+                      type="button"
+                      className="item"
+                      disabled={!claimName.trim()}
+                      onClick={() => {
+                        saveName(claimName.trim());
+                        conn.send({ t: 'takeSeat', pid: x.id, name: claimName.trim() });
+                        setPanel(null);
+                      }}
+                    >
+                      <span className="seat-dot" style={{ background: x.color ? PLAYER_HEX[x.color] : '#666' }} />
+                      <span className="grow">
+                        <span className="t">{x.name}</span>
+                        <span className="s" style={{ display: 'block' }}>
+                          ИИ · {x.bot === 'easy' ? 'лёгкий' : x.bot === 'medium' ? 'средний' : 'сложный'} · очков {pub.players[x.id]?.points ?? 0}
+                        </span>
+                      </span>
+                      <span className="faint small">Занять</span>
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
         </form>
       </Sheet>
 
@@ -211,7 +242,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         </div>
       )}
       <DiceOverlay roll={fx.roll} big />
-      <Raid event={fx.raid} />
+      <Raid event={fx.raid} skipBomber={mode === '3d' && !lite} />
       <Cinematic event={fx.cinematic} tv />
       <ReactionsLayer items={fx.reactions} />
     </main>

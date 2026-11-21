@@ -27,7 +27,8 @@ function styleOf(e: RaidEvent): Style {
 
 const DURATION: Record<Style, number> = { archers: 2300, ninja: 2000, bomber: 2700, samurai: 1600, tank: 2300 };
 
-export function Raid({ event }: { event: RaidEvent | null }) {
+/** skipBomber — карта в 3D сама показывает звено бомбардировщиков; здесь только звук. */
+export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBomber?: boolean }) {
   const [shown, setShown] = useState<RaidEvent | null>(null);
   useEffect(() => {
     if (!event || prefersReducedMotion()) return;
@@ -60,6 +61,7 @@ export function Raid({ event }: { event: RaidEvent | null }) {
   }, [event?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!shown) return null;
+  if (skipBomber && styleOf(shown) === 'bomber' && shown.target) return null;
   return (
     <FxPortal>
       <RaidScene key={shown.key} ev={shown} />

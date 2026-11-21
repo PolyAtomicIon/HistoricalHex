@@ -9,6 +9,7 @@ import { TERRAIN_RESOURCE } from '../engine';
 import type { BoardProps } from '../board/Board';
 import { HEIGHT, worldFor, type World } from './world';
 import { boardLocator } from '../fx/util';
+import { Raid3D, type Raid3DEvent } from './Raid3D';
 import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig';
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
@@ -29,6 +30,8 @@ export interface Board3DProps extends BoardProps {
   lowPower?: boolean;
   /** Эпоха — для разбойника и эффекта захваченного гекса. */
   era?: string;
+  /** Налёт разбойника (для ВОВ — звено бомбардировщиков в 3D). */
+  raid?: { key: number; kind: string; era: string; target?: string } | null;
   /** ТВ: без сдвига кадра под док. */
   viewStatic?: boolean;
   /** Обмен через гавань: кораблик этой гавани уходит в рейс. */
@@ -429,7 +432,7 @@ function ViewShift({ on }: { on: boolean }) {
 }
 
 function Scene(props: Board3DProps & { rig: Rig }) {
-  const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era, sail } = props;
+  const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era, sail, raid } = props;
   const palette = props.palette ?? DEFAULT_PALETTE;
   const lowPower = !!props.lowPower;
   const reduced = useReducedMotion();
@@ -486,6 +489,16 @@ function Scene(props: Board3DProps & { rig: Rig }) {
     return p ? [p[0] - 0.44, p[1] + 0.2] : null;
   }, [world, view.robberHex]);
   const robberH = HEIGHT[tileMap.get(view.robberHex)?.terrain ?? 'desert'];
+  // 3D-налёт: только ВОВ (бомбардировщики); живёт ~4 с
+  const [raid3d, setRaid3d] = useState<Raid3DEvent | null>(null);
+  useEffect(() => {
+    if (!raid || raid.kind !== 'robber' || raid.era !== 'ww2' || !raid.target) return;
+    const p = world.hex.get(raid.target);
+    if (!p) return;
+    setRaid3d({ key: raid.key, at: [p[0], HEIGHT[tileMap.get(raid.target)?.terrain ?? 'desert'], p[1]] });
+    const t = setTimeout(() => setRaid3d(null), 4200);
+    return () => clearTimeout(t);
+  }, [raid?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <EnvCtx.Provider value={env}>
@@ -520,6 +533,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
       <ViewShift on={!props.viewStatic} />
+      {raid3d && <Raid3D key={raid3d.key} ev={raid3d} />}
       <Locator world={world} tileMap={tileMap} />
       <RaidZone
         target={robberPos}

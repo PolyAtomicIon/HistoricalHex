@@ -12,6 +12,7 @@ import { cryptoRng, victoryPoints } from '../src/engine';
 import type { Client, SavedRoom } from './room';
 import { Room } from './room';
 import { TgBot } from './tgbot';
+import { addSubscription, hasPush, initPush, removeSubscriptions, sendPush, vapidPublicKey } from './push';
 import { findProfile, leaderboard, openAccounts, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInTelegram, verifyMiniApp, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
@@ -63,6 +64,26 @@ void openAccounts(join(DATA_DIR, 'hh.sqlite')).then((kind) => {
   console.log(`accounts: ${kind}`);
   if (process.env.AI_LEAGUE !== '0') runAiLeague();
 });
+initPush(DATA_DIR);
+/** Игроки, у которых вкладка свёрнута (по id). */
+const hiddenTabs = new Set<string>();
+// «Твой ход»: если через 8 с человек всё ещё не ответил и он не в сети или игра свёрнута — пуш
+Room.onWaiting = (room, pid) => {
+  if (!hasPush(pid)) return;
+  setTimeout(() => {
+    if (!room.isWaitingOn(pid) || room.isDisposed) return;
+    if (room.isOnline(pid) && !hiddenTabs.has(pid)) return;
+    const st = room.state;
+    const discard = st?.phase === 'discard';
+    void sendPush(pid, {
+      title: discard ? 'Сбрось карты' : 'Твой ход',
+      body: discard ? `Выпала семёрка — нужно сбросить половину. Комната ${room.pin}` : `HistoricalHex · комната ${room.pin}. Кубики ждут!`,
+      url: `${APP_URL}?pin=${room.pin}`,
+      tag: `turn-${room.pin}`,
+    });
+  }, 8000);
+};
+
 Room.onFinished = (room) => {
   try {
     const st = room.state!;
@@ -179,7 +200,7 @@ wss.on('connection', (ws: WebSocket) => {
         throw new Error('Плохой ключ клиента');
       }
       me = playerId(msg.secret);
-      return send({ t: 'welcome', me });
+      return send({ t: 'welcome', me, vapid: vapidPublicKey(), push: hasPush(me) });
     }
     if (!me) throw new Error('Сначала hello');
 
@@ -190,6 +211,22 @@ wss.on('connection', (ws: WebSocket) => {
         if (typeof msg.name !== 'string') throw new Error('Плохое имя');
         renameProfile(me, msg.name);
         return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+      }
+      case 'pushSub':
+        if (!addSubscription(me, msg.sub)) throw new Error('Не удалось включить уведомления');
+        return send({ t: 'welcome', me, vapid: vapidPublicKey(), push: true });
+      case 'pushOff':
+        removeSubscriptions(me);
+        return send({ t: 'welcome', me, vapid: vapidPublicKey(), push: false });
+      case 'vis':
+        if (msg.hidden) hiddenTabs.add(me);
+        else hiddenTabs.delete(me);
+        return;
+      case 'takeSeat': {
+        if (!room) throw new Error('Сначала открой комнату');
+        if (typeof msg.pid !== 'string' || typeof msg.name !== 'string') throw new Error('Плохой запрос');
+        room.takeBotSeat(me, msg.pid, msg.name);
+        return;
       }
       case 'playerProfile': {
         if (typeof msg.pid !== 'string' || msg.pid.length > 64) throw new Error('Нет такого игрока');
