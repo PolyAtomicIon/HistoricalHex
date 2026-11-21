@@ -198,6 +198,10 @@ export function Board2D(props: Board2DProps) {
               <stop offset="0%" stopColor="var(--smoke, #3a3a3e)" stopOpacity="0.85" />
               <stop offset="100%" stopColor="var(--smoke, #3a3a3e)" stopOpacity="0" />
             </radialGradient>
+            <radialGradient id={id('halo')} cx="50%" cy="50%" r="50%">
+              <stop offset="55%" stopColor="#ff3b2f" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#ff3b2f" stopOpacity="0" />
+            </radialGradient>
             <radialGradient id={id('fire')} cx="50%" cy="60%" r="50%">
               <stop offset="0%" stopColor="#fff3b0" stopOpacity="0.95" />
               <stop offset="40%" stopColor="#ff8a1f" stopOpacity="0.85" />
@@ -409,7 +413,8 @@ export function Board2D(props: Board2DProps) {
               <g className="b2d-robber" style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
                 <g key={view.robberHex} className="rb-land">
                   <ellipse className="rb-shadow" cx={0} cy={S * 0.08} rx={S * 0.46} ry={S * 0.46} />
-                  <circle className="rb-ring" r={S * 0.46} />
+                  <circle className="rb-halo" r={S * 0.62} fill={`url(#${id('halo')})`} />
+                  <circle className="rb-ring" r={S * 0.42} />
                   <g className="rb-bob">
                     <image href={robberSrc} x={-S * 0.45} y={-S * 0.5} width={S * 0.9} height={S * 0.9} />
                   </g>

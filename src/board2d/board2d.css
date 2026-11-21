@@ -369,14 +369,20 @@ html.lite .b2d .hex-target {
     transition: none !important;
   }
 }
-.b2d .rb-ring {
-  fill: rgba(255, 244, 228, 0.92);
-  stroke: #ff453a;
-  stroke-width: 6;
-  stroke-dasharray: 14 7;
+.b2d .rb-halo {
   transform-box: fill-box;
   transform-origin: center;
-  animation: b2d-spin 14s linear infinite;
+  animation: rb-halo 1.4s ease-in-out infinite alternate;
+}
+@keyframes rb-halo {
+  from { transform: scale(0.92); opacity: 0.7; }
+  to { transform: scale(1.08); opacity: 1; }
+}
+html.lite .b2d .rb-halo { animation: none; }
+.b2d .rb-ring {
+  fill: rgba(255, 244, 228, 0.92);
+  transform-box: fill-box;
+  transform-origin: center;
 }
 @keyframes b2d-spin {
   to { transform: rotate(360deg); }
@@ -385,10 +391,8 @@ html.lite .b2d .rb-ring { animation: none; }
 
 /* ─── Захваченный гекс ─── */
 .b2d .rz-glow {
-  fill: none;
-  stroke: #ff3b2f;
-  stroke-width: 6;
-  stroke-linejoin: round;
+  fill: rgba(255, 45, 30, 0.3);
+  stroke: none;
   opacity: 0.7;
   animation: rz-glow 1.6s ease-in-out infinite alternate;
 }

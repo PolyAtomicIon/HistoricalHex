@@ -432,7 +432,7 @@ function smokeTexture(): THREE.Texture {
   return smokeTex;
 }
 
-const zoneRing = new THREE.RingGeometry(0.8, 0.92, 6, 1, Math.PI / 2);
+const zoneRing = new THREE.CircleGeometry(0.86, 6, Math.PI / 2);
 const zoneDisc = new THREE.CircleGeometry(0.9, 6, Math.PI / 2);
 
 export function RaidZone({ target, hexH, era }: { target: [number, number] | null; hexH: number; era?: string }) {
@@ -447,7 +447,7 @@ export function RaidZone({ target, hexH, era }: { target: [number, number] | nul
   );
   useFrame(({ clock }) => {
     const t = reduced ? 1 : clock.elapsedTime;
-    if (ring.current) ring.current.opacity = 0.55 + Math.sin(t * 3) * 0.3;
+    if (ring.current) ring.current.opacity = 0.22 + Math.sin(t * 3) * 0.1;
     if (light.current) light.current.intensity = 1.6 + Math.sin(t * 17) * 0.4 + Math.sin(t * 7.3) * 0.3;
     puffs.current.forEach((p, i) => {
       if (!p) return;
@@ -465,7 +465,7 @@ export function RaidZone({ target, hexH, era }: { target: [number, number] | nul
         <meshBasicMaterial color="#14060a" transparent opacity={0.35} depthWrite={false} />
       </mesh>
       <mesh geometry={zoneRing} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} renderOrder={6}>
-        <meshBasicMaterial ref={ring} color="#ff3b2f" transparent opacity={0.8} depthWrite={false} />
+        <meshBasicMaterial ref={ring} color="#ff3b2f" transparent opacity={0.25} depthWrite={false} />
       </mesh>
       {mats.map((m, i) => (
         <sprite key={i} ref={(el) => (puffs.current[i] = el)} material={m} />
