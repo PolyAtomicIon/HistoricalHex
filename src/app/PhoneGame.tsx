@@ -493,6 +493,17 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       <Sheet open={sheet === 'menu'} onClose={() => setSheet(null)} title="Меню">
         <div className="stack">
+          <button className="item" onClick={() => setSheet('lore')}>
+            <ArtIcon src={eraIcon(pack.id, 'emblem')} size={34} />
+            <span className="grow">
+              <span className="t">{pack.title}</span>
+              <span className="s" style={{ display: 'block' }}>История, словарь эпохи, факты</span>
+            </span>
+          </button>
+          <button className="item" onClick={() => setSheet('players')}>
+            <Icon name="crown" />
+            <span className="grow t">Игроки и очки</span>
+          </button>
           <div className="label">Вид карты</div>
           <div className="seg">
             {(['2d', '3d'] as const).map((m) => (

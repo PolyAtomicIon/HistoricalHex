@@ -195,7 +195,7 @@ textarea {
   display: flex;
   flex-direction: column;
   border-radius: var(--r-lg) var(--r-lg) 0 0;
-  background: var(--glass-strong);
+  background: rgba(13, 19, 27, 0.9);
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
   border: 1px solid var(--glass-border);
