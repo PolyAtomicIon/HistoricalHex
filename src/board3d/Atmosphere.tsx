@@ -4,7 +4,7 @@
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { box, merge, part } from './Terrain';
+import { part } from './Terrain';
 import { puff } from './units';
 import { useEnv } from './rig';
 
@@ -13,19 +13,29 @@ const FLOCKS = 3;
 const BIRDS = 6;
 const GLINTS = 24;
 
-const birdGeo = merge([
-  part(box(0.05, 0.012, 0.16), '#2a2a2e', [0, 0, 0.07], [0.25, 0, 0]),
-  part(box(0.05, 0.012, 0.16), '#2a2a2e', [0, 0, -0.07], [-0.25, 0, 0]),
-  part(box(0.08, 0.02, 0.03), '#2a2a2e', [0.01, -0.005, 0]),
-]);
-const birdMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+// Птица — силуэт чайки: тонкое тельце и два узких серповидных крыла (крылья машут отдельно)
+const birdBody = part(new THREE.CapsuleGeometry(0.008, 0.045, 3, 6).rotateZ(Math.PI / 2), '#e9edf0');
+const wingGeo = (() => {
+  const sh = new THREE.Shape();
+  sh.moveTo(0.012, 0);
+  sh.quadraticCurveTo(0.02, 0.06, -0.02, 0.11); // передний край — дугой к кончику
+  sh.quadraticCurveTo(-0.012, 0.05, -0.018, 0);
+  sh.closePath();
+  const g = new THREE.ShapeGeometry(sh);
+  g.rotateX(-Math.PI / 2); // плоскость крыла — горизонтально, кончик в сторону +Z
+  return g;
+})();
+const birdMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
+const wingMat = new THREE.MeshStandardMaterial({ color: '#e4e8ec', roughness: 0.8, side: THREE.DoubleSide });
 const shadowGeo = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
 
 export function Atmosphere({ radius }: { radius: number }) {
   const { reduced } = useEnv();
   const clouds = useRef<(THREE.Sprite | null)[]>([]);
   const shadows = useRef<(THREE.Mesh | null)[]>([]);
-  const birds = useRef<(THREE.Mesh | null)[]>([]);
+  const birds = useRef<(THREE.Group | null)[]>([]);
+  const wingsL = useRef<(THREE.Mesh | null)[]>([]);
+  const wingsR = useRef<(THREE.Mesh | null)[]>([]);
   const glints = useRef<(THREE.Sprite | null)[]>([]);
   const R = radius + 3;
   const seeds = useMemo(
@@ -81,12 +91,18 @@ export function Atmosphere({ radius }: { radius: number }) {
         if (!m) continue;
         const row = Math.ceil(b / 2);
         const side = b % 2 ? 1 : -1;
-        const back = row * 0.28;
-        const off = b === 0 ? 0 : side * row * 0.22;
+        const back = row * 0.18;
+        const off = b === 0 ? 0 : side * row * 0.14;
         const hx = Math.cos(heading);
         const hz = -Math.sin(heading);
         m.position.set(cx - hx * back - hz * off, 3.2 + f * 0.5 + Math.sin(t * 2 + b) * 0.05, cz - hz * back + hx * off);
-        m.rotation.set(Math.sin(t * 9 + b) * 0.5, heading, 0);
+        m.rotation.set(0, heading, 0);
+        // взмахи с паузами-планированием
+        const flap = Math.sin(t * 7 + b * 0.9) * (0.25 + 0.35 * Math.max(0, Math.sin(t * 0.8 + b)));
+        const l = wingsL.current[f * BIRDS + b];
+        const r = wingsR.current[f * BIRDS + b];
+        if (l) l.rotation.x = -flap;
+        if (r) r.rotation.x = flap;
       }
     }
     glintPos.forEach((g, i) => {
@@ -107,7 +123,11 @@ export function Atmosphere({ radius }: { radius: number }) {
         </group>
       ))}
       {Array.from({ length: FLOCKS * BIRDS }, (_, i) => (
-        <mesh key={i} ref={(el) => (birds.current[i] = el)} geometry={birdGeo} material={birdMat} scale={1.4} />
+        <group key={i} ref={(el) => (birds.current[i] = el)}>
+          <mesh geometry={birdBody} material={birdMat} />
+          <mesh ref={(el) => (wingsL.current[i] = el)} geometry={wingGeo} material={wingMat} />
+          <mesh ref={(el) => (wingsR.current[i] = el)} geometry={wingGeo} material={wingMat} scale={[1, 1, -1]} />
+        </group>
       ))}
       {glintPos.map((g, i) => (
         <sprite key={i} ref={(el) => (glints.current[i] = el)} material={glintMats[i]} position={[g.x, 0.08, g.z]} />
