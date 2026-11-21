@@ -75,8 +75,11 @@ export function GameBoard({
   selected,
   fx,
   ghosts,
+  me,
 }: {
   pub: PublicState;
+  /** Кто смотрит: его постройки помечаются («это твоё»). */
+  me?: string;
   era: string;
   /** Без жестов (ТВ). */
   boardStatic?: boolean;
@@ -123,6 +126,7 @@ export function GameBoard({
       spotKey={spotlight?.key}
       spotVertices={spotlight?.vertices}
       sail={fx.sail}
+      me={me}
     />
   );
   if (!gl || lite || mode === '2d') return svg;
@@ -149,6 +153,7 @@ export function GameBoard({
           sail={fx.sail}
           viewStatic={boardStatic}
           raid={fx.raid}
+          me={me}
         />
       </Suspense>
     </Fallback>

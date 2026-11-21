@@ -350,6 +350,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           fx={fx}
           ghosts={ghosts}
           spotlight={focusSpot}
+          me={me}
         />
       </div>
 

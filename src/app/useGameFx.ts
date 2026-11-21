@@ -83,10 +83,11 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), late ? (kind === 'robber' ? 3650 : 3250) : kind === 'robber' ? 1450 : 1000);
     };
     if (import.meta.env.DEV) {
-      const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined; __focus: (hex: string) => void };
+      const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined; __focus: (id: string) => void };
       w.__raid = raid;
       w.__robber = () => pubRef.current?.robberHex;
-      w.__focus = (hex) => setFx((f) => ({ ...f, focus: { hex, key: k.current++ } }));
+      w.__focus = (id) => setFx((f) => ({ ...f, focus: id.startsWith('h') ? { hex: id, key: k.current++ } : { vertex: id, key: k.current++ } }));
+      (window as unknown as { __pub: () => unknown }).__pub = () => pubRef.current;
     }
 
     const offEvents = conn.onEvents((events: GameEvent[], source) => {

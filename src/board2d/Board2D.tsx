@@ -41,6 +41,8 @@ export interface Board2DProps {
   view: BoardView;
   era: string;
   colors: Record<PlayerId, PlayerColor>;
+  /** Игрок-зритель: его постройки с кольцом «это твоё». */
+  me?: PlayerId;
   highlight?: { vertices?: VertexId[]; edges?: EdgeId[]; hexes?: HexId[] };
   onVertex?: (v: VertexId) => void;
   onEdge?: (e: EdgeId) => void;
@@ -510,7 +512,8 @@ export function Board2D(props: Board2DProps) {
               if (!p || !color) return null;
               return (
                 <g key={vid} data-v={vid} transform={`translate(${p.x} ${p.y})`}>
-                  <g className={`piece ${b.kind} ${recentSet.has(vid) ? 'recent' : ''} ${props.spotlight ? (b.owner === props.spotlight ? 'lit' : 'dim') : ''}`}>
+                  {b.owner === props.me && <circle className="mine-ring" r={S * 0.36} style={{ ['--pc' as string]: color === 'white' ? '#fff6d8' : PLAYER_HEX[color] }} />}
+                  <g className={`piece ${b.kind} ${recentSet.has(vid) ? 'recent' : ''} ${b.owner === props.me ? 'mine' : ''} ${props.spotlight ? (b.owner === props.spotlight ? 'lit' : 'dim') : ''}`}>
                     <Up>
                       <Piece kind={b.kind} color={color} shade={id('shade')} />
                     </Up>

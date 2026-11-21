@@ -83,11 +83,72 @@ function hullMat(color: PlayerColor): THREE.MeshBasicMaterial {
 // Мягкая тень под постройкой (вместо цветной площадки)
 const shadowGeo = new THREE.CircleGeometry(0.26, 24).rotateX(-Math.PI / 2);
 const shadowMat = new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.28, depthWrite: false });
+// «Это твоё»: светлый контур вместо тёмного и мягкий ореол цвета игрока на земле
+// Метка «твоё» — золото: читается на любом цвете игрока, включая белый
+const GOLD = '#ffc93c';
+const mineHullMat = new THREE.MeshBasicMaterial({ color: GOLD, side: THREE.BackSide, toneMapped: false });
+const gemGeo = new THREE.OctahedronGeometry(0.095, 0).scale(1, 1.45, 1);
+const gemMat = new THREE.MeshPhysicalMaterial({ color: '#ffd24a', metalness: 0.9, roughness: 0.22, clearcoat: 1, emissive: '#8a5a00', emissiveIntensity: 0.55 });
+let haloTex: THREE.CanvasTexture | null = null;
+function haloTexture(): THREE.CanvasTexture {
+  if (haloTex) return haloTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,0)');
+  gr.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+  gr.addColorStop(0.66, 'rgba(255,255,255,0.95)');
+  gr.addColorStop(0.74, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.86, 'rgba(255,255,255,0.35)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 128, 128);
+  haloTex = new THREE.CanvasTexture(c);
+  return haloTex;
+}
+const haloGeo = new THREE.PlaneGeometry(0.78, 0.78).rotateX(-Math.PI / 2);
+const haloCache = new Map<string, THREE.MeshBasicMaterial>();
+function haloMat(color: PlayerColor): THREE.MeshBasicMaterial {
+  let m = haloCache.get(color);
+  if (!m) {
+    m = new THREE.MeshBasicMaterial({ map: haloTexture(), color: GOLD, transparent: true, depthWrite: false, toneMapped: false });
+    haloCache.set(color, m);
+  }
+  return m;
+}
+/** «Это твоё»: золотой ореол на земле («дышит») и золотой ромб над крышей (крутится, покачивается). */
+function MineHalo({ color, top }: { color: PlayerColor; top: number }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const gem = useRef<THREE.Mesh>(null);
+  const { reduced } = useEnv();
+  const ph = useMemo(() => Math.random() * 6, []);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const k = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(t * 2 + ph);
+    if (ref.current) {
+      ref.current.scale.setScalar(0.95 + k * 0.12);
+      (ref.current.material as THREE.MeshBasicMaterial).opacity = 0.6 + k * 0.4;
+    }
+    if (gem.current) {
+      gem.current.position.y = top + (reduced ? 0 : Math.sin(t * 2.2 + ph) * 0.035);
+      gem.current.rotation.y = reduced ? 0 : t * 1.6 + ph;
+    }
+  });
+  return (
+    <>
+      <mesh ref={ref} geometry={haloGeo} material={haloMat(color)} position={[0, 0.012, 0]} renderOrder={3} />
+      <mesh ref={gem} geometry={gemGeo} material={gemMat} position={[0, top, 0]} castShadow />
+    </>
+  );
+}
+
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
+// Фишки — «лакированное дерево»: лак (clearcoat) ловит блики окружения
 function pieceMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = matCache.get(color);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.5, metalness: 0.05, emissive: PLAYER_HEX[color], emissiveIntensity: color === 'white' ? 0.18 : 0.08 });
+    m = new THREE.MeshPhysicalMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.42, metalness: 0.02, clearcoat: 0.9, clearcoatRoughness: 0.22, emissive: PLAYER_HEX[color], emissiveIntensity: color === 'white' ? 0.14 : 0.06 });
     matCache.set(color, m);
   }
   return m;
@@ -96,7 +157,7 @@ const roadMatCache = new Map<string, THREE.MeshStandardMaterial>();
 function roadMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = roadMatCache.get(color);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], roughness: 0.45, metalness: 0.05 });
+    m = new THREE.MeshPhysicalMaterial({ color: PLAYER_HEX[color], roughness: 0.42, metalness: 0.02, clearcoat: 0.9, clearcoatRoughness: 0.25 });
     roadMatCache.set(color, m);
   }
   return m;
@@ -216,7 +277,7 @@ export function edgeXform(ctx: PieceCtx, e: string) {
   return { x: (a[0] + b[0]) / 2, z: (a[1] + b[1]) / 2, ang: Math.atan2(-(b[1] - a[1]), b[0] - a[0]), y: edgeY(ctx, e) };
 }
 
-function Road({ id, color, ctx }: { id: string; color: PlayerColor; ctx: PieceCtx }) {
+function Road({ id, color, ctx, mine }: { id: string; color: PlayerColor; ctx: PieceCtx; mine?: boolean }) {
   const recent = ctx.recent.has(id);
   const g = usePop(recent);
   const xf = edgeXform(ctx, id);
@@ -224,7 +285,7 @@ function Road({ id, color, ctx }: { id: string; color: PlayerColor; ctx: PieceCt
   return (
     <group position={[xf.x, xf.y + 0.032, xf.z]} rotation={[0, xf.ang, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
-        <mesh geometry={roadGeo} material={hullMat(color)} scale={[1.04, 1.5, 1.35]} position={[0, 0.002, 0]} />
+        <mesh geometry={roadGeo} material={mine ? mineHullMat : hullMat(color)} scale={[1.04, 1.5, 1.35]} position={[0, 0.002, 0]} />
         <mesh geometry={roadGeo} material={roadMat(color)} castShadow receiveShadow />
       </group>
       {recent && <Puff color={PLAYER_HEX[color]} />}
@@ -232,12 +293,12 @@ function Road({ id, color, ctx }: { id: string; color: PlayerColor; ctx: PieceCt
   );
 }
 
-export function Roads({ roads, colors, ctx }: { roads: Record<string, string>; colors: Record<string, PlayerColor>; ctx: PieceCtx }) {
+export function Roads({ roads, colors, ctx, me }: { roads: Record<string, string>; colors: Record<string, PlayerColor>; ctx: PieceCtx; me?: string }) {
   return (
     <>
       {Object.entries(roads).map(([id, owner]) => {
         const c = colors[owner];
-        return c ? <Road key={`${id}:${ctx.recent.has(id)}`} id={id} color={c} ctx={ctx} /> : null;
+        return c ? <Road key={`${id}:${ctx.recent.has(id)}`} id={id} color={c} ctx={ctx} mine={owner === me} /> : null;
       })}
     </>
   );
@@ -304,7 +365,7 @@ export function Slots({ ctx, buildings, roads }: { ctx: PieceCtx; buildings: Rec
 
 // ---------- здания ----------
 
-function Building({ id, kind, color, ctx }: { id: string; kind: 'settlement' | 'city'; color: PlayerColor; ctx: PieceCtx }) {
+function Building({ id, kind, color, ctx, mine }: { id: string; kind: 'settlement' | 'city'; color: PlayerColor; ctx: PieceCtx; mine?: boolean }) {
   const recent = ctx.recent.has(id);
   const g = usePop(recent);
   const p = ctx.world.vert.get(id);
@@ -316,7 +377,8 @@ function Building({ id, kind, color, ctx }: { id: string; kind: 'settlement' | '
       <group ref={g} scale={recent ? 0 : 1}>
         <mesh geometry={foundGeo} material={foundMat} />
         <mesh geometry={shadowGeo} material={shadowMat} position={[0, 0.006, 0]} renderOrder={2} />
-        <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={hullMat(color)} scale={[1.08, 1.06, 1.08]} position={[0, 0.004, 0]} />
+        {mine && <MineHalo color={color} top={kind === 'city' ? 0.86 : 0.64} />}
+        <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={mine ? mineHullMat : hullMat(color)} scale={mine ? [1.1, 1.07, 1.1] : [1.08, 1.06, 1.08]} position={[0, 0.004, 0]} />
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={pieceMat(color)} castShadow receiveShadow />
         {kind === 'city' && <mesh geometry={cityWindowsGeo} material={windowMat} />}
       </group>
@@ -329,16 +391,18 @@ export function Buildings({
   buildings,
   colors,
   ctx,
+  me,
 }: {
   buildings: Record<string, { owner: string; kind: 'settlement' | 'city' }>;
   colors: Record<string, PlayerColor>;
   ctx: PieceCtx;
+  me?: string;
 }) {
   return (
     <>
       {Object.entries(buildings).map(([id, b]) => {
         const c = colors[b.owner];
-        return c ? <Building key={`${id}:${b.kind}:${ctx.recent.has(id)}`} id={id} kind={b.kind} color={c} ctx={ctx} /> : null;
+        return c ? <Building key={`${id}:${b.kind}:${ctx.recent.has(id)}`} id={id} kind={b.kind} color={c} ctx={ctx} mine={b.owner === me} /> : null;
       })}
     </>
   );

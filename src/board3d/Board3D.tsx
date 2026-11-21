@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { HarborType, PlayerColor } from '../engine';
 import { TERRAIN_RESOURCE } from '../engine';
 import type { BoardProps } from '../board/Board';
@@ -35,6 +36,8 @@ export interface Board3DProps extends BoardProps {
   raid?: { key: number; kind: string; era: string; target?: string } | null;
   /** ТВ: без сдвига кадра под док. */
   viewStatic?: boolean;
+  /** Игрок-зритель: его постройки с ореолом и белым контуром. */
+  me?: string;
   /** Обмен через гавань: кораблик этой гавани уходит в рейс. */
   sail?: { type: HarborType; key: number };
 }
@@ -434,6 +437,25 @@ function ViewShift({ on }: { on: boolean }) {
   return null;
 }
 
+/** Студийное окружение для бликов на лаке фишек и золоте жетонов (без загрузки HDR из сети). */
+function StudioEnv({ off }: { off: boolean }) {
+  const gl = useThree((st) => st.gl);
+  const scene = useThree((st) => st.scene);
+  useEffect(() => {
+    if (off) return;
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = env;
+    scene.environmentIntensity = 0.35;
+    return () => {
+      scene.environment = null;
+      env.dispose();
+      pmrem.dispose();
+    };
+  }, [gl, scene, off]);
+  return null;
+}
+
 function Scene(props: Board3DProps & { rig: Rig }) {
   const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era, sail, raid } = props;
   const palette = props.palette ?? DEFAULT_PALETTE;
@@ -520,7 +542,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
 
       <fog attach="fog" args={[fogColor, 10, 400]} />
       {/* небо/земля + тёплый ключ пониже (длинные тени = объём) + холодный контровой с обратной стороны */}
-      <hemisphereLight args={['#d6e9ff', '#7a5c3c', 0.85]} />
+      <StudioEnv off={lowPower} />
+      <hemisphereLight args={['#d6e9ff', '#7a5c3c', 0.75]} />
       <directionalLight position={[-sunDir.x * 20, 9, -sunDir.z * 20]} intensity={0.75} color="#9cc2ff" />
       <directionalLight
         position={[sunDir.x * 22, sunDir.y * 22, sunDir.z * 22]}
@@ -544,8 +567,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Tokens tiles={tiles} numbers={numbers} hide={view.robberHex} />
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
       <Slots ctx={ctx} buildings={view.buildings} roads={view.roads} />
-      <Roads roads={view.roads} colors={colors} ctx={ctx} />
-      <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />
+      <Roads roads={view.roads} colors={colors} ctx={ctx} me={props.me} />
+      <Buildings buildings={view.buildings} colors={colors} ctx={ctx} me={props.me} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
       <ViewShift on={!props.viewStatic} />
       {raid3d && <Raid3D key={raid3d.key} ev={raid3d} />}
@@ -602,6 +625,8 @@ export default function Board3D(props: Board3DProps) {
       >
         <Scene {...props} rig={rig} />
       </Canvas>
+      {/* мягкая виньетка — взгляд к центру карты */}
+      <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(120% 90% at 50% 48%, transparent 55%, rgba(4, 10, 20, 0.38) 100%)' }} />
     </div>
   );
 }
