@@ -891,7 +891,7 @@ export function PlayersBar({
           <button
             key={id}
             role="listitem"
-            className={`pcell ${turn ? 'turn' : ''} ${focused === id ? 'focused' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
+            className={`pcell ${turn ? 'turn' : ''} ${turn && deadline ? 'timed' : ''} ${focused === id ? 'focused' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
             style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
             onClick={() => onFocus?.(id)}
             aria-label={`${p.name}: ${p.points} очков${awardsOf(pub, id).map((a) => `, ${a === 'road' ? pack?.bonuses.longestRoad ?? 'самая длинная дорога' : pack?.bonuses.largestArmy ?? 'самая большая армия'}`).join('')}. Показать постройки`}
@@ -899,18 +899,9 @@ export function PlayersBar({
             <span className="pc-ava">
               {turn && deadline && <TimerRing until={deadline} />}
               <span className="pc-face">{p.name.charAt(0).toUpperCase()}</span>
-              {bot && (
+              {bot && !compact && (
                 <span className="pc-bot" aria-label="бот">
                   <Icon name="bot" size={9} />
-                </span>
-              )}
-              {compact && awardsOf(pub, id).length > 0 && (
-                <span className="pc-awards">
-                  {awardsOf(pub, id).map((a) => (
-                    <span key={a} className={`pc-aw ${a}`} title={a === 'road' ? pack?.bonuses.longestRoad : pack?.bonuses.largestArmy}>
-                      <Icon name={a === 'road' ? 'road' : 'army'} size={10} />
-                    </span>
-                  ))}
                 </span>
               )}
             </span>
@@ -932,7 +923,17 @@ export function PlayersBar({
                 </span>
               </span>
             )}
-            {compact && <span className="pc-vp">{p.points}</span>}
+            {compact && (
+              <span className="pc-mini">
+                <Icon name="star" size={10} />
+                <b>{p.points}</b>
+                {awardsOf(pub, id).map((a) => (
+                  <span key={a} className={`pc-aw ${a}`}>
+                    <Icon name={a === 'road' ? 'road' : 'army'} size={8} />
+                  </span>
+                ))}
+              </span>
+            )}
           </button>
         );
       })}
@@ -1127,6 +1128,7 @@ function TimerRing({ until }: { until: number }) {
   const C = 2 * Math.PI * 21;
   return (
     <svg className="pav-timer" viewBox="0 0 46 46" aria-hidden>
+      <circle className="trk" cx="23" cy="23" r="21" />
       <circle cx="23" cy="23" r="21" strokeDasharray={`${C * k} ${C}`} />
     </svg>
   );

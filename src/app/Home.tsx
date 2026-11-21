@@ -71,7 +71,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
         {mode === 'home' ? (
           <>
             <EraCarousel packs={LORE_PACKS} value={era} onChange={setEra} />
-            <div className="panel glass stack">
+            <div className="home-actions stack">
               <button
                 className="btn primary big wide"
                 disabled={status !== 'online' || creating}

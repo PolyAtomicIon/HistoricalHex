@@ -31,9 +31,14 @@ export function joinLink(pin: string, tv = false): string {
 export function Qr({ text, size = 180 }: { text: string; size?: number }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
-    void QRCode.toDataURL(text, { margin: 1, width: size * 2, color: { dark: '#0b1620', light: '#f6f3ec' } }).then(setSrc);
+    void QRCode.toDataURL(text, { margin: 0, errorCorrectionLevel: 'M', width: size * 3, color: { dark: '#101a26', light: '#f7f2e6' } }).then(setSrc);
   }, [text, size]);
-  return src ? <img className="qr" src={src} width={size} height={size} alt="QR-код для входа" /> : <div className="qr" style={{ width: size, height: size }} />;
+  // Карточка-«паспарту»: светлое поле вокруг кода, чёткие модули (без сглаживания)
+  return (
+    <div className="qr-card" style={{ ['--qr' as string]: `${size}px` }}>
+      {src ? <img className="qr" src={src} width={size} height={size} alt="QR-код для входа" /> : <div className="qr" />}
+    </div>
+  );
 }
 
 export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
@@ -64,10 +69,10 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
         <div className={`lobby-grid ${tv ? 'tv' : ''}`}>
           <section className="panel glass stack">
             <div className="row">
-              <Qr text={joinLink(room.pin)} size={tv ? 220 : 128} />
-              <div className="stack grow">
+              <Qr text={joinLink(room.pin)} size={tv ? 220 : 104} />
+              <div className="stack grow join-txt">
                 <b>Сканируй и заходи</b>
-                <span className="muted small">или открой сайт и введи PIN</span>
+                <span className="muted small">или введи PIN на сайте</span>
                 {!tv && (
                   <a className="btn wide" href={joinLink(room.pin, true)} target="_blank" rel="noreferrer">
                     <Icon name="tv" /> Экран для ТВ
@@ -89,20 +94,25 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
                   </span>
                   {!s.online && <span className="faint small">не в сети</span>}
                   {host && s.id !== room.me && (
-                    <button className="btn ghost icon" aria-label={`Убрать ${s.name}`} onClick={() => conn.send({ t: 'kick', player: s.id })}>
-                      <Icon name="close" size={18} />
+                    <button className="seat-x" aria-label={`Убрать ${s.name}`} onClick={() => conn.send({ t: 'kick', player: s.id })}>
+                      <Icon name="close" size={16} />
                     </button>
                   )}
                 </li>
               ))}
             </ul>
             {host && room.lobby.length < 6 && (
-              <div className="row">
-                {(['easy', 'medium', 'hard'] as BotLevel[]).map((l) => (
-                  <button key={l} className="btn grow" onClick={() => conn.send({ t: 'addBot', level: l })}>
-                    <Icon name="bot" size={18} /> {l === 'easy' ? 'лёгкий' : l === 'medium' ? 'средний' : 'сложный'}
-                  </button>
-                ))}
+              <div className="bot-add">
+                <span className="bot-add-l">
+                  <Icon name="bot" size={16} /> Бот
+                </span>
+                <div className="seg">
+                  {(['easy', 'medium', 'hard'] as BotLevel[]).map((l) => (
+                    <button key={l} onClick={() => conn.send({ t: 'addBot', level: l })}>
+                      {l === 'easy' ? 'лёгкий' : l === 'medium' ? 'средний' : 'сложный'}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -151,16 +161,25 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
               {host ? (
                 <>
                   <div className="label">Эпоха</div>
-                  <div className="eras compact">
+                  <div className="era-rows" role="radiogroup" aria-label="Эпоха">
                     {LORE_PACKS.map((p) => (
                       <button
                         key={p.id}
-                        className={`era glass ${p.id === room.settings.lore ? 'on' : ''}`}
-                        style={{ ['--era' as string]: p.palette.accent }}
+                        role="radio"
+                        aria-checked={p.id === room.settings.lore}
+                        className={`era-row ${p.id === room.settings.lore ? 'on' : ''}`}
                         onClick={() => conn.send({ t: 'settings', settings: { lore: p.id } })}
                       >
-                        <ArtIcon src={eraIcon(p.id, 'emblem')} size={34} />
-                        <b>{p.title}</b>
+                        <span className="er-art" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden>
+                          <ArtIcon src={eraIcon(p.id, 'emblem')} size={26} />
+                        </span>
+                        <span className="er-txt">
+                          <b>{p.title}</b>
+                          <small>{p.years}</small>
+                        </span>
+                        <span className="er-check" aria-hidden>
+                          {p.id === room.settings.lore && <Icon name="check" size={16} />}
+                        </span>
                       </button>
                     ))}
                   </div>

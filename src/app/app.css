@@ -391,7 +391,7 @@ textarea {
   left: 50%;
   top: calc(var(--safe-t) + 62px);
   transform: translateX(-50%);
-  max-width: calc(100vw - 32px);
+  max-width: calc(100% - 32px);
   padding: 8px 16px;
   border-radius: 999px;
   font-size: 14px;

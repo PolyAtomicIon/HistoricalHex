@@ -61,6 +61,7 @@ export function EraCarousel({ packs, value, onChange }: { packs: LorePack[]; val
             }}
           >
             <span className="era-cover" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden />
+            <span className="era-shade" aria-hidden />
             <span className="era-body">
               <ArtIcon className="era-icon" src={eraIcon(p.id, 'emblem')} size={44} fallback={<span className="era-icon" />} />
               <span className="era-text">

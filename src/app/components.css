@@ -1118,7 +1118,7 @@
 }
 .status-pill.narr {
   white-space: normal;
-  max-width: min(92vw, 520px);
+  max-width: min(calc(100% - 24px), 520px);
   width: max-content;
   font-weight: 600;
   line-height: 1.3;
@@ -2103,7 +2103,7 @@
   top: calc(var(--safe-t) + 120px);
   transform: translateX(-50%);
   width: max-content;
-  max-width: min(92vw, 520px);
+  max-width: min(calc(100% - 24px), 520px);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3262,7 +3262,7 @@ html.lite .home .era-card.on .era-cover {
   right: auto;
   transform: translateX(-50%);
   width: max-content;
-  max-width: calc(100vw - 20px);
+  max-width: calc(100% - 20px);
   gap: 8px;
   padding: 6px;
   border-radius: 24px;
@@ -3539,13 +3539,13 @@ html.lite .home .era-card.on .era-cover {
 }
 .plan-hint {
   white-space: nowrap;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100% - 32px);
 }
 
 /* Плашка «гекс захвачен»: в одну строку на каждую подпись (absolute + left:50% иначе ужимает до половины экрана) */
 .blocked-chip {
   width: max-content;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100% - 32px);
 }
 .blocked-chip .bc-text b,
 .blocked-chip .bc-text small {
@@ -3556,7 +3556,7 @@ html.lite .home .era-card.on .era-cover {
 .bc-text { min-width: 0; }
 /* Плашка захвата — шире, текст свободно в строку */
 .blocked-chip {
-  min-width: min(320px, calc(100vw - 32px));
+  min-width: min(320px, calc(100% - 32px));
   padding: 8px 12px 8px 8px;
   gap: 12px;
 }
@@ -3651,3 +3651,428 @@ html.lite .home .era-card.on .era-cover {
 .pc-stats .pc-hand { margin-left: 3px; }
 .pc-nrow .pc-aw + .pc-aw { margin-left: -6px; }
 .pc-nrow .pc-aw { box-shadow: 0 0 0 1.5px rgba(18, 24, 34, 0.95); }
+
+/* ═══ Полоса игроков: одно кольцо хода, без «подложки» ═══ */
+/* ход с таймером — только дуга таймера (золото) на тусклой дорожке; без таймера — белое кольцо */
+.pcell.turn.timed .pc-ava {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.pav-timer .trk {
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-dasharray: none !important;
+}
+.pav-timer circle:not(.trk) {
+  stroke: #ffc93c;
+  stroke-width: 3;
+}
+.pcell.turn {
+  background: transparent;
+}
+.pcell.turn .pc-name {
+  color: #fff;
+}
+.pcell.focused {
+  background: rgba(255, 255, 255, 0.12);
+}
+/* Компактная полоса (5–6 игроков): аватар сверху, под ним ★ очки и значки наград — ничего не налезает */
+.pbar.compact .pcell {
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 2px 5px;
+}
+.pbar.compact .pc-ava {
+  width: 30px;
+  height: 30px;
+}
+.pbar.compact .pc-ava .pav-timer {
+  inset: -5px;
+  width: 40px;
+  height: 40px;
+}
+.pc-mini {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 14px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.pc-mini b {
+  color: var(--ink);
+  font-weight: 800;
+}
+.pc-mini .pc-aw {
+  width: 13px;
+  height: 13px;
+  margin-left: 2px;
+  box-shadow: none;
+}
+.pc-mini .pc-aw + .pc-aw {
+  margin-left: -3px;
+  box-shadow: 0 0 0 1.5px rgba(18, 24, 34, 0.95);
+}
+/* Плашка уведомлений: текст сжимается с многоточием, кнопки целиком */
+.push-ask .pa-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.push-ask > :not(.pa-text) { flex: none; }
+
+/* ═══════════ Лобби v2 ═══════════
+   Панель 26 (отступ 14) → строки 14 (отступ 8) → кнопки 8. */
+.lobby .panel {
+  padding: 14px;
+  gap: 10px;
+  border-radius: 26px;
+}
+.lobby .center-col {
+  gap: 12px;
+}
+.qr-card {
+  flex: none;
+  padding: 8px;
+  border-radius: 16px;
+  background: #f7f2e6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.qr-card .qr {
+  display: block;
+  width: var(--qr);
+  height: var(--qr);
+  border-radius: 6px;
+  image-rendering: pixelated;
+  background: #f7f2e6;
+}
+.join-txt {
+  gap: 6px;
+  justify-content: center;
+}
+.join-txt b {
+  font-size: 17px;
+  line-height: 1.2;
+}
+.join-txt .btn {
+  min-height: 42px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+.lobby .seats {
+  gap: 6px;
+}
+.lobby .seat {
+  min-height: 52px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 14px;
+  gap: 10px;
+}
+.lobby .seat .t {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-weight: 700;
+  min-width: 0;
+}
+.seat-x {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.seat-x:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.16);
+}
+.bot-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bot-add-l {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  flex: none;
+}
+.bot-add .seg {
+  flex: 1;
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.bot-add .seg button {
+  flex: 1;
+  min-height: 36px;
+  border: 0;
+  border-radius: 11px; /* 14 − 3 */
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bot-add .seg button:active {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(0.97);
+}
+/* Выбор эпохи — строки с обложкой: название в одну-две строки, всегда влезает */
+.era-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.era-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px 6px 6px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 160ms;
+}
+.era-row.on {
+  background: rgba(255, 255, 255, 0.16);
+}
+.era-row:active {
+  transform: scale(0.98);
+}
+.er-art {
+  flex: none;
+  width: 64px;
+  height: 46px;
+  border-radius: 10px; /* 16 − 6 */
+  background-size: cover;
+  background-position: center;
+  display: grid;
+  place-items: end start;
+  padding: 3px;
+  box-shadow: inset 0 -18px 18px -6px rgba(0, 0, 0, 0.55);
+}
+.er-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.er-txt b {
+  font-size: 15px;
+  line-height: 1.2;
+}
+.er-txt small {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.er-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+}
+.era-row.on .er-check {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ═══════════ Главная v2: карточки эпох — постеры ═══════════ */
+.home .era-card {
+  position: relative;
+  flex: 0 0 min(300px, 76vw);
+  aspect-ratio: 4 / 5;
+  border: 0;
+  border-radius: 28px;
+  background: #0b1118;
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.55);
+  justify-content: flex-end;
+  isolation: isolate;
+}
+.home .era-card.on {
+  border: 0;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.65);
+}
+.home .era-card .era-cover,
+.home .era-card.on .era-cover {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  z-index: -2;
+  transform: scale(1.04);
+  transition: transform 1200ms var(--ease-out);
+}
+.home .era-card.on .era-cover {
+  animation: era-kenburns 16s ease-in-out infinite alternate;
+}
+@keyframes era-kenburns {
+  from { transform: scale(1.04) translate3d(0, 0, 0); }
+  to { transform: scale(1.14) translate3d(-2%, -2%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home .era-card.on .era-cover { animation: none; }
+}
+.era-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(5, 8, 12, 0) 35%, rgba(5, 8, 12, 0.72) 68%, rgba(5, 8, 12, 0.94) 100%);
+}
+.home .era-body {
+  padding: 0 18px;
+  gap: 10px;
+}
+.home .era-icon {
+  margin-top: 0;
+  width: 40px;
+  height: 40px;
+}
+.home .era-title {
+  font-family: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  font-size: 19px;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+.home .era-years {
+  color: rgba(255, 236, 200, 0.85);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.home .era-desc {
+  padding: 8px 18px 18px;
+  min-height: 0;
+  color: rgba(255, 255, 255, 0.78);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Кнопки без «коробки» вокруг — парят над фоном */
+.home-actions {
+  gap: 10px;
+  padding: 0 4px;
+}
+.home-actions .btn.primary {
+  min-height: 56px;
+  border-radius: 18px;
+  font-size: 17px;
+  box-shadow: 0 12px 30px rgba(212, 160, 60, 0.35);
+}
+.home-actions .btn:not(.primary) {
+  min-height: 50px;
+  border-radius: 18px;
+  background: rgba(10, 16, 24, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.home .brand {
+  gap: 4px;
+}
+.home .brand-sub {
+  max-width: 300px;
+  margin: 0 auto;
+}
+.home-actions { align-self: stretch; width: 100%; box-sizing: border-box; }
+.home-actions .btn { width: 100%; }
+.home .brand-sub { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85); color: rgba(255, 255, 255, 0.86); }
+.home-actions .btn:not(.primary) { border: 0; }
+
+/* ═══ Заставка эпохи v2: кино — шторки кадра, титры по одному ═══ */
+.ei-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #000;
+  z-index: 2;
+  animation: ei-bar 900ms var(--ease-out) both;
+}
+.ei-bar.top { top: 0; transform-origin: top; }
+.ei-bar.bottom { bottom: 0; transform-origin: bottom; }
+@keyframes ei-bar {
+  from { transform: scaleY(0); }
+}
+.ei-content {
+  bottom: calc(9vh + var(--safe-b) + 36px);
+  gap: 26px;
+  z-index: 3;
+}
+.ei-title {
+  font-size: clamp(32px, 10vw, 56px);
+  background: linear-gradient(180deg, #fff 30%, #f3d9a4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.7));
+}
+.ei-years {
+  font-size: 14px;
+  letter-spacing: 0.32em;
+  color: #f3d9a4;
+}
+.ei-region {
+  max-width: 100%;
+  font-size: 14px;
+  color: rgba(246, 243, 236, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ei-lines {
+  position: relative;
+  min-height: calc(17px * 1.55 * 4);
+}
+.ei-lines p {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  font-size: 17px;
+  filter: none;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
+  transition: opacity 900ms ease, transform 900ms var(--ease-out);
+}
+.ei-lines p.out {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.ei-skip {
+  border: 0;
+  z-index: 4;
+  top: calc(9vh + var(--safe-t) + 12px);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.ei-progress {
+  z-index: 4;
+  bottom: 9vh;
+  height: 2px;
+  background: rgba(243, 217, 164, 0.8);
+}
+/* титры не накладываются: старый уходит быстро, новый появляется после паузы */
+.ei-lines p.out { transition-duration: 350ms; transition-delay: 0ms; }
+.ei-lines p.in { transition-delay: 380ms; }

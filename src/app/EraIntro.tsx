@@ -41,17 +41,18 @@ export function EraIntro({ pack, onDone }: { pack: LorePack; onDone: () => void 
     <div className="era-intro" onClick={onDone} role="dialog" aria-label={pack.title}>
       <div className="ei-cover" style={{ backgroundImage: `url(${eraCover(pack.id)})` }} />
       <div className="ei-shade" />
+      <div className="ei-bar top" aria-hidden />
+      <div className="ei-bar bottom" aria-hidden />
       <div className="ei-content">
         <div className={`ei-head ${step >= 1 ? 'in' : ''}`}>
           <ArtIcon src={eraIcon(pack.id, 'emblem')} size={84} className="ei-emblem" />
           <h1 className="display ei-title">{pack.title}</h1>
-          <div className="ei-years">
-            {pack.years} · {pack.region}
-          </div>
+          <div className="ei-years">{pack.years}</div>
+          <div className="ei-region">{pack.region.split(':')[0]}</div>
         </div>
         <div className="ei-lines">
           {lines.map((l, i) => (
-            <p key={i} className={step >= 2 + i ? 'in' : ''}>
+            <p key={i} className={step === 2 + i || (i === lines.length - 1 && step > 2 + i) ? 'in' : step > 2 + i ? 'out' : ''}>
               {l}
             </p>
           ))}

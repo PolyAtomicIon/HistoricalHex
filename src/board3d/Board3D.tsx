@@ -547,7 +547,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Tiles tiles={tiles} clear={buildSpots} />
       <Tokens tiles={tiles} numbers={numbers} hide={view.robberHex} />
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
-      <Slots ctx={ctx} buildings={view.buildings} roads={view.roads} />
+      {/* в режиме выбора места свои маркеры уже рисуют доступные места — сетку прячем, чтобы не было двойных кругов */}
+      {hl.vertices.size === 0 && hl.edges.size === 0 && <Slots ctx={ctx} buildings={view.buildings} roads={view.roads} />}
       <Roads roads={view.roads} colors={colors} ctx={ctx} me={props.me} longest={props.longest} />
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} me={props.me} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
