@@ -142,7 +142,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       }
       cineBusy = true;
       setFx((f) => ({ ...f, cinematic: { ...e, key: k.current++ } }));
-      timers.push(setTimeout(pumpCine, 2000));
+      timers.push(setTimeout(pumpCine, 5000)); // следующее — когда прошлое уже прочитали
     };
     const cine = (e: Omit<CinematicEvent, 'key'>) => {
       cineQ.push(e);

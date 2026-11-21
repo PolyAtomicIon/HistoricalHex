@@ -40,6 +40,7 @@ import { GameBoard, chose3d, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
 import { incomeByNumber } from './income';
+import { MarketTab, NumbersTab } from './TableInfo';
 import { TRADE_UI_LABEL, TradeCard, TradeCaravan, setTradeUi, useTradeUi } from './TradeOffer';
 import type { TradeUi } from './TradeOffer';
 import type { LogEntry } from './gameLog';
@@ -47,7 +48,7 @@ import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRout
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
-type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile';
+type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
 type PlanPick = null | 'road' | 'settlement' | 'city';
 
 interface Targets {
@@ -107,7 +108,6 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     const t = setTimeout(() => setGameToast((g) => (g?.key === connNotice.key ? null : g)), 3600);
     return () => clearTimeout(t);
   }, [connNotice?.key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [logOpen, setLogOpen] = useState(false);
   // Важное (награды, монополия) — карточкой с объяснением, пока не нажали «Понятно»
   const [noticeSeen, setNoticeSeen] = useState<number[]>([]);
   const notice = fx.notices.find((n) => !noticeSeen.includes(n.key)) ?? null;
@@ -143,6 +143,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const shownMode = mode === '3d' && (!liteOn || chose3d()) ? '3d' : '2d';
   const { hi: gfxHi, pref: gfxPref, auto: gfxAuto } = useGfx();
   const [sheet, setSheet] = useState<SheetId>(null);
+  const [infoTab, setInfoTab] = useState<'market' | 'nums' | 'log'>('market');
   // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
   const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number; idx?: number } | null>(null);
   const focusClusters = useMemo(() => (focusPlayer ? playerClusters(pub, focusPlayer.id) : []), [focusPlayer?.id, pub]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -450,7 +451,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </button>
       </header>
 
-      {/* Верх экрана — одна колонка: статус, рассказчик, захват, уведомления. Ничего не накладывается. */}
+      <button className="info-fab glass" onClick={() => setSheet('info')} aria-label="Сводка стола: рынок, числа, журнал">
+        <Icon name="stats" size={20} />
+      </button>
+
+      {/* Верх экрана — одна колонка: статус, захват, уведомления. Ничего не накладывается. */}
       <div className="hud-stack">
         {focusPlayer ? (
           <FocusCard
@@ -469,12 +474,6 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
             {status}
             {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
-          </div>
-        )}
-        {fx.narration && (
-          <div key={`n${fx.narration.key}`} className="narr-line" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }}>
-            <i />
-            {fx.narration.text}
           </div>
         )}
         {connStatus !== 'online' && <div className="reconnect glass">Переподключаемся…</div>}
@@ -537,7 +536,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       {myTurn && <TurnBanner key={`tb${pub.turn}`} color={PLAYER_HEX[meP.color]} />}
 
-      {(planPick || (targets && !selected)) && (
+      {(planPick || (targets && !selected && pub.phase === 'main')) && (
         <div className="board-hint glass">
           {planPick ? (planTargets && planTargets.ids.length === 0 ? `Нет свободных мест для: ${STEP_LABEL[planPick].toLowerCase()}` : planPick === 'settlement' ? 'План: место для дома — дороги добавлю' : `План: выбери место — ${STEP_LABEL[planPick].toLowerCase()}`) : targets!.hint}
           {planPick && (
@@ -618,7 +617,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               <button className="btn primary small-act" onClick={() => markSeen(notice.key)}>
                 Понятно
               </button>
-              <button className="btn ghost small-act" onClick={() => { markSeen(notice.key); setSheet('plan'); setLogOpen(true); }}>
+              <button className="btn ghost small-act" onClick={() => { markSeen(notice.key); setInfoTab('log'); setSheet('info'); }}>
                 <Icon name="book" size={16} /> Журнал
               </button>
             </div>
@@ -735,6 +734,25 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
+      <Sheet open={sheet === 'info'} onClose={() => setSheet(null)} title="Сводка стола">
+        <div className="seg ti-tabs" role="tablist">
+          {(
+            [
+              ['market', 'Рынок'],
+              ['nums', 'Числа'],
+              ['log', 'Журнал'],
+            ] as const
+          ).map(([id, label]) => (
+            <button key={id} role="tab" aria-pressed={infoTab === id} aria-selected={infoTab === id} onClick={() => setInfoTab(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {infoTab === 'market' && <MarketTab pub={pub} />}
+        {infoTab === 'nums' && <NumbersTab pub={pub} me={me} />}
+        {infoTab === 'log' && <GameLogList log={fx.log} pub={pub} />}
+      </Sheet>
+
       <Sheet open={sheet === 'plan'} onClose={() => setSheet(null)} title="План хода" description="Ходы заранее — в свой ход одной кнопкой">
         <PlanSheet
           checked={checked}
@@ -757,13 +775,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             setSheet(null);
             setPlanPin({ at, key: Date.now() });
           }}
-          onLog={() => setLogOpen(true)}
+          onLog={() => { setInfoTab('log'); setSheet('info'); }}
           me={me}
           logCount={fx.log.length}
         />
-        <Sheet open={logOpen && sheet === 'plan'} onClose={() => setLogOpen(false)} title="Журнал партии" description="Что происходило — новое сверху">
-          <GameLogList log={fx.log} pub={pub} />
-        </Sheet>
       </Sheet>
 
       <Sheet open={sheet === 'players'} onClose={() => setSheet(null)} title="Игроки" description={`До победы — ${room.settings.vpToWin} очков`}>
@@ -1094,26 +1109,23 @@ export function PlayersBar({
 function FactPopup({ pack, allowed, onRead }: { pack: LorePack; allowed: boolean; onRead: (f: LoreFact) => void }) {
   const [i, setI] = useState(() => Math.floor(Math.random() * pack.facts.length));
   const [shown, setShown] = useState(false);
-  const st = useRef({ seen: 0, nextAt: Date.now() + 30000, hold: false });
+  const st = useRef({ seen: 0, nextAt: Date.now() + 45000 });
   const allowedRef = useRef(allowed);
   allowedRef.current = allowed;
-  const iRef = useRef(i);
-  iRef.current = i;
   const shownRef = useRef(shown);
   shownRef.current = shown;
   const next = () => {
     setShown(false);
     setI((x) => (x + 1 + Math.floor(Math.random() * 3)) % Math.max(1, pack.facts.length));
-    st.current.nextAt = Date.now() + 75000;
+    st.current.nextAt = Date.now() + 120000;
   };
   useEffect(() => {
     const id = setInterval(() => {
       if (!allowedRef.current || document.hidden) return; // пауза: свой ход / вкладка скрыта
       const s = st.current;
       if (shownRef.current) {
-        const text = pack.facts[iRef.current % pack.facts.length]?.text ?? '';
-        if (!s.hold) s.seen += 1000;
-        if (s.seen >= Math.max(20000, text.length * 75)) next();
+        s.seen += 1000;
+        if (s.seen >= 14000) next();
       } else if (Date.now() >= s.nextAt) {
         s.seen = 0;
         setShown(true);
@@ -1123,28 +1135,26 @@ function FactPopup({ pack, allowed, onRead }: { pack: LorePack; allowed: boolean
   }, [pack]); // eslint-disable-line react-hooks/exhaustive-deps
   const f = pack.facts[i % pack.facts.length];
   if (!shown || !allowed || !f) return null;
-  const hold = (v: boolean) => () => (st.current.hold = v);
   return (
-    <div key={i} className="fact-pop glass strong" role="status" onPointerDown={hold(true)} onPointerUp={hold(false)} onPointerLeave={hold(false)}>
-      <ArtIcon src={eraIcon(pack.id, 'emblem')} size={40} className="fp-ic" />
-      <div className="fp-body">
-        <div className="fp-head">
-          {f.year && <span className="fp-year">{f.year}</span>}
-          {f.kz && <span className="kz-tag">Казахстан</span>}
-          <span className="fp-label">Факт эпохи</span>
-        </div>
-        <p className="fp-text">{f.text}</p>
-        <div className="fp-actions">
-          <button className="btn small-act" onClick={() => { onRead(f); next(); }}>
-            <Icon name="book" size={16} /> Читать
-          </button>
-          <button className="btn ghost small-act" onClick={next} aria-label="Скрыть">
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-      </div>
+    <div key={i} className="fact-chip glass" role="status">
+      <button className="fchip-main" onClick={() => { onRead(f); next(); }} aria-label="Читать факт эпохи">
+        <ArtIcon src={eraIcon(pack.id, 'emblem')} size={30} />
+        <span className="fchip-txt">
+          {f.year && <b>{f.year}</b>}
+          {firstSentence(f.text)}
+        </span>
+      </button>
+      <button className="fchip-x" onClick={next} aria-label="Скрыть">
+        <Icon name="close" size={16} />
+      </button>
     </div>
   );
+}
+
+/** Первое предложение факта — для короткой строки. */
+function firstSentence(t: string): string {
+  const m = t.match(/^.+?[.!?»](?=\s|$)/);
+  return m ? m[0] : t;
 }
 
 /** Карточка игрока под полосой, пока его постройки подсвечены. */
@@ -1176,7 +1186,7 @@ function FocusCard({
       )}
       <button className="fc-open" onClick={onMore}>
       <span className="fc-ava">{p.name.charAt(0).toUpperCase()}</span>
-      <span className="fc-main">
+      <span className="fchip-main">
         <b>
           {id === me ? 'Ты' : p.name} · <Icon name="star" size={13} /> {p.points}
         </b>
@@ -1244,31 +1254,31 @@ export function IncomeStrip({ pub, pid, label }: { pub: PublicState; pid: Player
 function PlanNudge({ hint, onPick, onOpen, onClose }: { hint?: string; onPick: (k: Exclude<PlanPick, null>) => void; onOpen: () => void; onClose: () => void }) {
   return (
     <div className="fact-pop plan-nudge glass strong" role="status">
-      <span className="pn-ic">
-        <Icon name="plan" size={20} />
-      </span>
-      <div className="fp-body">
-        <div className="pn-head">
+      <div className="pn-top">
+        <span className="pn-ic">
+          <Icon name="plan" size={20} />
+        </span>
+        <span className="pn-tt">
           <b>Пока ждёшь — наметь ход</b>
-          <button className="btn ghost icon-only pn-x" onClick={onClose} aria-label="Не сейчас">
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-        <p className="pn-sub">{hint ?? 'В свой ход выполнишь одной кнопкой'}</p>
-        <div className="pn-acts">
-          <button className="btn small-act" onClick={() => onPick('road')}>
-            <Icon name="road" size={16} /> Дорога
-          </button>
-          <button className="btn small-act" onClick={() => onPick('settlement')}>
-            <Icon name="house" size={16} /> Дом
-          </button>
-          <button className="btn small-act" onClick={() => onPick('city')}>
-            <Icon name="castle" size={16} /> Город
-          </button>
-          <button className="btn ghost small-act icon-only" onClick={onOpen} aria-label="Весь план">
-            <Icon name="next" size={16} />
-          </button>
-        </div>
+          <small className="pn-sub">{hint ?? 'В свой ход выполнишь одной кнопкой'}</small>
+        </span>
+        <button className="btn ghost icon-only pn-x" onClick={onClose} aria-label="Не сейчас">
+          <Icon name="close" size={16} />
+        </button>
+      </div>
+      <div className="pn-acts">
+        <button className="btn small-act" onClick={() => onPick('road')}>
+          <Icon name="road" size={16} /> Дорога
+        </button>
+        <button className="btn small-act" onClick={() => onPick('settlement')}>
+          <Icon name="house" size={16} /> Дом
+        </button>
+        <button className="btn small-act" onClick={() => onPick('city')}>
+          <Icon name="castle" size={16} /> Город
+        </button>
+        <button className="btn ghost small-act icon-only" onClick={onOpen} aria-label="Весь план">
+          <Icon name="next" size={16} />
+        </button>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  ChartNoAxesColumn,
   Timer,
   Swords,
   ArrowLeftRight,
@@ -73,7 +74,8 @@ export type IconName =
   | 'music'
   | 'bell'
   | 'timer'
-  | 'army';
+  | 'army'
+  | 'stats';
 
 const L: Record<IconName, LucideIcon> = {
   menu: Menu,
@@ -108,6 +110,7 @@ const L: Record<IconName, LucideIcon> = {
   music: Music,
   bell: Bell,
   timer: Timer,
+  stats: ChartNoAxesColumn,
   army: Swords,
 };
 

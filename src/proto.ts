@@ -23,7 +23,13 @@ export interface RoomSettings {
   turnSeconds: number;
   /** Кубики бросает сервер для всех (через пару секунд после начала хода). */
   autoRoll: boolean;
+  /** Темп: сколько боты и автоход ждут, пока люди досмотрят события. */
+  pace?: Pace;
 }
+
+export type Pace = 'calm' | 'normal' | 'fast';
+/** Множитель пауз для каждого темпа. */
+export const PACE_K: Record<Pace, number> = { calm: 1.6, normal: 1, fast: 0.7 };
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   reconnectSeconds: 90,
@@ -33,6 +39,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   lore: 'genghis',
   turnSeconds: 180,
   autoRoll: true,
+  pace: 'calm',
 };
 
 export const OFFLINE_BOT_LEVEL: BotLevel = 'medium';

@@ -18,7 +18,7 @@ import type { BotMemory } from '../src/bots';
 import { BOT_NAMES, botsToAct, decide } from '../src/bots';
 import { pickPersona } from './personas';
 import type { DiceSource, RoomSettings, RoomStatus, RoomView, Seat, ServerMsg } from '../src/proto';
-import { DEFAULT_SETTINGS, OFFLINE_BOT_LEVEL } from '../src/proto';
+import { DEFAULT_SETTINGS, OFFLINE_BOT_LEVEL, PACE_K } from '../src/proto';
 import { RandomOrgDice } from '../src/net/randomOrg';
 
 const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS ?? 1300);
@@ -31,7 +31,7 @@ const ATTACK_SCENE_MS = 6800;
  * Сколько дать людям досмотреть последнее событие, прежде чем бот сделает следующий шаг.
  * Иначе бросок, налёт и постройка бота накладываются — «три действия сразу».
  */
-export function paceAfter(events: GameEvent[]): number {
+export function paceAfter(events: GameEvent[], k = 1): number {
   let ms = 0;
   for (const e of events) {
     const t =
@@ -48,7 +48,7 @@ export function paceAfter(events: GameEvent[]): number {
       : 0;
     ms = Math.max(ms, t);
   }
-  return Math.round(ms * PACE_SCALE);
+  return Math.round(ms * PACE_SCALE * k);
 }
 export const NAME_MAX = 20;
 
@@ -273,8 +273,9 @@ export class Room {
       next.turnSeconds = patch.turnSeconds <= 0 ? 0 : Math.min(3600, Math.max(20, Math.round(patch.turnSeconds)));
     }
     if (patch.autoRoll !== undefined) next.autoRoll = !!patch.autoRoll;
+    if (patch.pace && patch.pace in PACE_K) next.pace = patch.pace;
     if (this.status !== 'lobby') {
-      this.settings = { ...this.settings, turnSeconds: next.turnSeconds, autoRoll: next.autoRoll };
+      this.settings = { ...this.settings, turnSeconds: next.turnSeconds, autoRoll: next.autoRoll, pace: next.pace };
       // новый таймер считается с этого момента
       const now = Date.now();
       for (const k of this.waitingSince.keys()) this.waitingSince.set(k, now);
@@ -473,7 +474,7 @@ export class Room {
     this.changed();
     this.sendEvents(events);
     // бот ждёт, пока люди досмотрят событие (налёт, кубики…), — по одному действию за раз
-    this.paceUntil = Math.max(this.paceUntil, now + paceAfter(events));
+    this.paceUntil = Math.max(this.paceUntil, now + paceAfter(events, this.paceK));
     if (events.some((e) => e.type === 'robberMoved')) this.attackUntil = now + Math.round(ATTACK_SCENE_MS * PACE_SCALE);
     this.scheduleBots();
   }
@@ -557,7 +558,7 @@ export class Room {
       const since = this.waitingSince.get(pid);
       const knight = state.players[pid]?.devCards?.some((c) => c.type === 'knight' && c.boughtTurn !== state.turn);
       const from = since === undefined ? undefined : Math.max(since, this.attackUntil);
-      if (!state.players[pid]?.bot && from !== undefined && now - from > (knight ? 8000 : 2500)) {
+      if (!state.players[pid]?.bot && from !== undefined && now - from > (knight ? 8000 : 2500 * this.paceK)) {
         void this.enqueue(() => this.autoMove(pid, 'roll')).catch((e) => console.error('autoroll failed', this.pin, e));
         return;
       }
@@ -633,6 +634,11 @@ export class Room {
 
   private isBot = (id: PlayerId) => !!this.state?.players[id]?.bot;
 
+  /** Множитель пауз по темпу комнаты (старые комнаты без поля — «обычный»). */
+  private get paceK(): number {
+    return PACE_K[this.settings.pace ?? 'normal'] ?? 1;
+  }
+
   private scheduleBots(delay?: number): void {
     if (this.botTimer || this.disposed) return;
     const state = this.state;
@@ -653,7 +659,7 @@ export class Room {
           }
         }).catch((e) => console.error('bot queue failed', this.pin, e));
       },
-      delay ?? Math.max(isTurn ? BOT_DELAY_MS : BOT_REPLY_MS, this.paceUntil - Date.now()),
+      delay ?? Math.max((isTurn ? BOT_DELAY_MS : BOT_REPLY_MS) * this.paceK, this.paceUntil - Date.now()),
     );
   }
 

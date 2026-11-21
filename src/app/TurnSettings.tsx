@@ -1,8 +1,19 @@
 // Настройки ведущего: время на ход и автобросок. В лобби и посреди партии (меню → Ведущий).
 
-import type { RoomSettings } from '../proto';
+import type { Pace, RoomSettings } from '../proto';
 import { conn } from '../client/conn';
 import { Icon } from './icons';
+
+const PACES: [Pace, string][] = [
+  ['calm', 'Спокойный'],
+  ['normal', 'Обычный'],
+  ['fast', 'Быстрый'],
+];
+const PACE_HINT: Record<Pace, string> = {
+  calm: 'Боты и автоход ждут дольше — все успевают досмотреть и прочитать.',
+  normal: 'Обычные паузы между действиями.',
+  fast: 'Короткие паузы — для тех, кто уже знает игру.',
+};
 
 const fmt = (s: number) => (s <= 0 ? 'без таймера' : s % 60 === 0 ? `${s / 60} мин` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
 
@@ -36,6 +47,15 @@ export function TurnSettings({ settings, editable }: { settings: RoomSettings; e
         </div>
       )}
       <p className="faint small">Когда время вышло, ход заканчивается сам: кубики бросаются, лишние карты сбрасываются.</p>
+      <div className="label">Темп игры</div>
+      <div className="seg" role="group">
+        {PACES.map(([v, label]) => (
+          <button key={v} disabled={!editable} aria-pressed={(settings.pace ?? 'normal') === v} onClick={() => set({ pace: v })}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="faint small">{PACE_HINT[settings.pace ?? 'normal']}</p>
       <button className="item" disabled={!editable} onClick={() => set({ autoRoll: !settings.autoRoll })}>
         <Icon name="dice" />
         <span className="grow">

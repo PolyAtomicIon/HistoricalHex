@@ -141,8 +141,10 @@ function CameraRig({
     const Hv = H / zoom;
     const visR = (Hv * aspect) / 2;
     const visF = Hv / 2 / Math.max(0.3, Math.cos(g.pol));
-    const maxR = Math.max(0, extR - visR);
-    const maxF = Math.max(0, extF - visF);
+    // Приближено — край острова можно поставить в центр экрана (дальше — вода), а не прижать к краю.
+    const reach = zoom > 1.05 ? 0.92 : 0;
+    const maxR = Math.max(0, extR - visR, extR * reach);
+    const maxF = Math.max(0, extF - visF, extF * reach);
     const cA = Math.cos(g.az);
     const sA = Math.sin(g.az);
     let r = g.panX * cA - g.panZ * sA;

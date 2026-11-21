@@ -97,6 +97,9 @@ function Particles({ kind, k, rain }: { kind: CinematicKind; k: number; rain?: s
   return null;
 }
 
+/** Сколько держится кино-карточка события (мс). */
+export const CINE_MS = (tv: boolean) => (tv ? 4000 : 4800);
+
 export function Cinematic({ event, tv = false }: { event: CinematicEvent | null; tv?: boolean }) {
   const [active, setActive] = useState<CinematicEvent | null>(null);
   const lastKey = useRef<number | null>(null);
@@ -114,7 +117,8 @@ export function Cinematic({ event, tv = false }: { event: CinematicEvent | null;
       document.body.classList.add('fx-shake');
       later(() => document.body.classList.remove('fx-shake'), 650);
     }
-    later(() => setActive(null), tv ? 2800 : 1600);
+    // держим столько, чтобы успеть прочитать; на телефоне можно закрыть касанием
+    later(() => setActive(null), CINE_MS(tv));
   }, [event, tv]);
 
   useEffect(() => () => {
@@ -124,10 +128,17 @@ export function Cinematic({ event, tv = false }: { event: CinematicEvent | null;
 
   if (!active) return null;
   const color = active.color ?? DEFAULT_COLOR[active.kind];
-  const style = { '--fx-c': color, '--fx-dur': tv ? '2.8s' : '1.6s' } as CSSProperties;
+  const style = { '--fx-c': color, '--fx-dur': `${CINE_MS(tv) / 1000}s` } as CSSProperties;
   return (
     <FxPortal>
-      <div key={active.key} className={`fx-cin fx-cin-${active.kind}${tv ? ' fx-cin-tv' : ''}`} style={style}>
+      <div
+        key={active.key}
+        className={`fx-cin fx-cin-${active.kind}${tv ? ' fx-cin-tv' : ' fx-cin-tap'}`}
+        style={style}
+        onClick={tv ? undefined : () => setActive(null)}
+        role={tv ? undefined : 'button'}
+        aria-label={tv ? undefined : 'Закрыть'}
+      >
         <div className="fx-cin-vignette" />
         <div className="fx-cin-flash" />
         <Particles kind={active.kind} k={active.key} rain={active.rain} />

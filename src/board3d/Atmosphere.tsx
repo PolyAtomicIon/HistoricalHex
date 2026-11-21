@@ -47,7 +47,7 @@ export function Atmosphere({ radius }: { radius: number }) {
       })),
     [R],
   );
-  const cloudMats = useMemo(() => seeds.map(() => new THREE.SpriteMaterial({ map: puff(), color: '#ffffff', transparent: true, opacity: 0.32, depthWrite: false, fog: false })), [seeds]);
+  const cloudMats = useMemo(() => seeds.map(() => new THREE.SpriteMaterial({ map: puff(), color: '#ffffff', transparent: true, opacity: 0.14, depthWrite: false, fog: false })), [seeds]);
   const glintMats = useMemo(() => Array.from({ length: GLINTS }, () => new THREE.SpriteMaterial({ map: puff(), color: '#e8f6ff', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })), []);
   const glintPos = useMemo(
     () =>
