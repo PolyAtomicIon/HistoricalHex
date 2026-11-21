@@ -664,3 +664,22 @@ body.fx-shake > *:not([data-fx-portal]):not(script):not(style) {
 @keyframes threat-in {
   from { opacity: 0; transform: translate(-50%, 16px) scale(0.92); }
 }
+/* баннер: ширина по тексту (не половина экрана), всегда в одну строку на строку */
+.threat-banner {
+  left: 16px;
+  right: 16px;
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  margin: 0 auto;
+  transform: none;
+}
+.threat-banner b,
+.threat-banner small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.threat-banner img { width: 40px; height: 40px; }
+@keyframes threat-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.94); }
+}

@@ -27,13 +27,16 @@ export function Threat({ t, tv }: { t: ThreatInfo | null; tv?: boolean }) {
   return (
     <div key={t.key} className={`threat ${tv ? 'tv' : ''}`} style={{ ['--pc' as string]: t.color }} aria-live="polite">
       <div className="threat-vignette" aria-hidden="true" />
-      <div className="threat-banner glass strong">
-        <img src={t.img} alt="" />
-        <div>
-          <b>{t.mine ? 'Твой удар' : `${t.name} выбирает цель…`}</b>
-          <small>{t.mine ? `Выбери гекс для «${t.attack}»` : `Куда ударит «${t.attack}»?`}</small>
+      {/* атакующему хватает подсказки внизу («нажми на светящееся место») — баннер только остальным */}
+      {!t.mine && (
+        <div className="threat-banner glass strong">
+          <img src={t.img} alt="" />
+          <div>
+            <b>{t.name} выбирает цель</b>
+            <small>Куда ударит «{t.attack}»?</small>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -5601,3 +5601,33 @@ div.lb-seat.empty { cursor: default; }
   .hub-actions .btn svg { width: 17px; height: 17px; }
   .hub-hero-text b { font-size: 21px; }
 }
+
+/* ─── Панель действий на узких экранах (320–374px, в т.ч. iPhone с увеличенным экраном/шрифтом) ─── */
+.actions .btn { overflow: hidden; }
+.actions.builds .act { overflow: hidden; }
+.act .cost { gap: 2px; max-width: 100%; }
+@media (max-width: 374px) {
+  .actions { gap: 6px; }
+  .actions .btn:not(.icon-only) { padding: 0 8px; gap: 4px; font-size: 14px; }
+  /* в узкой строке иконки у «Обмен» и «Конец хода» не помещаются — оставляем текст */
+  .actions .btn:not(.icon-only):not(.grow2) > svg { display: none; }
+  .actions .btn.icon-only { flex-basis: 44px; }
+  .act .cost { gap: 1px; }
+  .act .cost .res-art,
+  .act .cost .res-dot { width: 13px !important; height: 13px !important; }
+  .act .cost-i small { font-size: 10px; }
+}
+/* обмен на узком экране: колонка ресурса шире, степперы компактнее, подписи без обрезки */
+.tg-txt small { white-space: nowrap; }
+@media (max-width: 374px) {
+  .tg-head,
+  .tg-row { grid-template-columns: minmax(0, 1fr) 92px 92px; gap: 4px; }
+  .trade-grid.single .tg-row { grid-template-columns: minmax(0, 1fr) 104px; }
+  .tg-row { padding: 5px 5px 5px 6px; }
+  .tg-res { gap: 6px; }
+  .tg-res .res-art,
+  .tg-res .res-dot { width: 26px !important; height: 26px !important; }
+  .step { grid-template-columns: 28px 1fr 28px; }
+  .tg-txt b { font-size: 13px; }
+  .tg-txt small { font-size: 11px; }
+}

@@ -831,3 +831,8 @@ html.pwa body {
   overscroll-behavior: none;
   background: #070b10;
 }
+/* iOS не раздувает шрифты сам (поворот экрана, «умный» размер текста) */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
