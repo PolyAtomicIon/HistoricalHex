@@ -39,6 +39,7 @@ import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
+import { incomeByNumber } from './income';
 import type { LogEntry } from './gameLog';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
@@ -91,7 +92,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     setRaidCap(
       r.kind === 'robber'
         ? { key: r.key, title: `${pack.robber.name}: ${where}`, text: mine ? 'Это твой гекс — он не приносит дохода, пока захватчиков не прогонят' : 'Этот гекс не приносит дохода, пока захватчиков не прогонят' }
-        : { key: r.key, title: pack.devCards.knight.name, text: `Захватчиков выбивают с гекса ${where} — сейчас их переведут на другой` },
+        : { key: r.key, title: `${pack.devCards.knight.name}: ${where}`, text: mine ? 'Войско перегнало захватчиков на твой гекс — он без дохода' : 'Войско перегнало захватчиков сюда — этот гекс теперь без дохода' },
     );
     const t = setTimeout(() => setRaidCap((c) => (c?.key === r.key ? null : c)), 6000);
     return () => clearTimeout(t);
@@ -738,6 +739,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             setPlanPin({ at, key: Date.now() });
           }}
           onLog={() => setLogOpen(true)}
+          me={me}
           logCount={fx.log.length}
         />
         <Sheet open={logOpen && sheet === 'plan'} onClose={() => setLogOpen(false)} title="Журнал партии" description="Что происходило — новое сверху">
@@ -1158,6 +1160,41 @@ function FocusCard({
           </button>
         </>
       )}
+      <IncomeStrip pub={pub} pid={id} />
+    </div>
+  );
+}
+
+/** Доход по числам: [число · ресурсы], от частых к редким; захваченное — зачёркнуто; ≈ карт за бросок. */
+export function IncomeStrip({ pub, pid, label }: { pub: PublicState; pid: PlayerId; label?: string }) {
+  const { rows, perRoll } = incomeByNumber(pub, pid);
+  if (rows.length === 0) return null;
+  return (
+    <div className="income">
+      {label && <span className="in-label">{label}</span>}
+      <div className="in-row">
+        {rows.map((r) => (
+          <span key={r.n} className={`in-chip ${Object.keys(r.res).length === 0 ? 'off' : ''}`} title={`${r.n}: шанс ${r.ways} из 36`}>
+            <span className={`in-n ${r.n === 6 || r.n === 8 ? 'hot' : ''}`}>
+              {r.n}
+              <i style={{ width: `${r.ways * 2}px` }} />
+            </span>
+            {(Object.entries(r.res) as [Resource, number][]).map(([res, c]) => (
+              <span key={res} className="in-r">
+                <ResIcon r={res} size={16} />
+                {c > 1 && <small>×{c}</small>}
+              </span>
+            ))}
+            {(Object.entries(r.blocked) as [Resource, number][]).map(([res, c]) => (
+              <span key={`b${res}`} className="in-r blocked" aria-label="захвачено">
+                <ResIcon r={res} size={16} />
+                {c > 1 && <small>×{c}</small>}
+              </span>
+            ))}
+          </span>
+        ))}
+      </div>
+      <span className="in-avg">≈{perRoll.toFixed(1)} карт за бросок</span>
     </div>
   );
 }
@@ -1742,6 +1779,7 @@ function PlanSheet({
   onShow,
   onLog,
   logCount,
+  me,
 }: {
   checked: ReturnType<typeof checkPlan>;
   plan: PlanStep[];
@@ -1757,6 +1795,7 @@ function PlanSheet({
   onShow?: (at: string) => void;
   onLog?: () => void;
   logCount?: number;
+  me?: PlayerId;
 }) {
   const [adding, setAdding] = useState<null | 'bank' | 'offer'>(null);
   const [give, setGive] = useState<Resource | null>(null);
@@ -1826,6 +1865,7 @@ function PlanSheet({
 
   return (
     <div className="stack">
+      {me && <IncomeStrip pub={pub} pid={me} label="Твой доход по числам" />}
       {checked.length > 0 ? (
         <div className={`plan-sum ${brokenN ? 'bad' : ready === checked.length ? 'good' : ''}`}>
           <div className="ps-main">

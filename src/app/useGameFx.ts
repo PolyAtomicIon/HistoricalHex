@@ -98,6 +98,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
   const packRef = useRef(pack);
   packRef.current = pack;
   const k = useRef(Date.now());
+  const knightBy = useRef<PlayerId | undefined>(undefined);
 
   useEffect(() => {
     const tv = me === undefined;
@@ -210,11 +211,15 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             } else if (tv) say(narrate(p, e.kind === 'road' ? 'road' : 'settlement', { player: name(e.player) }), e.player);
             break;
           }
-          case 'robberMoved':
-            setFx((f) => ({ ...f, focus: { hex: e.hex, key: k.current++, ...attackShot(p.id, 'robber') } }));
-            raid('robber', e.hex);
+          case 'robberMoved': {
+            // после карты-воина сцена воина играет, когда цель уже выбрана (а не в момент розыгрыша карты)
+            const kind = knightBy.current === e.player ? 'knight' : 'robber';
+            knightBy.current = undefined;
+            setFx((f) => ({ ...f, focus: { hex: e.hex, key: k.current++, ...attackShot(p.id, kind) } }));
+            raid(kind, e.hex);
             say(narrate(p, 'robberMoved', { player: name(e.player) }), e.player);
             break;
+          }
           case 'stole':
             sfx.play('steal');
             if (me === e.victim) haptic('error');
@@ -227,8 +232,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
           case 'devCardPlayed': {
             const card = p.devCards[e.card];
             if (e.card === 'knight') {
-              raid('knight', pubRef.current?.robberHex);
-              if (pubRef.current?.robberHex) setFx((f) => ({ ...f, focus: { hex: pubRef.current!.robberHex, key: k.current++, ...attackShot(p.id, 'knight') } }));
+              knightBy.current = e.player; // сама сцена — после выбора цели (robberMoved)
               say(`${card.name}: ${narrate(p, 'knight', { player: name(e.player) })}`, e.player);
             } else if (e.card === 'roadBuilding') {
               cine({ kind: 'roadBuilding', title: card.name, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });

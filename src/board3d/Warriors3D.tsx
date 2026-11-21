@@ -25,45 +25,50 @@ const cyl = (rt: number, rb: number, h: number, s = 6) => new THREE.CylinderGeom
 const ease = (u: number) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 const clamp01 = (u: number) => Math.max(0, Math.min(1, u));
 /** Масштаб отрядов на карте (фигуры моделировались мелко). */
-const K = 1.6;
+const K = 1.35;
+/** Конница — компактнее, чтобы не закрывать гекс. */
+const KR = 1.05;
 const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.8 });
 
-// ---------- конь (длина ≈0.5) ----------
+// ---------- конь (длина ≈0.5): обтекаемые формы вместо коробок ----------
+const capX = (r: number, len: number) => new THREE.CapsuleGeometry(r, len, 4, 8).rotateZ(Math.PI / 2);
 const horseBody = (coat: string, mane: string) =>
   merge([
-    part(box(0.34, 0.15, 0.13), coat, [0, 0.27, 0]),
-    part(box(0.1, 0.17, 0.09), coat, [0.18, 0.36, 0], [0, 0, -0.6]),
-    part(box(0.13, 0.07, 0.07), coat, [0.26, 0.44, 0], [0, 0, -0.2]),
-    part(box(0.05, 0.12, 0.03), mane, [0.15, 0.42, 0], [0, 0, -0.6]),
-    part(box(0.03, 0.12, 0.03), mane, [-0.19, 0.25, 0], [0, 0, 0.5]),
-    part(box(0.16, 0.035, 0.15), '#7a2a1c', [0.0, 0.355, 0]), // попона
+    part(capX(0.07, 0.2), coat, [0, 0.27, 0], [0, 0, 0], [1, 1, 0.85]), // туловище
+    part(new THREE.CylinderGeometry(0.035, 0.05, 0.17, 8), coat, [0.15, 0.36, 0], [0, 0, -0.75]), // шея
+    part(new THREE.CapsuleGeometry(0.03, 0.08, 4, 8), coat, [0.235, 0.42, 0], [0, 0, -1.25]), // голова
+    part(new THREE.ConeGeometry(0.012, 0.035, 4), coat, [0.2, 0.47, 0.018]), // уши
+    part(new THREE.ConeGeometry(0.012, 0.035, 4), coat, [0.2, 0.47, -0.018]),
+    part(box(0.03, 0.12, 0.016), mane, [0.13, 0.41, 0], [0, 0, -0.75]), // грива
+    part(new THREE.ConeGeometry(0.025, 0.16, 6), mane, [-0.2, 0.24, 0], [0, 0, -0.5]), // хвост
+    part(new THREE.CylinderGeometry(0.075, 0.075, 0.03, 10), '#7a2a1c', [-0.01, 0.335, 0], [0, 0, 0], [1, 1, 0.95]), // попона
   ]);
 const legGeo = (() => {
-  const g = box(0.035, 0.2, 0.035);
+  const g = new THREE.CylinderGeometry(0.014, 0.011, 0.2, 6);
   g.translate(0, -0.1, 0); // ось вращения — у плеча
   return part(g, '#3b2a1e');
 })();
 const LEGS: [number, number, number][] = [
-  [0.13, 0.22, 0.045],
-  [0.13, 0.22, -0.045],
-  [-0.13, 0.22, 0.045],
-  [-0.13, 0.22, -0.045],
+  [0.11, 0.22, 0.035],
+  [0.11, 0.22, -0.035],
+  [-0.11, 0.22, 0.035],
+  [-0.11, 0.22, -0.035],
 ];
 // Всадник: лучник (шапка с отворотом, лук) / копейщик (шлем-шишак, копьё)
 const archerGeo = merge([
-  part(box(0.09, 0.14, 0.1), '#2f4a5c', [0, 0.45, 0]),
-  part(box(0.06, 0.06, 0.06), '#d9a77c', [0.01, 0.55, 0]),
-  part(new THREE.ConeGeometry(0.05, 0.08, 6), '#6b3a1f', [0.01, 0.62, 0]),
-  part(cyl(0.055, 0.055, 0.015, 8), '#4a2c16', [0.01, 0.585, 0]),
-  part(new THREE.TorusGeometry(0.08, 0.008, 4, 10, Math.PI), '#5a3a1a', [0.06, 0.47, 0.06], [0, 0, -Math.PI / 2]),
+  part(new THREE.CapsuleGeometry(0.04, 0.07, 4, 8), '#2f4a5c', [0, 0.45, 0]),
+  part(new THREE.SphereGeometry(0.032, 10, 8), '#d9a77c', [0.01, 0.54, 0]),
+  part(new THREE.ConeGeometry(0.04, 0.07, 8), '#6b3a1f', [0.01, 0.6, 0]),
+  part(cyl(0.045, 0.045, 0.012, 10), '#4a2c16', [0.01, 0.57, 0]),
+  part(new THREE.TorusGeometry(0.07, 0.006, 4, 12, Math.PI), '#5a3a1a', [0.05, 0.47, 0.05], [0, 0, -Math.PI / 2]),
 ]);
 const lancerGeo = merge([
-  part(box(0.1, 0.15, 0.11), '#6d6f73', [0, 0.45, 0]),
-  part(box(0.06, 0.06, 0.06), '#d9a77c', [0.01, 0.55, 0]),
-  part(new THREE.ConeGeometry(0.045, 0.1, 6), '#9a9ca0', [0.01, 0.63, 0]),
-  part(cyl(0.006, 0.006, 0.7, 4), '#5a3a1a', [0.2, 0.47, 0.06], [0, 0, -Math.PI / 2 + 0.12]),
-  part(new THREE.ConeGeometry(0.015, 0.06, 4), '#d0d4d8', [0.55, 0.51, 0.06], [0, 0, -Math.PI / 2 + 0.12]),
-  part(box(0.06, 0.04, 0.004), '#a5221a', [0.47, 0.53, 0.06]),
+  part(new THREE.CapsuleGeometry(0.042, 0.075, 4, 8), '#6d6f73', [0, 0.45, 0]),
+  part(new THREE.SphereGeometry(0.032, 10, 8), '#d9a77c', [0.01, 0.54, 0]),
+  part(new THREE.ConeGeometry(0.036, 0.09, 8), '#9a9ca0', [0.01, 0.6, 0]),
+  part(cyl(0.005, 0.005, 0.6, 4), '#5a3a1a', [0.18, 0.47, 0.05], [0, 0, -Math.PI / 2 + 0.12]),
+  part(new THREE.ConeGeometry(0.013, 0.05, 4), '#d0d4d8', [0.48, 0.51, 0.05], [0, 0, -Math.PI / 2 + 0.12]),
+  part(box(0.05, 0.035, 0.004), '#a5221a', [0.41, 0.52, 0.05]),
 ]);
 const horseBodies = [horseBody('#7a4a2a', '#2a1a10'), horseBody('#3a2a22', '#120c08'), horseBody('#b08a5a', '#4a3020'), horseBody('#5a3a28', '#1a120c')];
 
@@ -237,7 +242,7 @@ function Riders({ ev, charge }: { ev: Attack3DEvent; charge: boolean }) {
       out.set(x + dir.x * ss + side.x * lane, y, z + dir.z * ss + side.z * lane);
       return;
     }
-    const R = 1.25;
+    const R = 1.15;
     const th0 = Math.atan2(-dir.z, -dir.x) + (i - (N - 1) / 2) * 0.45; // вход со стороны острова
     if (t < 2.2) {
       const u = ease(t / 2.2);
@@ -268,10 +273,10 @@ function Riders({ ev, charge }: { ev: Attack3DEvent; charge: boolean }) {
       face(g, p.x - pv.x, p.z - pv.z);
       pv.copy(p);
       const gal = t * 13 + i * 1.3;
-      g.position.set(p.x, p.y + Math.abs(Math.sin(gal)) * 0.05, p.z);
+      g.position.set(p.x, p.y + Math.abs(Math.sin(gal)) * 0.035, p.z);
       g.rotation.z = Math.sin(gal) * 0.06;
       const fade = clamp01((T - t) / 0.5) * clamp01(t / 0.3);
-      g.scale.setScalar(Math.max(0.001, fade) * K);
+      g.scale.setScalar(Math.max(0.001, fade) * KR);
       for (let l = 0; l < 4; l++) {
         const leg = legs.current[i * 4 + l];
         if (leg) leg.rotation.z = Math.sin(gal + (l < 2 ? 0 : Math.PI) + (l % 2) * 0.5) * 0.7;
@@ -289,7 +294,7 @@ function Riders({ ev, charge }: { ev: Attack3DEvent; charge: boolean }) {
       const tz = z + s.dz;
       const ax = p.x + (tx - p.x) * k;
       const az = p.z + (tz - p.z) * k;
-      const ay = y + 0.8 + Math.sin(k * Math.PI) * 0.6 - k * 0.72;
+      const ay = y + 0.55 + Math.sin(k * Math.PI) * 0.5 - k * 0.5;
       a.position.set(ax, ay, az);
       a.rotation.set(0, Math.atan2(-(tz - p.z), tx - p.x), (k < 0.5 ? 0.6 : -0.8) * (1 - Math.abs(k - 0.5)));
     });

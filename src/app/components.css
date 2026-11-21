@@ -4259,3 +4259,70 @@ html.lite .home .era-card.on .era-cover {
   .pc-name { font-size: 12px; }
   .hud-top > .fab { width: 50px; height: 50px; }
 }
+
+/* Доход по числам */
+.focus-card { flex-wrap: wrap; }
+.focus-card .income { flex-basis: 100%; padding: 2px 6px 4px; }
+.income {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.in-label { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.in-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.in-row::-webkit-scrollbar { display: none; }
+.in-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.in-chip.off { opacity: 0.55; }
+.in-n {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #f3e6c8;
+  color: #1d2230;
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.in-n.hot { color: #c9271c; }
+.in-n i {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.in-r { display: inline-flex; align-items: center; gap: 1px; }
+.in-r small { font-size: 11px; font-weight: 800; color: var(--ink-2); }
+.in-r.blocked { position: relative; opacity: 0.45; }
+.in-r.blocked::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 50%;
+  height: 2px;
+  background: #ff5a48;
+  transform: rotate(-30deg);
+}
+.in-avg { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
