@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 import type { BotLevel, PlayerColor } from '../engine';
 import { PLAYER_COLORS } from '../engine';
 import type { DiceMode, RoomView } from '../proto';
-import { conn } from '../client/conn';
+import { conn, useConn } from '../client/conn';
 import { LORE_PACKS } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { haptic, sfx } from '../fx';
@@ -13,6 +13,7 @@ import { savedName, saveName } from './Home';
 import { eraCover, eraIcon, useEra } from './era';
 import { ArtIcon, Icon } from './icons';
 import { TurnSettings } from './TurnSettings';
+import { Sheet } from './Sheet';
 import { PERSONAS } from '../bots/personas';
 
 const DICE: { id: DiceMode; label: string; hint: string }[] = [
@@ -41,210 +42,280 @@ export function Qr({ text, size = 180 }: { text: string; size?: number }) {
   );
 }
 
+const BOT_LABEL: Record<BotLevel, string> = { easy: 'лёгкий', medium: 'средний', hard: 'сложный' };
+
 export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
   const pack = useEra(room.settings.lore);
+  const { profile } = useConn();
   const [name, setName] = useState(savedName());
+  const [sheet, setSheet] = useState<null | 'settings' | 'color'>(null);
+  const [botLevel, setBotLevel] = useState<BotLevel>('medium');
   const mine = room.lobby.find((s) => s.id === room.me);
   const taken = new Set(room.lobby.filter((s) => s.id !== room.me).map((s) => s.color));
   const host = room.isHost && !tv;
-  const canStart = room.lobby.length >= 3 && room.lobby.every((s) => s.color) && room.lobby.some((s) => !s.bot);
+  const humans = room.lobby.filter((s) => !s.bot).length;
+  const canStart = room.lobby.length >= 3 && room.lobby.every((s) => s.color) && humans > 0;
+  const need = Math.max(0, 3 - room.lobby.length);
+
+  // Ведущий почти всегда играет сам — сажаем за стол сразу, с именем из профиля (один раз на комнату:
+  // если он встал из-за стола, обратно не сажаем)
+  const knownName = (savedName() || profile?.profile.name || '').trim();
+  const seatKey = `hh.autoseat.${room.pin}`;
+  useEffect(() => {
+    if (!host || mine || !knownName) return;
+    try {
+      if (sessionStorage.getItem(seatKey)) return;
+      sessionStorage.setItem(seatKey, '1');
+    } catch {
+      /* ok */
+    }
+    conn.join(room.pin, knownName);
+  }, [host, !!mine, knownName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dice = DICE.find((d) => d.id === room.settings.dice);
+  const timer = room.settings.turnSeconds > 0 ? `${Math.round((room.settings.turnSeconds / 60) * 10) / 10} мин` : 'без таймера';
+  const summary = `${dice?.label} · до ${room.settings.vpToWin} очков · ${timer}${room.settings.autoRoll ? ' · автобросок' : ''}`;
+  const slots = Array.from({ length: 6 }, (_, i) => room.lobby[i]);
 
   return (
-    <main className="screen lobby">
+    <main className={`screen lobby ${tv ? '' : 'lobby2'}`}>
       <div className="ambient" aria-hidden />
       <div key={pack.id} className="hero-bg" style={{ backgroundImage: `url(${eraCover(pack.id)})` }} aria-hidden />
-      <div className="center-col">
+      <div className={tv ? 'center-col' : 'lobby-col'}>
         <header className="lobby-head">
-          <div className="era-badge glass">
+          <button className="era-badge glass" onClick={() => host && setSheet('settings')} disabled={!host} aria-label={host ? 'Сменить эпоху' : undefined}>
             <ArtIcon src={eraIcon(pack.id, 'emblem')} size={30} />
             <b>{pack.title}</b>
-            <small className="muted">{pack.years}</small>
-          </div>
+            {host && <Icon name="next" size={14} />}
+          </button>
           <div className="pin-block">
             <span className="label">PIN</span>
             <span className="display pin">{room.pin.replace(/(\d{3})(\d{3})/, '$1 $2')}</span>
           </div>
         </header>
 
-        <div className={`lobby-grid ${tv ? 'tv' : ''}`}>
-          <section className="panel glass stack">
-            <div className="row">
-              <Qr text={joinLink(room.pin)} size={tv ? 220 : 104} />
-              <div className="stack grow join-txt">
-                <b>Сканируй и заходи</b>
-                <span className="muted small">или введи PIN на сайте</span>
-                {!tv && (
-                  <a className="btn wide" href={joinLink(room.pin, true)} target="_blank" rel="noreferrer">
-                    <Icon name="tv" /> Экран для ТВ
-                  </a>
-                )}
-              </div>
+        <section className={`panel glass stack lobby-join ${tv ? 'tv' : ''}`}>
+          <div className="row">
+            <Qr text={joinLink(room.pin)} size={tv ? 220 : 104} />
+            <div className="stack grow join-txt">
+              <b>Сканируй и заходи</b>
+              <span className="muted small">или введи PIN на сайте</span>
+              {!tv && (
+                <a className="btn wide" href={joinLink(room.pin, true)} target="_blank" rel="noreferrer">
+                  <Icon name="tv" /> Экран для ТВ
+                </a>
+              )}
             </div>
+          </div>
+        </section>
 
-            <div className="label">За столом · {room.lobby.length}/6</div>
-            <ul className="list seats">
-              {room.lobby.map((s) => (
-                <li key={s.id} className="item seat" style={{ ['--pc' as string]: s.color ? PLAYER_HEX[s.color] : '#666' }}>
-                  <span className="seat-dot" />
-                  <span className="grow t">
-                    {s.name}
-                    {s.id === room.hostId && <span className="faint small"> · ведущий</span>}
-                    {s.id === room.me && <span className="faint small"> · ты</span>}
-                    {s.persona && <span className="seat-style">ИИ · {PERSONAS.find((x) => x.id === s.persona)?.style}</span>}
-                  </span>
-                  {!s.online && <span className="faint small">не в сети</span>}
-                  {host && s.id !== room.me && (
-                    <button className="seat-x" aria-label={`Убрать ${s.name}`} onClick={() => conn.send({ t: 'kick', player: s.id })}>
-                      <Icon name="close" size={16} />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+        <section className="panel glass stack">
+          <div className="lb-sec">
+            <span className="label lb-count">Стол · {room.lobby.length}/6</span>
             {host && room.lobby.length < 6 && (
-              <div className="bot-add">
-                <span className="bot-add-l">
-                  <Icon name="bot" size={16} /> Бот
-                </span>
-                <div className="seg">
-                  {(['easy', 'medium', 'hard'] as BotLevel[]).map((l) => (
-                    <button key={l} onClick={() => conn.send({ t: 'addBot', level: l })}>
-                      {l === 'easy' ? 'лёгкий' : l === 'medium' ? 'средний' : 'сложный'}
-                    </button>
-                  ))}
-                </div>
+              <div className="lb-level" role="group" aria-label="Уровень бота">
+                {(['easy', 'medium', 'hard'] as BotLevel[]).map((l) => (
+                  <button key={l} aria-pressed={botLevel === l} onClick={() => setBotLevel(l)}>
+                    {BOT_LABEL[l]}
+                  </button>
+                ))}
               </div>
             )}
-          </section>
-
-          {!tv && (
-            <section className="panel glass stack">
-              {!mine ? (
-                <form
-                  className="stack"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!name.trim()) return;
-                    saveName(name.trim());
-                    conn.join(room.pin, name.trim());
+          </div>
+          <div className="lb-seats">
+            {slots.map((s, i) =>
+              s ? (
+                <div key={s.id} className={`lb-seat ${s.id === room.me ? 'me' : ''}`} style={{ ['--pc' as string]: s.color ? PLAYER_HEX[s.color] : '#666' }}>
+                  <button
+                    className="lb-ava"
+                    onClick={() => s.id === room.me && setSheet('color')}
+                    aria-label={s.id === room.me ? 'Сменить цвет' : s.name}
+                    disabled={s.id !== room.me}
+                  >
+                    {s.bot ? <Icon name="bot" size={18} /> : s.name.charAt(0).toUpperCase()}
+                    {!s.online && !s.bot && <i className="off" aria-label="не в сети" />}
+                  </button>
+                  <b>{s.id === room.me ? 'Ты' : s.name}</b>
+                  <small>
+                    {s.id === room.hostId ? 'ведущий' : s.bot ? (PERSONAS.find((x) => x.id === s.persona)?.style ?? BOT_LABEL[s.bot]) : 'игрок'}
+                  </small>
+                  {host && s.id !== room.me && (
+                    <button className="lb-x" aria-label={`Убрать ${s.name}`} onClick={() => conn.send({ t: 'kick', player: s.id })}>
+                      <Icon name="close" size={12} />
+                    </button>
+                  )}
+                </div>
+              ) : host ? (
+                <button
+                  key={`e${i}`}
+                  className="lb-seat empty"
+                  onClick={() => {
+                    sfx.play('tick');
+                    conn.send({ t: 'addBot', level: botLevel });
                   }}
                 >
-                  <b>{room.isHost ? 'Играешь с этого телефона?' : 'Как тебя зовут?'}</b>
-                  <input className="field" value={name} maxLength={20} onChange={(e) => setName(e.target.value)} placeholder="Имя" />
-                  <button className="btn primary wide" disabled={!name.trim()}>
-                    Сесть за стол
-                  </button>
-                </form>
+                  <span className="lb-ava">
+                    <Icon name="bot" size={18} />
+                  </span>
+                  <b>+ бот</b>
+                  <small>{BOT_LABEL[botLevel]}</small>
+                </button>
               ) : (
-                <>
-                  <div className="label">Твой цвет</div>
-                  <div className="colors">
-                    {PLAYER_COLORS.map((c: PlayerColor) => (
-                      <button
-                        key={c}
-                        className={`color ${mine.color === c ? 'on' : ''}`}
-                        style={{ background: PLAYER_HEX[c] }}
-                        disabled={taken.has(c)}
-                        aria-label={c}
-                        aria-pressed={mine.color === c}
-                        onClick={() => {
-                          haptic('tap');
-                          sfx.play('tick');
-                          conn.send({ t: 'color', color: c });
-                        }}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {host ? (
-                <>
-                  <div className="label">Эпоха</div>
-                  <div className="era-rows" role="radiogroup" aria-label="Эпоха">
-                    {LORE_PACKS.map((p) => (
-                      <button
-                        key={p.id}
-                        role="radio"
-                        aria-checked={p.id === room.settings.lore}
-                        className={`era-row ${p.id === room.settings.lore ? 'on' : ''}`}
-                        onClick={() => conn.send({ t: 'settings', settings: { lore: p.id } })}
-                      >
-                        <span className="er-art" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden>
-                          <ArtIcon src={eraIcon(p.id, 'emblem')} size={26} />
-                        </span>
-                        <span className="er-txt">
-                          <b>{p.title}</b>
-                          <small>{p.years}</small>
-                        </span>
-                        <span className="er-check" aria-hidden>
-                          {p.id === room.settings.lore && <Icon name="check" size={16} />}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="label">Кубики</div>
-                  <div className="seg" role="group">
-                    {DICE.map((d) => (
-                      <button
-                        key={d.id}
-                        aria-pressed={room.settings.dice === d.id}
-                        onClick={() => conn.send({ t: 'settings', settings: { dice: d.id } })}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="faint small">{DICE.find((d) => d.id === room.settings.dice)?.hint}</p>
-                  <div className="label">Очков для победы</div>
-                  <div className="seg" role="group">
-                    {[8, 10, 12].map((v) => (
-                      <button key={v} aria-pressed={room.settings.vpToWin === v} onClick={() => conn.send({ t: 'settings', settings: { vpToWin: v } })}>
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                  <TurnSettings settings={room.settings} editable />
-                  <button
-                    className="btn primary big wide"
-                    disabled={!canStart}
-                    onClick={() => {
-                      sfx.play('fanfare');
-                      conn.send({ t: 'start' });
-                    }}
-                  >
-                    Начать партию
-                  </button>
-                  {!canStart && <p className="faint small center">Нужно от 3 игроков (можно с ботами), у всех — цвет</p>}
-                </>
-              ) : (
-                <div className="stack">
-                  <p className="muted">
-                    Кубики: <b>{DICE.find((d) => d.id === room.settings.dice)?.label}</b> · до {room.settings.vpToWin} очков ·{' '}
-                    {room.settings.turnSeconds > 0 ? `${Math.round(room.settings.turnSeconds / 60 * 10) / 10} мин на ход` : 'без таймера'}
-                  </p>
-                  <p className="muted">Ждём, пока ведущий начнёт…</p>
+                <div key={`e${i}`} className="lb-seat empty">
+                  <span className="lb-ava" />
+                  <b>свободно</b>
                 </div>
-              )}
-              <button
-                className="btn ghost wide"
-                onClick={() => {
-                  if (mine) conn.send({ t: 'leaveLobby' });
-                  conn.forget();
-                }}
-              >
-                Выйти
+              ),
+            )}
+          </div>
+          {!tv && !mine && (
+            <form
+              className="lb-name"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!name.trim()) return;
+                saveName(name.trim());
+                conn.join(room.pin, name.trim());
+              }}
+            >
+              <input className="field" value={name} maxLength={20} onChange={(e) => setName(e.target.value)} placeholder={room.isHost ? 'Играешь сам? Имя' : 'Твоё имя'} />
+              <button className="btn primary" disabled={!name.trim()}>
+                Сесть
               </button>
-            </section>
+            </form>
           )}
-        </div>
-
-        <section className="panel glass intro">
-          {pack.intro.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
         </section>
+
+        {!tv && (
+          <button className="lb-settings glass" onClick={() => host && setSheet('settings')} disabled={!host}>
+            <span>
+              <b>Настройки партии</b>
+              <small>{summary}</small>
+            </span>
+            {host && <Icon name="next" size={16} />}
+          </button>
+        )}
+
+        {tv && (
+          <section className="panel glass intro">
+            {pack.intro.map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+          </section>
+        )}
       </div>
+
+      {!tv && (
+        <footer className="lobby-foot">
+          <button
+            className="btn icon lf-exit"
+            aria-label="Выйти"
+            onClick={() => {
+              if (mine) conn.send({ t: 'leaveLobby' });
+              conn.forget();
+            }}
+          >
+            <Icon name="door" size={18} />
+          </button>
+          {host ? (
+            <button
+              className="btn primary big grow"
+              disabled={!canStart}
+              onClick={() => {
+                sfx.play('fanfare');
+                conn.send({ t: 'start' });
+              }}
+            >
+              {canStart ? 'Начать партию' : need > 0 ? `Нужно ещё ${need} — добавь ботов` : 'Нужен хотя бы один человек'}
+            </button>
+          ) : (
+            <div className="lf-wait grow">
+              <span className="spinner sm" aria-hidden /> Ждём, пока ведущий начнёт…
+            </div>
+          )}
+        </footer>
+      )}
+
+      <Sheet open={sheet === 'color'} onClose={() => setSheet(null)} title="Твой цвет">
+        <div className="colors">
+          {PLAYER_COLORS.map((c: PlayerColor) => (
+            <button
+              key={c}
+              className={`color ${mine?.color === c ? 'on' : ''}`}
+              style={{ background: PLAYER_HEX[c] }}
+              disabled={taken.has(c)}
+              aria-label={c}
+              aria-pressed={mine?.color === c}
+              onClick={() => {
+                haptic('tap');
+                sfx.play('tick');
+                conn.send({ t: 'color', color: c });
+                setSheet(null);
+              }}
+            />
+          ))}
+        </div>
+        {room.isHost && mine && (
+          <button
+            className="btn ghost wide"
+            onClick={() => {
+              conn.send({ t: 'leaveLobby' });
+              setSheet(null);
+            }}
+          >
+            Я только веду — встать из-за стола
+          </button>
+        )}
+      </Sheet>
+
+      <Sheet open={sheet === 'settings'} onClose={() => setSheet(null)} title="Настройки партии">
+        <div className="stack">
+          <div className="label">Эпоха</div>
+          <div className="era-rows" role="radiogroup" aria-label="Эпоха">
+            {LORE_PACKS.map((p) => (
+              <button
+                key={p.id}
+                role="radio"
+                aria-checked={p.id === room.settings.lore}
+                className={`era-row ${p.id === room.settings.lore ? 'on' : ''}`}
+                onClick={() => conn.send({ t: 'settings', settings: { lore: p.id } })}
+              >
+                <span className="er-art" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden>
+                  <ArtIcon src={eraIcon(p.id, 'emblem')} size={26} />
+                </span>
+                <span className="er-txt">
+                  <b>{p.title}</b>
+                  <small>{p.years}</small>
+                </span>
+                <span className="er-check" aria-hidden>
+                  {p.id === room.settings.lore && <Icon name="check" size={16} />}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="label">Кубики</div>
+          <div className="seg" role="group">
+            {DICE.map((d) => (
+              <button key={d.id} aria-pressed={room.settings.dice === d.id} onClick={() => conn.send({ t: 'settings', settings: { dice: d.id } })}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <p className="faint small">{dice?.hint}</p>
+          <div className="label">Очков для победы</div>
+          <div className="seg" role="group">
+            {[8, 10, 12].map((v) => (
+              <button key={v} aria-pressed={room.settings.vpToWin === v} onClick={() => conn.send({ t: 'settings', settings: { vpToWin: v } })}>
+                {v}
+              </button>
+            ))}
+          </div>
+          <TurnSettings settings={room.settings} editable />
+          <button className="btn primary wide" onClick={() => setSheet(null)}>
+            Готово
+          </button>
+        </div>
+      </Sheet>
     </main>
   );
 }
