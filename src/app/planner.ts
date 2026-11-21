@@ -96,7 +96,7 @@ export function checkPlan(plan: PlanStep[], pub: PublicState, priv: PrivateView,
     let placeOk = true;
     let reason: string | undefined;
     if (step.kind === 'road') {
-      if (view.roads[step.at]) (placeOk = false), (reason = 'Здесь уже стоит дорога');
+      if (view.roads[step.at]) (placeOk = false), (reason = 'Здесь уже чужая дорога');
       else if (!canBuildRoad(view, me, step.at)) (placeOk = false), (reason = 'Сюда больше нельзя: нет связи с твоими дорогами');
       else if (pieces.roads <= 0) (placeOk = false), (reason = 'Дороги закончились');
     } else if (step.kind === 'settlement') {
@@ -290,4 +290,18 @@ export function settlementRoutes(
     out.set(v, path);
   }
   return out;
+}
+
+/**
+ * Шаги, которые игрок уже сделал сам (своя дорога / своё поселение / свой город на этом месте) —
+ * их план убирает автоматически. Чужая постройка на месте шага — не «выполнено», шаг остаётся (сломан).
+ */
+export function doneSteps(plan: PlanStep[], pub: Pick<PublicState, 'roads' | 'buildings'>, me: PlayerId): Set<string> {
+  const done = new Set<string>();
+  for (const s of plan) {
+    if (s.kind === 'road' && pub.roads[s.at] === me) done.add(s.id);
+    if (s.kind === 'settlement' && pub.buildings[s.at]?.owner === me) done.add(s.id);
+    if (s.kind === 'city' && pub.buildings[s.at]?.owner === me && pub.buildings[s.at]?.kind === 'city') done.add(s.id);
+  }
+  return done;
 }

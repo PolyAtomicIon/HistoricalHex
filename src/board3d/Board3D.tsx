@@ -24,7 +24,7 @@ export interface Board3DProps extends BoardProps {
   mode: BoardMode;
   palette?: Palette;
   /** Полёт камеры к цели: смена `key` запускает полёт и возврат (3d/25d); в 2d — мягкий наезд. */
-  focus?: { hex?: string; vertex?: string; edge?: string; key: number };
+  focus?: { hex?: string; vertex?: string; edge?: string; key: number; hold?: number; zoom?: number };
   /** «Призраки» запланированных фигур. */
   ghosts?: GhostSpec[];
   /** Тряска экрана: смена значения — ~400 мс тряски. */
@@ -40,6 +40,8 @@ export interface Board3DProps extends BoardProps {
   me?: string;
   /** Рёбра «Самой длинной дороги» — подсветка магистрали. */
   longest?: string[];
+  /** Игрок, чьи постройки сейчас смотрят (тап по игроку): белый контур и ореол его цвета. */
+  spot?: string;
   /** Обмен через гавань: кораблик этой гавани уходит в рейс. */
   sail?: { type: HarborType; key: number };
 }
@@ -183,7 +185,7 @@ function CameraRig({
       g.panX = pt[0] * 0.7;
       g.panZ = pt[1] * 0.7;
     } else {
-      g.zoom = 2.5;
+      g.zoom = focus.zoom ?? 2.5;
       g.panX = pt[0];
       g.panZ = pt[1];
     }
@@ -194,7 +196,7 @@ function CameraRig({
       g.panX = f.base.panX;
       g.panZ = f.base.panZ;
       flight.current = null;
-    }, 1900);
+    }, focus.hold ?? 1900);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus?.key]);
   useEffect(
@@ -558,8 +560,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
       {/* в режиме выбора места свои маркеры уже рисуют доступные места — сетку прячем, чтобы не было двойных кругов */}
       {hl.vertices.size === 0 && hl.edges.size === 0 && <Slots ctx={ctx} buildings={view.buildings} roads={view.roads} />}
-      <Roads roads={view.roads} colors={colors} ctx={ctx} me={props.me} longest={props.longest} />
-      <Buildings buildings={view.buildings} colors={colors} ctx={ctx} me={props.me} />
+      <Roads roads={view.roads} colors={colors} ctx={ctx} me={props.me} longest={props.longest} spot={props.spot} />
+      <Buildings buildings={view.buildings} colors={colors} ctx={ctx} me={props.me} spot={props.spot} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
       <ViewShift on={!props.viewStatic} />
       {raid3d && <Raid3D key={raid3d.key} ev={raid3d} />}

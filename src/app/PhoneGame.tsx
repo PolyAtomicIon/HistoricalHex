@@ -39,7 +39,8 @@ import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
-import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
+import type { LogEntry } from './gameLog';
+import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
@@ -75,6 +76,36 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   if (import.meta.env.DEV) (window as unknown as { __awards: (r?: string, a?: string) => void }).__awards = (r, a) => setAwardDbg({ r, a });
   const pubShown = awardDbg ? { ...pub, longestRoad: awardDbg.r, largestArmy: awardDbg.a } : pub;
   const fx = useGameFx(pub, pack, me);
+  // Сообщения сервера/игры — внутри колонки сверху, а не поверх полосы игроков
+  const connNotice = useConn().notice;
+  const [gameToast, setGameToast] = useState<{ text: string; key: number } | null>(null);
+  // Подпись к атаке (налёт / изгнание): что за атака, на какой гекс, что это значит
+  const [raidCap, setRaidCap] = useState<{ key: number; title: string; text: string } | null>(null);
+  useEffect(() => {
+    const r = fx.raid;
+    if (!r) return;
+    const hex = r.target ? pub.board.hexes.find((h) => h.id === r.target) : undefined;
+    const resN = hex && hex.terrain !== 'desert' ? TERRAIN_RESOURCE[hex.terrain] : undefined;
+    const where = resN ? `${RESOURCE_NAME[resN]}${hex?.number ? ` ${hex.number}` : ''}` : 'гекс';
+    const mine = hex && Object.entries(pub.buildings).some(([v, b]) => b.owner === me && topologyFor(pub.board.layout).vertices.get(v)?.hexes.includes(hex.id));
+    setRaidCap(
+      r.kind === 'robber'
+        ? { key: r.key, title: `${pack.robber.name}: ${where}`, text: mine ? 'Это твой гекс — он не приносит дохода, пока захватчиков не прогонят' : 'Этот гекс не приносит дохода, пока захватчиков не прогонят' }
+        : { key: r.key, title: pack.devCards.knight.name, text: `Захватчиков выбивают с гекса ${where} — сейчас их переведут на другой` },
+    );
+    const t = setTimeout(() => setRaidCap((c) => (c?.key === r.key ? null : c)), 6000);
+    return () => clearTimeout(t);
+  }, [fx.raid?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!connNotice) return;
+    setGameToast(connNotice);
+    const t = setTimeout(() => setGameToast((g) => (g?.key === connNotice.key ? null : g)), 3600);
+    return () => clearTimeout(t);
+  }, [connNotice?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [logOpen, setLogOpen] = useState(false);
+  // Важное (награды, монополия) — карточкой с объяснением, пока не нажали «Понятно»
+  const [noticeSeen, setNoticeSeen] = useState(0);
+  const notice = fx.notice && fx.notice.key !== noticeSeen ? fx.notice : null;
   const { status: connStatus, vapid, pushOn } = useConn();
   // Один раз предложить уведомления «Твой ход» (через 20 с после входа в партию)
   const [askPush, setAskPushState] = useState(false);
@@ -124,6 +155,13 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const [busy, setBusy] = useState(false);
   const [plan, setPlanState] = useState<PlanStep[]>(() => loadPlan(room.pin, me));
   const [planPick, setPlanPick] = useState<PlanPick>(null);
+  // Тап по шагу плана — показать место на карте на несколько секунд
+  const [planPin, setPlanPin] = useState<{ at: string; key: number } | null>(null);
+  useEffect(() => {
+    if (!planPin) return;
+    const t = setTimeout(() => setPlanPin(null), 3500);
+    return () => clearTimeout(t);
+  }, [planPin]);
   const [autoRoll, setAutoRoll] = useState(readAuto);
   const [countdown, setCountdown] = useState<number | null>(null);
   const physical = room.settings.dice === 'physical';
@@ -142,6 +180,13 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     setPlanState(p);
     savePlan(room.pin, me, p);
   };
+
+  // Что уже построено своими руками — из плана убираем само («молодец, сделано»), чужое — оставляем сломанным
+  useEffect(() => {
+    const done = doneSteps(planRef.current, pub, me);
+    if (done.size === 0) return;
+    setPlan(planRef.current.filter((s) => !done.has(s.id)));
+  }, [pub.roads, pub.buildings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = async (a: Action, dice?: [number, number]): Promise<boolean> => {
     if (busy) return false;
@@ -337,7 +382,6 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     const k = blocked ? pub.robberHex : null;
     if (k && k !== wasBlocked.current) {
       haptic('error');
-      conn.notify(`${pack.robber.name}: твой гекс захвачен — ${RESOURCE_NAME[blocked!.res]} ${blocked!.number} без дохода`);
     }
     wasBlocked.current = k;
   }, [blocked, pub.robberHex]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -365,6 +409,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           ghosts={ghosts}
           spotlight={focusSpot}
           me={me}
+          pin={planPin}
         />
       </div>
 
@@ -385,47 +430,89 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </button>
       </header>
 
-      {focusPlayer ? (
-        <FocusCard
-          key={focusPlayer.key}
-          pub={pub}
-          id={focusPlayer.id}
-          pack={pack}
-          me={me}
-          onMore={() => {
-            setProfileOf(focusPlayer.id);
-            setSheet('pprofile');
-          }}
-          part={{ idx: focusPlayer.idx ?? 0, total: focusClusters.length, step: stepFocus }}
-        />
-      ) : (
-        <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
-          {status}
-          {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
-        </div>
-      )}
-      {fx.narration && (
-        <div key={`n${fx.narration.key}`} className="narr-line" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }}>
-          <i />
-          {fx.narration.text}
-        </div>
-      )}
-      {connStatus !== 'online' && <div className="reconnect glass">Переподключаемся…</div>}
+      {/* Верх экрана — одна колонка: статус, рассказчик, захват, уведомления. Ничего не накладывается. */}
+      <div className="hud-stack">
+        {focusPlayer ? (
+          <FocusCard
+            key={focusPlayer.key}
+            pub={pub}
+            id={focusPlayer.id}
+            pack={pack}
+            me={me}
+            onMore={() => {
+              setProfileOf(focusPlayer.id);
+              setSheet('pprofile');
+            }}
+            part={{ idx: focusPlayer.idx ?? 0, total: focusClusters.length, step: stepFocus }}
+          />
+        ) : (
+          <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
+            {status}
+            {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
+          </div>
+        )}
+        {fx.narration && (
+          <div key={`n${fx.narration.key}`} className="narr-line" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }}>
+            <i />
+            {fx.narration.text}
+          </div>
+        )}
+        {connStatus !== 'online' && <div className="reconnect glass">Переподключаемся…</div>}
 
-      {blocked && !focusPlayer && (
-        <button className="blocked-chip glass strong" onClick={() => setBlockInfo(true)}>
-          <span className="bc-ic">
-            <ResIcon r={blocked.res} size={22} />
-          </span>
-          <span className="bc-text">
-            <b>Твой гекс захвачен</b>
-            <small>
-              {RESOURCE_NAME[blocked.res]} · {blocked.number} — без дохода
-            </small>
-          </span>
-          <span className="bc-q">?</span>
-        </button>
-      )}
+        {blocked && !focusPlayer && !raidCap && (
+          <button className="blocked-chip glass strong" onClick={() => setBlockInfo(true)}>
+            <span className="bc-ic">
+              <ResIcon r={blocked.res} size={22} />
+            </span>
+            <span className="bc-text">
+              <b>Твой гекс захвачен</b>
+              <small>
+                {RESOURCE_NAME[blocked.res]} · {blocked.number} — без дохода
+              </small>
+            </span>
+            <span className="bc-q">?</span>
+          </button>
+        )}
+
+        {askPush && (
+          <div className="push-ask glass strong">
+            <span className="pa-ic">
+              <Icon name="bell" size={18} />
+            </span>
+            <span className="pa-text">Напомнить о ходе?</span>
+            <button
+              className="btn primary small-act"
+              onClick={async () => {
+                setAskPush(false);
+                const err = await enablePush(vapid, (sub) => conn.send({ t: 'pushSub', sub }));
+                if (err) conn.notify(err);
+              }}
+            >
+              Включить
+            </button>
+            <button className="btn ghost small-act" onClick={() => setAskPush(false)} aria-label="Не сейчас">
+              <Icon name="close" size={16} />
+            </button>
+          </div>
+        )}
+
+        {raidCap && (
+          <div key={raidCap.key} className="raid-cap" role="status">
+            <span className="rc-ic">
+              <ArtIcon src={eraIcon(pack.id, 'robber-unit')} size={26} />
+            </span>
+            <span>
+              <b>{raidCap.title}</b>
+              <small>{raidCap.text}</small>
+            </span>
+          </div>
+        )}
+        {gameToast && (
+          <div key={gameToast.key} className="game-toast glass" role="status" onClick={() => setGameToast(null)}>
+            {gameToast.text}
+          </div>
+        )}
+      </div>
 
       {myTurn && <TurnBanner key={`tb${pub.turn}`} color={PLAYER_HEX[meP.color]} />}
 
@@ -498,7 +585,26 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
-      {showNudge && (
+      {notice && (
+        <div key={notice.key} className="fact-pop notice-card glass strong" role="alert">
+          <span className="nc-ic" style={{ ['--pc' as string]: notice.who && pub.players[notice.who] ? PLAYER_HEX[pub.players[notice.who].color] : 'var(--accent)' }}>
+            <Icon name="crown" size={20} />
+          </span>
+          <div className="fp-body">
+            <b className="nc-title">{notice.title}</b>
+            <p className="nc-text">{notice.text}</p>
+            <div className="fp-actions">
+              <button className="btn primary small-act" onClick={() => setNoticeSeen(notice.key)}>
+                Понятно
+              </button>
+              <button className="btn ghost small-act" onClick={() => { setNoticeSeen(notice.key); setSheet('plan'); setLogOpen(true); }}>
+                <Icon name="book" size={16} /> Журнал
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showNudge && !notice && (
         <PlanNudge
           hint={hints[0]}
           onPick={(k) => {
@@ -509,29 +615,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           onClose={() => setNudgeOff(true)}
         />
       )}
-      <FactPopup pack={pack} allowed={showFact && !sheet && !showNudge} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />
-
-      {askPush && (
-        <div className="push-ask glass strong">
-          <span className="pa-ic">
-            <Icon name="bell" size={18} />
-          </span>
-          <span className="pa-text">Напомнить о ходе?</span>
-          <button
-            className="btn primary small-act"
-            onClick={async () => {
-              setAskPush(false);
-              const err = await enablePush(vapid, (sub) => conn.send({ t: 'pushSub', sub }));
-              if (err) conn.notify(err);
-            }}
-          >
-            Включить
-          </button>
-          <button className="btn ghost small-act" onClick={() => setAskPush(false)} aria-label="Не сейчас">
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-      )}
+      <FactPopup pack={pack} allowed={showFact && !sheet && !showNudge && !notice} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />
 
       {planReady && !build && !selected && !planPick && (
         <button className="plan-run glass" disabled={busy} onClick={() => void runPlan()}>
@@ -649,7 +733,16 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             setSheet(null);
             setPlanPick(k);
           }}
+          onShow={(at) => {
+            setSheet(null);
+            setPlanPin({ at, key: Date.now() });
+          }}
+          onLog={() => setLogOpen(true)}
+          logCount={fx.log.length}
         />
+        <Sheet open={logOpen && sheet === 'plan'} onClose={() => setLogOpen(false)} title="Журнал партии" description="Что происходило — новое сверху">
+          <GameLogList log={fx.log} pub={pub} />
+        </Sheet>
       </Sheet>
 
       <Sheet open={sheet === 'players'} onClose={() => setSheet(null)} title="Игроки" description={`До победы — ${room.settings.vpToWin} очков`}>
@@ -1646,6 +1739,9 @@ function PlanSheet({
   busy,
   onRun,
   onPick,
+  onShow,
+  onLog,
+  logCount,
 }: {
   checked: ReturnType<typeof checkPlan>;
   plan: PlanStep[];
@@ -1657,6 +1753,10 @@ function PlanSheet({
   busy: boolean;
   onRun: () => void;
   onPick: (k: PlanPick) => void;
+  /** Показать место шага на карте. */
+  onShow?: (at: string) => void;
+  onLog?: () => void;
+  logCount?: number;
 }) {
   const [adding, setAdding] = useState<null | 'bank' | 'offer'>(null);
   const [give, setGive] = useState<Resource | null>(null);
@@ -1752,7 +1852,11 @@ function PlanSheet({
               <span className="pstep-ic">
                 <Icon name={STEP_ICON[c.step.kind]} size={20} />
               </span>
-              <div className="pstep-body">
+              <div
+                className={`pstep-body ${'at' in c.step && onShow ? 'tappable' : ''}`}
+                role={'at' in c.step && onShow ? 'button' : undefined}
+                onClick={'at' in c.step && onShow ? () => onShow((c.step as { at: string }).at) : undefined}
+              >
                 <b>
                   <span className="pstep-n">{i + 1}</span>
                   {STEP_LABEL[c.step.kind]}
@@ -1826,7 +1930,35 @@ function PlanSheet({
         </div>
       )}
       {!canRun && checked.length > 0 && <p className="faint small center">Выполнить можно в свой ход после броска</p>}
+
+      {onLog && (
+        <button className="log-open" onClick={onLog}>
+          <Icon name="book" size={18} />
+          <span className="grow">Журнал партии</span>
+          <small>{logCount}</small>
+          <Icon name="next" size={16} />
+        </button>
+      )}
     </div>
+  );
+}
+
+/** Журнал партии: кто что сделал, с разделителями по ходам; новое — сверху. */
+function GameLogList({ log, pub }: { log: LogEntry[]; pub: PublicState }) {
+  if (log.length === 0) return <p className="muted small">Пока пусто — события появятся по ходу партии.</p>;
+  const rows = [...log].reverse();
+  return (
+    <ol className="glog">
+      {rows.map((l) => {
+        const c = l.who ? pub.players[l.who]?.color : undefined;
+        return (
+          <li key={l.key} className={l.turn ? 'turn' : ''} style={{ ['--pc' as string]: c ? PLAYER_HEX[c] : 'rgba(255,255,255,.35)' }}>
+            {!l.turn && <i />}
+            <span>{l.text}</span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

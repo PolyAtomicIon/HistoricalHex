@@ -4091,3 +4091,171 @@ html.lite .home .era-card.on .era-cover {
 .pbar.compact .pcell {
   flex: 0 1 64px;
 }
+
+/* Шаг плана с местом — тап показывает его на карте */
+.pstep-body.tappable { cursor: pointer; }
+.pstep-body.tappable > b::after {
+  content: 'на карте ›';
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+/* Закреплённое уведомление (награды, монополия): поверх факта/пинка, пока не «Понятно» */
+.notice-card { z-index: 8; }
+.nc-ic {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #ffc93c;
+  color: #2a1d00;
+  box-shadow: 0 0 0 2px var(--pc);
+}
+.nc-title { font-size: 15px; line-height: 1.25; }
+.nc-text { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink-2); }
+/* Кнопка журнала внизу плана */
+.log-open {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.log-open small { color: var(--ink-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Журнал */
+.glog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.glog li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 4px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.glog li i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--pc);
+}
+.glog li.turn {
+  margin-top: 8px;
+  padding: 4px 4px 2px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ═══ Верх экрана игры — одна колонка без наложений ═══ */
+.hud-stack {
+  position: absolute;
+  z-index: 6;
+  left: 12px;
+  right: 12px;
+  top: calc(var(--safe-t) + 76px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.hud-stack > * {
+  pointer-events: auto;
+  position: static !important;
+  transform: none !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  margin: 0 !important;
+  max-width: 100%;
+  animation: hud-in 280ms var(--ease-out);
+}
+@keyframes hud-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+.hud-stack .narr-line {
+  max-width: min(100%, 520px);
+  white-space: normal;
+  text-align: left;
+}
+.game-toast {
+  max-width: min(100%, 440px);
+  padding: 9px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  cursor: pointer;
+}
+/* Уведомление: обе кнопки по содержимому, без наложения */
+.notice-card .fp-actions .btn,
+.notice-card .fp-actions .btn.ghost {
+  width: auto;
+  padding: 0 14px;
+  gap: 6px;
+  flex: none;
+}
+.notice-card .nc-title,
+.notice-card .nc-text {
+  overflow-wrap: anywhere;
+}
+
+/* Подпись атаки: что происходит и что это значит */
+.raid-cap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(100%, 460px);
+  padding: 8px 14px 8px 8px;
+  border-radius: 18px;
+  background: rgba(60, 10, 8, 0.88);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.raid-cap .rc-ic {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+}
+.raid-cap b { display: block; font-size: 15px; line-height: 1.2; }
+.raid-cap small { display: block; font-size: 13px; line-height: 1.3; color: rgba(255, 255, 255, 0.78); }
+/* Узкие телефоны (≤380px): полоса игроков плотнее — число карт не обрезается */
+@media (max-width: 380px) {
+  .pbar:not(.compact) .pcell { gap: 5px; padding: 4px 4px 4px 4px; }
+  .pbar:not(.compact) .pc-ava { width: 26px; height: 26px; }
+  .pbar:not(.compact) .pc-ava .pav-timer { inset: -5px; width: 36px; height: 36px; }
+  .pc-stats { font-size: 11px; gap: 1px; }
+  .pc-stats .icon { width: 10px; height: 10px; }
+  .pc-stats .pc-hand { margin-left: 2px; }
+  .pc-name { font-size: 12px; }
+  .hud-top > .fab { width: 50px; height: 50px; }
+}

@@ -3,7 +3,7 @@
 import { Component, Suspense, lazy, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PlayerColor, PlayerId, PublicState } from '../engine';
-import { longestRoadPath } from '../engine';
+import { longestRoadPath, topologyFor } from '../engine';
 import { Board2D } from '../board2d/Board2D';
 import type { GameFx } from './useGameFx';
 import { useLite } from './lite';
@@ -77,7 +77,10 @@ export function GameBoard({
   fx,
   ghosts,
   me,
+  pin,
 }: {
+  /** Показать место на карте (шаг плана): камера летит туда, место подсвечивается. */
+  pin?: { at: string; key: number } | null;
   pub: PublicState;
   /** Кто смотрит: его постройки помечаются («это твоё»). */
   me?: string;
@@ -98,6 +101,17 @@ export function GameBoard({
   ghosts?: { vertex?: string; edge?: string; kind: 'road' | 'settlement' | 'city'; color: PlayerColor; broken?: boolean }[];
 }) {
   const [gl] = useState(hasWebGL);
+  const pinFocus = useMemo(() => {
+    if (!pin) return undefined;
+    const t = topologyFor(pub.board.layout);
+    return t.vertices.has(pin.at) ? { vertex: pin.at, key: pin.key } : { edge: pin.at, key: pin.key };
+  }, [pin, pub.board.layout]);
+  const hl = useMemo(() => {
+    if (!pin) return highlight;
+    const t = topologyFor(pub.board.layout);
+    const isV = t.vertices.has(pin.at);
+    return { ...highlight, vertices: [...(highlight?.vertices ?? []), ...(isV ? [pin.at] : [])], edges: [...(highlight?.edges ?? []), ...(isV ? [] : [pin.at])] };
+  }, [pin, highlight, pub.board.layout]);
   // «Самая длинная дорога»: её цепочка подсвечивается на карте
   const longest = useMemo(() => (pub.longestRoad ? longestRoadPath(pub, pub.longestRoad) : []), [pub]);
   // Для 3D: постройка игрока ближе всего к центру его построек — туда летит камера
@@ -114,14 +128,14 @@ export function GameBoard({
       view={pub}
       era={era}
       colors={colors}
-      highlight={highlight}
+      highlight={hl}
       onVertex={onVertex}
       onEdge={onEdge}
       onHex={onHex}
       selected={selected}
       recent={fx.recent}
       flash={fx.flash}
-      focus={fx.focus}
+      focus={pinFocus ?? fx.focus}
       ghosts={ghosts}
       shake={fx.shake}
       static={boardStatic}
@@ -140,7 +154,7 @@ export function GameBoard({
         <Board3D
           view={pub}
           colors={colors}
-          highlight={highlight}
+          highlight={hl}
           onVertex={onVertex}
           onEdge={onEdge}
           onHex={onHex}
@@ -149,7 +163,7 @@ export function GameBoard({
           flash={fx.flash}
           mode="3d"
           palette={palette}
-          focus={spotFocus ?? fx.focus}
+          focus={pinFocus ?? spotFocus ?? fx.focus}
           ghosts={ghosts}
           shake={fx.shake}
           lowPower={lowPower}
@@ -159,6 +173,7 @@ export function GameBoard({
           raid={fx.raid}
           me={me}
           longest={longest}
+          spot={spotlight?.id}
         />
       </Suspense>
     </Fallback>

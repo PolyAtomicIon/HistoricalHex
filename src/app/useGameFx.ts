@@ -11,6 +11,37 @@ import { haptic, rollDurationMs, sfx } from '../fx';
 import { PLAYER_HEX } from '../ui/theme';
 import { eraIcon } from './era';
 import { RESOURCE_NAME } from '../i18n/ru';
+import type { LogEntry, Notice } from './gameLog';
+import { hexResource, logText, noticeFor } from './gameLog';
+
+function loadLog(): LogEntry[] {
+  try {
+    const pin = conn.lastPin();
+    const raw = pin && localStorage.getItem(`hh.log.${pin}`);
+    return raw ? (JSON.parse(raw) as LogEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Камера на атаке: держим кадр всю сцену (в 3D), налёт ВОВ — шире, чтобы видеть звено. */
+const SHOT: Record<string, { hold: number; zoom: number }> = {
+  'ww2:robber': { hold: 7200, zoom: 1.7 },
+  'ww2:knight': { hold: 6600, zoom: 2.1 },
+  'genghis:robber': { hold: 6300, zoom: 2.0 },
+  'genghis:knight': { hold: 5000, zoom: 2.1 },
+  'japan:robber': { hold: 5400, zoom: 2.3 },
+  'japan:knight': { hold: 5000, zoom: 2.3 },
+};
+function attackShot(era: string, kind: 'robber' | 'knight'): { hold?: number; zoom?: number } {
+  let is3d = false;
+  try {
+    is3d = localStorage.getItem('hh.boardMode') === '3d';
+  } catch {
+    /* ok */
+  }
+  return is3d ? (SHOT[`${era}:${kind}`] ?? {}) : {};
+}
 
 export interface Narration {
   text: string;
@@ -24,13 +55,17 @@ export interface GameFx {
   raid: RaidEvent | null;
   gains: { list: Gain[]; key: number };
   narration: Narration | null;
-  focus?: { hex?: string; vertex?: string; edge?: string; key: number };
+  focus?: { hex?: string; vertex?: string; edge?: string; key: number; hold?: number; zoom?: number };
   flash?: { hexes: string[]; key: number };
   recent: string[];
   shake: number;
   /** Обмен через гавань — кораблик уходит в рейс. */
   sail?: { type: HarborType; key: number };
   reactions: ReactionItem[];
+  /** Журнал партии (с момента входа), до 200 строк. */
+  log: LogEntry[];
+  /** Важное событие с объяснением — висит, пока не нажали «Понятно». */
+  notice: Notice | null;
 }
 
 /**
@@ -46,12 +81,23 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     recent: [],
     shake: 0,
     reactions: [],
+    log: loadLog(),
+    notice: null,
   });
+  // журнал живёт и после перезагрузки страницы (по PIN комнаты)
+  useEffect(() => {
+    try {
+      const pin = conn.lastPin();
+      if (pin) localStorage.setItem(`hh.log.${pin}`, JSON.stringify(fx.log.slice(-200)));
+    } catch {
+      /* ok */
+    }
+  }, [fx.log]);
   const pubRef = useRef(pub);
   pubRef.current = pub;
   const packRef = useRef(pack);
   packRef.current = pack;
-  const k = useRef(1);
+  const k = useRef(Date.now());
 
   useEffect(() => {
     const tv = me === undefined;
@@ -86,15 +132,38 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     };
     if (import.meta.env.DEV) {
       const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined; __focus: (id: string) => void };
-      w.__raid = raid;
+      w.__raid = (kind, target, era) => {
+        raid(kind, target, era);
+        if (target) setFx((f) => ({ ...f, focus: { hex: target, key: k.current++, ...attackShot(era ?? packRef.current.id, kind) } }));
+      };
       w.__robber = () => pubRef.current?.robberHex;
       w.__focus = (id) => setFx((f) => ({ ...f, focus: id.startsWith('h') ? { hex: id, key: k.current++ } : { vertex: id, key: k.current++ } }));
       (window as unknown as { __pub: () => unknown }).__pub = () => pubRef.current;
+      (window as unknown as { __notice: (t: string, x: string) => void }).__notice = (title, text) => setFx((f) => ({ ...f, notice: { title, text, key: k.current++ } }));
+      (window as unknown as { __say: (t: string) => void }).__say = (t) => say(t);
     }
 
     const offEvents = conn.onEvents((events: GameEvent[], source) => {
       const p = packRef.current;
       let delay = 0;
+      // журнал и закреплённые уведомления
+      const lctx = {
+        pack: p,
+        name,
+        me,
+        hexInfo: (hex: string) => {
+          const h = pubRef.current?.board.hexes.find((x) => x.id === hex);
+          return h ? { res: hexResource(h.terrain), number: h.number } : undefined;
+        },
+      };
+      const lines = events.map((e) => logText(e, lctx)).filter((x): x is NonNullable<typeof x> => !!x);
+      const note = events.map((e) => noticeFor(e, lctx)).find((x) => !!x);
+      if (lines.length || note)
+        setFx((f) => ({
+          ...f,
+          log: [...f.log, ...lines.map((l) => ({ ...l, key: k.current++ }))].slice(-200),
+          notice: note ? { ...note, key: k.current++ } : f.notice,
+        }));
       for (const e of events) {
         switch (e.type) {
           case 'diceRolled': {
@@ -142,7 +211,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             break;
           }
           case 'robberMoved':
-            setFx((f) => ({ ...f, focus: { hex: e.hex, key: k.current++ } }));
+            setFx((f) => ({ ...f, focus: { hex: e.hex, key: k.current++, ...attackShot(p.id, 'robber') } }));
             raid('robber', e.hex);
             say(narrate(p, 'robberMoved', { player: name(e.player) }), e.player);
             break;
@@ -159,7 +228,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             const card = p.devCards[e.card];
             if (e.card === 'knight') {
               raid('knight', pubRef.current?.robberHex);
-              if (pubRef.current?.robberHex) setFx((f) => ({ ...f, focus: { hex: pubRef.current!.robberHex, key: k.current++ } }));
+              if (pubRef.current?.robberHex) setFx((f) => ({ ...f, focus: { hex: pubRef.current!.robberHex, key: k.current++, ...attackShot(p.id, 'knight') } }));
               say(`${card.name}: ${narrate(p, 'knight', { player: name(e.player) })}`, e.player);
             } else if (e.card === 'roadBuilding') {
               cine({ kind: 'roadBuilding', title: card.name, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });

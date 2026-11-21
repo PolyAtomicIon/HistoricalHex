@@ -59,3 +59,28 @@ describe('план: куда поставить поселение и какие
     expect(settlementRoutes(clean(), 'a').size).toBe(0);
   });
 });
+
+import { doneSteps } from '../src/app/planner';
+describe('план: выполненные шаги убираются сами', () => {
+  it('своя дорога/поселение/город — выполнено; чужое — нет', () => {
+    const plan = [
+      { id: 'r1', kind: 'road' as const, at: 'e1' },
+      { id: 'r2', kind: 'road' as const, at: 'e2' },
+      { id: 's1', kind: 'settlement' as const, at: 'v1' },
+      { id: 's2', kind: 'settlement' as const, at: 'v2' },
+      { id: 'c1', kind: 'city' as const, at: 'v3' },
+      { id: 'c2', kind: 'city' as const, at: 'v4' },
+      { id: 'd', kind: 'devCard' as const },
+    ];
+    const pub = {
+      roads: { e1: 'a', e2: 'b' },
+      buildings: {
+        v1: { owner: 'a', kind: 'settlement' as const },
+        v2: { owner: 'b', kind: 'settlement' as const },
+        v3: { owner: 'a', kind: 'city' as const },
+        v4: { owner: 'a', kind: 'settlement' as const },
+      },
+    };
+    expect([...doneSteps(plan, pub, 'a')].sort()).toEqual(['c1', 'r1', 's1']);
+  });
+});

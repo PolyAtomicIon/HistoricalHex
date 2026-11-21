@@ -152,6 +152,29 @@ function haloMat(color: PlayerColor): THREE.MeshBasicMaterial {
   }
   return m;
 }
+// Подсветка постройки игрока, которого сейчас смотрят: белый контур + ореол его цвета
+const spotHullMat = new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.BackSide, toneMapped: false });
+const spotHaloCache = new Map<string, THREE.MeshBasicMaterial>();
+function spotHaloMat(color: PlayerColor): THREE.MeshBasicMaterial {
+  let m = spotHaloCache.get(color);
+  if (!m) {
+    m = new THREE.MeshBasicMaterial({ map: haloTexture(), color: color === 'white' ? '#ffffff' : PLAYER_HEX[color], transparent: true, depthWrite: false, toneMapped: false });
+    spotHaloCache.set(color, m);
+  }
+  return m;
+}
+function SpotHalo({ color }: { color: PlayerColor }) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    const m = ref.current;
+    if (!m) return;
+    const k = 0.5 + 0.5 * Math.sin(clock.elapsedTime * 4);
+    m.scale.setScalar(1.05 + k * 0.2);
+    (m.material as THREE.MeshBasicMaterial).opacity = 0.7 + k * 0.3;
+  });
+  return <mesh ref={ref} geometry={haloGeo} material={spotHaloMat(color)} position={[0, 0.014, 0]} renderOrder={3} />;
+}
+
 /** «Это твоё»: золотой ореол на земле («дышит») и золотой ромб над крышей (крутится, покачивается). */
 function MineHalo({ color, top }: { color: PlayerColor; top: number }) {
   const ref = useRef<THREE.Mesh>(null);
@@ -323,7 +346,7 @@ function LaneFx() {
   return null;
 }
 
-function Road({ id, color, ctx, mine, longest }: { id: string; color: PlayerColor; ctx: PieceCtx; mine?: boolean; longest?: boolean }) {
+function Road({ id, color, ctx, mine, longest, lit }: { id: string; color: PlayerColor; ctx: PieceCtx; mine?: boolean; longest?: boolean; lit?: boolean }) {
   const recent = ctx.recent.has(id);
   const g = usePop(recent);
   const xf = edgeXform(ctx, id);
@@ -331,7 +354,7 @@ function Road({ id, color, ctx, mine, longest }: { id: string; color: PlayerColo
   return (
     <group position={[xf.x, xf.y + 0.032, xf.z]} rotation={[0, xf.ang, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
-        <mesh geometry={roadGeo} material={longest ? longHullMat : mine ? mineHullMat : hullMat(color)} scale={longest ? [1.06, 1.7, 1.7] : [1.04, 1.5, 1.35]} position={[0, 0.002, 0]} />
+        <mesh geometry={roadGeo} material={lit ? spotHullMat : longest ? longHullMat : mine ? mineHullMat : hullMat(color)} scale={longest || lit ? [1.06, 1.7, 1.7] : [1.04, 1.5, 1.35]} position={[0, 0.002, 0]} />
         {longest && <mesh geometry={laneGeo} material={laneMat} renderOrder={4} />}
         <mesh geometry={roadGeo} material={roadMat(color)} castShadow receiveShadow />
       </group>
@@ -340,14 +363,14 @@ function Road({ id, color, ctx, mine, longest }: { id: string; color: PlayerColo
   );
 }
 
-export function Roads({ roads, colors, ctx, me, longest }: { roads: Record<string, string>; colors: Record<string, PlayerColor>; ctx: PieceCtx; me?: string; longest?: string[] }) {
+export function Roads({ roads, colors, ctx, me, longest, spot }: { roads: Record<string, string>; colors: Record<string, PlayerColor>; ctx: PieceCtx; me?: string; longest?: string[]; spot?: string }) {
   const lset = new Set(longest ?? []);
   return (
     <>
       {lset.size > 0 && <LaneFx />}
       {Object.entries(roads).map(([id, owner]) => {
         const c = colors[owner];
-        return c ? <Road key={`${id}:${ctx.recent.has(id)}`} id={id} color={c} ctx={ctx} mine={owner === me} longest={lset.has(id)} /> : null;
+        return c ? <Road key={`${id}:${ctx.recent.has(id)}`} id={id} color={c} ctx={ctx} mine={owner === me} longest={lset.has(id)} lit={!!spot && owner === spot} /> : null;
       })}
     </>
   );
@@ -421,7 +444,7 @@ export function Slots({ ctx, buildings, roads }: { ctx: PieceCtx; buildings: Rec
 
 // ---------- здания ----------
 
-function Building({ id, kind, color, ctx, mine }: { id: string; kind: 'settlement' | 'city'; color: PlayerColor; ctx: PieceCtx; mine?: boolean }) {
+function Building({ id, kind, color, ctx, mine, lit }: { id: string; kind: 'settlement' | 'city'; color: PlayerColor; ctx: PieceCtx; mine?: boolean; lit?: boolean }) {
   const recent = ctx.recent.has(id);
   const g = usePop(recent);
   const p = ctx.world.vert.get(id);
@@ -433,8 +456,9 @@ function Building({ id, kind, color, ctx, mine }: { id: string; kind: 'settlemen
       <group ref={g} scale={recent ? 0 : 1}>
         <mesh geometry={foundGeo} material={foundMat} />
         <mesh geometry={shadowGeo} material={shadowMat} position={[0, 0.006, 0]} renderOrder={2} />
-        {mine && <MineHalo color={color} top={kind === 'city' ? 0.86 : 0.64} />}
-        <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={mine ? mineHullMat : hullMat(color)} scale={mine ? [1.1, 1.07, 1.1] : [1.08, 1.06, 1.08]} position={[0, 0.004, 0]} />
+        {mine && !lit && <MineHalo color={color} top={kind === 'city' ? 0.86 : 0.64} />}
+        {lit && <SpotHalo color={color} />}
+        <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={lit ? spotHullMat : mine ? mineHullMat : hullMat(color)} scale={lit ? [1.14, 1.09, 1.14] : mine ? [1.1, 1.07, 1.1] : [1.08, 1.06, 1.08]} position={[0, 0.004, 0]} />
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={pieceMat(color)} castShadow receiveShadow />
         {kind === 'city' && (
           <>
@@ -454,17 +478,19 @@ export function Buildings({
   colors,
   ctx,
   me,
+  spot,
 }: {
   buildings: Record<string, { owner: string; kind: 'settlement' | 'city' }>;
   colors: Record<string, PlayerColor>;
   ctx: PieceCtx;
   me?: string;
+  spot?: string;
 }) {
   return (
     <>
       {Object.entries(buildings).map(([id, b]) => {
         const c = colors[b.owner];
-        return c ? <Building key={`${id}:${b.kind}:${ctx.recent.has(id)}`} id={id} kind={b.kind} color={c} ctx={ctx} mine={b.owner === me} /> : null;
+        return c ? <Building key={`${id}:${b.kind}:${ctx.recent.has(id)}`} id={id} kind={b.kind} color={c} ctx={ctx} mine={b.owner === me} lit={!!spot && b.owner === spot} /> : null;
       })}
     </>
   );
