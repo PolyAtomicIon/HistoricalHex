@@ -120,7 +120,7 @@ export function normalizePrivateView(raw: PrivateView): PrivateView {
 export function toPrivateView(s: GameState, pid: PlayerId): PrivateView {
   const p = s.players[pid];
   const canPlayNow =
-    currentPlayerId(s) === pid && (s.phase === 'roll' || s.phase === 'main') && !s.devCardPlayed;
+    currentPlayerId(s) === pid && s.phase === 'main' && !s.devCardPlayed; // карты — только после броска
   return {
     resources: { ...p.resources },
     devCards: p.devCards.map((c) => ({

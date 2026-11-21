@@ -47,6 +47,33 @@ export function MarketTab({ pub }: { pub: PublicState }) {
   );
 }
 
+/** Гонка за «Самым сильным войском»: сколько воинов сыграл каждый и сколько нужно, чтобы забрать бонус. */
+export function ArmyRace({ pub, me, title }: { pub: PublicState; me?: PlayerId; title: string }) {
+  const list = pub.order.map((id) => ({ id, n: pub.players[id].knightsPlayed })).sort((a, b) => b.n - a.n);
+  const holder = pub.largestArmy;
+  const top = holder ? pub.players[holder].knightsPlayed : 0;
+  const need = holder ? top + 1 : 3;
+  return (
+    <section className="ti-army">
+      <div className="ti-army-h">
+        <b>{title}</b>
+        <small>{holder ? `у ${holder === me ? 'тебя' : pub.players[holder].name} · чтобы забрать, нужно ${need}` : 'нужно 3 сыгранных воина — бонус +2 очка'}</small>
+      </div>
+      <div className="ti-army-row">
+        {list.map(({ id, n }) => (
+          <span key={id} className={`ti-army-p ${id === holder ? 'lead' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[pub.players[id].color] }}>
+            <i />
+            <span className="ti-army-name">{id === me ? 'Ты' : pub.players[id].name}</span>
+            <b>
+              <Icon name="army" size={13} /> {n}
+            </b>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function NumbersTab({ pub, me }: { pub: PublicState; me?: PlayerId }) {
   const { rows } = useMemo(() => tableHarvest(pub), [pub.buildings, pub.robberHex, pub.bank]); // eslint-disable-line react-hooks/exhaustive-deps
   const hit = pub.dice && pub.phase !== 'setup' && pub.phase !== 'roll' ? pub.dice[0] + pub.dice[1] : 0;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DevCardType, GameState } from '../src/engine';
-import { topologyFor, totalResources, victoryPoints } from '../src/engine';
+import { toPrivateView, topologyFor, totalResources, victoryPoints } from '../src/engine';
 import { act, actFail, mainPhase, newGame, setHand, skipSetup } from './helpers';
 
 function giveCard(s: GameState, pid: string, type: DevCardType, boughtTurn = 0) {
@@ -49,15 +49,12 @@ describe('покупка карт развития', () => {
 });
 
 describe('рыцарь и армия', () => {
-  it('до броска: разбойник → снова фаза броска', () => {
-    let s = skipSetup(newGame(3));
+  it('до броска карты развития играть нельзя (домашнее правило: сначала кубики)', () => {
+    const s = skipSetup(newGame(3));
     giveCard(s, 'a', 'knight');
-    s = act(s, 'a', { type: 'playKnight' });
-    expect(s.phase).toBe('moveRobber');
-    const hex = s.board.hexes.find((h) => h.id !== s.robberHex)!.id;
-    s = act(s, 'a', { type: 'moveRobber', hex });
     expect(s.phase).toBe('roll');
-    expect(s.players.a.knightsPlayed).toBe(1);
+    expect(actFail(s, 'a', { type: 'playKnight' })).toMatch(/Сначала брось кубики/);
+    expect(toPrivateView(s, 'a').devCards.find((c) => c.type === 'knight')?.playable).toBe(false);
   });
 
   it('«Самая большая армия» с 3 рыцарей и переходит только при большем числе', () => {

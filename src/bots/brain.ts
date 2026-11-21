@@ -120,10 +120,8 @@ function decideEasy(ctx: BotContext): Action | null {
       return pub.setup?.step === 'road'
         ? { type: 'buildRoad', edge: pick(rng, legalRoadEdges(pub, me, pub.setup.lastVertex)) }
         : { type: 'buildSettlement', vertex: pick(rng, legalSettlementVertices(pub, me, true)) };
-    case 'roll': {
-      const knight = priv.devCards.find((c) => c.type === 'knight' && c.playable);
-      return knight && rng() < 0.3 ? { type: 'playKnight' } : { type: 'rollDice' };
-    }
+    case 'roll':
+      return { type: 'rollDice' }; // карты развития — только после броска
     case 'moveRobber': {
       const hex = pick(rng, pub.board.hexes.filter((h) => h.id !== pub.robberHex)).id;
       const victims = playersAtHex(pub, hex, me).filter((p) => pub.players[p].resourceCount > 0);
@@ -405,7 +403,7 @@ function decideSmart(ctx: BotContext): Action | null {
       return { type: 'buildSettlement', vertex: bestBy(spots, (v) => vertexScore(ctx, v, mine) + rng() * 0.3)! };
     }
     case 'roll':
-      return wantsKnight(ctx) ? { type: 'playKnight' } : { type: 'rollDice' };
+      return { type: 'rollDice' }; // карты развития — только после броска
     case 'moveRobber':
       return smartRobber(ctx);
     case 'roadBuilding': {

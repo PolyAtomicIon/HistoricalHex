@@ -470,7 +470,9 @@ function finishDiscard(s: GameState, pid: PlayerId): void {
 /** Проверяет и забирает из руки карту развития (кроме «Победного очка»). */
 function takeDevCard(c: Ctx, type: Exclude<GameState['devDeck'][number], 'victoryPoint'>): void {
   requireTurn(c);
-  requirePhase(c, 'roll', 'main');
+  // Домашнее правило: сначала бросок кубиков, карты развития — только после него
+  if (c.s.phase === 'roll') fail('Сначала брось кубики — карты развития играются после броска');
+  requirePhase(c, 'main');
   const { s, actor } = c;
   if (s.devCardPlayed) fail('За ход можно сыграть только одну карту развития');
   const cards = s.players[actor].devCards;

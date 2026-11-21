@@ -8,7 +8,9 @@ import { part } from './Terrain';
 import { puff } from './units';
 import { useEnv } from './rig';
 
-const CLOUDS = 9;
+// На телефоне (сенсорный экран) облака не рисуем: в узком кадре они читаются как белые полосы-артефакты
+const TOUCH = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+const CLOUDS = TOUCH ? 0 : 9;
 const FLOCKS = 3;
 const BIRDS = 6;
 const GLINTS = 24;

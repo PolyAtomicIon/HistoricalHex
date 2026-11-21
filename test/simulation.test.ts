@@ -55,11 +55,8 @@ function chooseAction(s: GameState, rng: Rng): { actor: PlayerId; action: Action
     }
     case 'roadBuilding':
       return { actor: pid, action: { type: 'buildRoad', edge: pick(rng, legalRoadEdges(s, pid)) } };
-    case 'roll': {
-      const knight = me.devCards.find((c) => c.type === 'knight' && c.boughtTurn < s.turn);
-      if (knight && !s.devCardPlayed && rng() < 0.3) return { actor: pid, action: { type: 'playKnight' } };
-      return { actor: pid, action: { type: 'rollDice' } };
-    }
+    case 'roll':
+      return { actor: pid, action: { type: 'rollDice' } }; // карты развития — только после броска
     case 'main': {
       const options: Action[] = [];
       const res = me.resources;

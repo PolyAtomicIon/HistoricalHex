@@ -40,7 +40,7 @@ import { GameBoard, chose3d, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
 import { incomeByNumber } from './income';
-import { MarketTab, NumbersTab } from './TableInfo';
+import { ArmyRace, MarketTab, NumbersTab } from './TableInfo';
 import { TRADE_UI_LABEL, TradeCard, TradeCaravan, setTradeUi, useTradeUi } from './TradeOffer';
 import type { TradeUi } from './TradeOffer';
 import type { LogEntry } from './gameLog';
@@ -759,7 +759,12 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             </button>
           ))}
         </div>
-        {infoTab === 'market' && <MarketTab pub={pub} />}
+        {infoTab === 'market' && (
+          <>
+            <ArmyRace pub={pub} me={me} title={pack.bonuses.largestArmy} />
+            <MarketTab pub={pub} />
+          </>
+        )}
         {infoTab === 'nums' && <NumbersTab pub={pub} me={me} />}
         {infoTab === 'log' && <GameLogList log={fx.log} pub={pub} />}
       </Sheet>
@@ -1068,6 +1073,17 @@ export function PlayersBar({
             <span className="pc-ava">
               {turn && deadline && <TimerRing until={deadline} />}
               <span className="pc-face">{p.name.charAt(0).toUpperCase()}</span>
+              {!compact && (
+                <span className="pc-pts" title="Очки">
+                  {p.points}
+                </span>
+              )}
+              {!compact && p.knightsPlayed > 0 && (
+                <span className="pc-kn" title="Сыграно воинов">
+                  <Icon name="army" size={8} />
+                  {p.knightsPlayed}
+                </span>
+              )}
               {bot && !compact && (
                 <span className="pc-bot" aria-label="бот">
                   <Icon name="bot" size={9} />
@@ -1089,10 +1105,10 @@ export function PlayersBar({
                   <span className="pc-name">{id === room.me ? 'Ты' : p.name}</span>
                 </span>
                 <span className="pc-stats">
-                  <Icon name="star" size={11} />
-                  <b>{p.points}</b>
-                  <Icon name="hand" size={11} className="pc-hand" />
-                  {p.resourceCount}
+                  <span className="pc-st" title="Карт на руке">
+                    <Icon name="hand" size={10} />
+                    {p.resourceCount}
+                  </span>
                 </span>
               </span>
             )}
@@ -1209,6 +1225,7 @@ function FocusCard({
           <span><Icon name="road" size={12} /> {p.roadLength}</span>
           <span><Icon name="hand" size={12} /> {p.resourceCount}</span>
           <span><Icon name="cards" size={12} /> {p.devCardCount}</span>
+          <span title="Сыграно воинов"><Icon name="army" size={12} /> {p.knightsPlayed}</span>
           {pub.longestRoad === id && <span className="bonus">{pack.bonuses.longestRoad}</span>}
           {pub.largestArmy === id && <span className="bonus">{pack.bonuses.largestArmy}</span>}
         </small>
