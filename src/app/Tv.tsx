@@ -5,7 +5,7 @@ import type { PlayerColor, PlayerId } from '../engine';
 import type { RoomView } from '../proto';
 import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
-import { eventText, namesFrom, phaseText } from '../i18n/ru';
+import { namesFrom } from '../i18n/ru';
 import { Cinematic, DiceOverlay, Raid, ReactionsLayer, sfx, useMuted } from '../fx';
 import { GameBoard, MODE_LABEL, useBoardMode } from './GameBoard';
 import { useGameFx } from './useGameFx';
@@ -17,6 +17,41 @@ import { eraIcon } from './era';
 import { useLite } from './lite';
 import { Sheet } from './Sheet';
 import { savedName, saveName } from './Home';
+import { ResIcon } from './ResIcon';
+import { tvFeed, tvPhase, type FeedRes } from './tvFeed';
+
+const PIPS: Record<number, [number, number][]> = {
+  1: [[2, 2]],
+  2: [[1, 1], [3, 3]],
+  3: [[1, 1], [2, 2], [3, 3]],
+  4: [[1, 1], [3, 1], [1, 3], [3, 3]],
+  5: [[1, 1], [3, 1], [2, 2], [1, 3], [3, 3]],
+  6: [[1, 1], [3, 1], [1, 2], [3, 2], [1, 3], [3, 3]],
+};
+
+function DieFace({ n }: { n: number }) {
+  return (
+    <svg className="die" viewBox="0 0 4 4" aria-hidden="true">
+      <rect x="0.15" y="0.15" width="3.7" height="3.7" rx="0.9" />
+      {(PIPS[n] ?? []).map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="0.38" />
+      ))}
+    </svg>
+  );
+}
+
+function Res({ list }: { list: FeedRes[] }) {
+  return (
+    <>
+      {list.map((x) => (
+        <span key={x.r} className="tf-r">
+          <ResIcon r={x.r} size={20} />
+          {x.n > 1 && <small>{x.n}</small>}
+        </span>
+      ))}
+    </>
+  );
+}
 
 export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePack; screen?: boolean }) {
   const [panel, setPanel] = useState<null | 'host' | 'claim'>(null);
@@ -40,7 +75,8 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
     () => Object.fromEntries(pub.order.map((id) => [id, pub.players[id].color])) as Record<PlayerId, PlayerColor>,
     [pub],
   );
-  const log = [...pub.log].reverse().map((e) => eventText(e, name)).filter(Boolean).slice(0, 6) as string[];
+  const feed = tvFeed(pub, pack, name);
+  const phase = tvPhase(pub, name);
 
   // Клавиши: 1/2/3 — вид карты, M — звук
   useEffect(() => {
@@ -110,24 +146,69 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
       </aside>
 
       <aside className="tv-right">
-        <div className="tv-phase glass">{phaseText(pub)}</div>
-        <div className="tv-log glass">
-          {log.map((l, i) => (
-            <div key={`${pub.logSeq}-${i}`} className={i === 0 ? 'fresh' : ''}>
-              {l}
+        <div className="tv-turn glass" style={{ ['--pc' as string]: PLAYER_HEX[pub.players[current].color] }}>
+          <span className="tt-ava display">{pub.players[current].name.slice(0, 1)}</span>
+          <div className="grow">
+            <small className="faint">{pub.phase === 'finished' ? 'Партия окончена' : pub.turn ? `Ход ${pub.turn}` : 'Расстановка'}</small>
+            <b className="display">{pub.phase === 'finished' ? name(pub.winner) : pub.players[current].name}</b>
+            <span className="tt-phase">
+              <Icon name={phase.icon} size={15} /> {phase.text}
+            </span>
+          </div>
+          {pub.dice && pub.phase !== 'setup' && (
+            <div className={`tt-dice ${pub.phase === 'roll' ? 'old' : ''}`} aria-label={`Кубики: ${pub.dice[0] + pub.dice[1]}`}>
+              <span className="pair">
+                <DieFace n={pub.dice[0]} />
+                <DieFace n={pub.dice[1]} />
+              </span>
+              <b className={`display ${pub.dice[0] + pub.dice[1] === 7 ? 'seven' : ''}`}>{pub.dice[0] + pub.dice[1]}</b>
             </div>
-          ))}
+          )}
         </div>
+        {feed.length > 0 && (
+          <div className="tv-feed glass">
+            {feed.map((f, i) => (
+              <div key={f.key} className={`tf-row ${i === 0 ? 'fresh' : ''} ${f.gold ? 'gold' : ''}`}>
+                <span className="tf-ico" style={f.who ? { ['--pc' as string]: PLAYER_HEX[pub.players[f.who]?.color] } : undefined}>
+                  <Icon name={f.icon} size={16} />
+                </span>
+                {f.gains ? (
+                  <span className="tf-gains">
+                    {f.gains.map((g) => (
+                      <span key={g.who} className="tf-gain">
+                        <span className="dot" style={{ background: PLAYER_HEX[pub.players[g.who]?.color] }} />
+                        <Res list={g.res} />
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="tf-text">
+                    {f.who && <b>{name(f.who)}</b>} <span className="faint">{f.text}</span>
+                  </span>
+                )}
+                {f.res && (
+                  <span className="tf-res">
+                    <Res list={f.res} />
+                    {f.get && (
+                      <>
+                        <Icon name="next" size={13} />
+                        <Res list={f.get} />
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <div className="tv-fact glass">
-          <div className="label row"><Icon name="book" size={14} /> Знаете ли вы</div>
-          <Fact f={fact} />
+          <Fact f={fact} noSource />
         </div>
         <div className="tv-join glass">
-          <Qr text={joinLink(room.pin)} size={84} />
-          <div className="faint small">
-            Вернуться в игру
-            <br />
-            PIN <b>{room.pin}</b>
+          <Qr text={joinLink(room.pin)} size={72} />
+          <div>
+            <small className="faint">Войти в игру</small>
+            <b className="display">{room.pin}</b>
           </div>
         </div>
       </aside>

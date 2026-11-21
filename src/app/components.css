@@ -4555,3 +4555,213 @@ html.lite .home .era-card.on .era-cover {
 .portal-login .pl-text b { font-size: 15px; }
 .portal-login .pl-text small { font-size: 13px; color: var(--ink-2); }
 .portal-login .btn { flex: none; min-height: 44px; border-radius: 12px; padding: 0 18px; }
+
+/* ─── ТВ: правая колонка — карточка хода, лента иконками, факт, вход ─── */
+.tv-turn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+}
+.tv-turn .tt-ava {
+  width: 54px;
+  height: 54px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  color: #111;
+  background: var(--pc);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--pc) 22%, transparent);
+  animation: tt-pulse 2.4s var(--ease-out) infinite;
+}
+@keyframes tt-pulse {
+  0%, 100% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--pc) 22%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in oklab, var(--pc) 8%, transparent); }
+}
+.tv-turn .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tv-turn small {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tv-turn b.display {
+  font-size: 24px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tv-turn .tt-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.tt-dice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  transition: opacity 300ms;
+}
+.tt-dice.old {
+  opacity: 0.4;
+}
+.tt-dice .pair {
+  display: flex;
+  gap: 4px;
+}
+.tt-dice .die {
+  width: 26px;
+  height: 26px;
+}
+.tt-dice .die rect {
+  fill: #f6f3ec;
+}
+.tt-dice .die circle {
+  fill: #1b1306;
+}
+.tt-dice b {
+  font-size: 22px;
+  line-height: 1;
+}
+.tt-dice b.seven {
+  color: var(--bad);
+}
+.tv-feed {
+  padding: 8px;
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tf-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  font-size: 15px;
+  opacity: 0.72;
+}
+.tf-row.fresh {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.07);
+  animation: toast-in 500ms var(--spring);
+}
+.tf-row.gold .tf-ico {
+  background: rgba(var(--accent-rgb), 0.22);
+  color: var(--accent);
+}
+.tf-ico {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--pc, #9aa3ad) 28%, transparent);
+  color: color-mix(in oklab, var(--pc, #fff) 55%, white);
+}
+.tf-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tf-text b {
+  font-weight: 800;
+}
+.tf-res,
+.tf-gains,
+.tf-gain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tf-res {
+  flex: none;
+  color: var(--ink-3);
+}
+.tf-gains {
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.tf-gain .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 2px;
+}
+.tf-r {
+  display: inline-flex;
+  align-items: center;
+}
+.tf-r small {
+  font-size: 13px;
+  font-weight: 800;
+  margin-left: 1px;
+  color: var(--ink);
+}
+.tv-fact {
+  padding: 16px 18px;
+  border-radius: var(--r-lg);
+}
+.tv-fact .fact-card {
+  font-size: 16px;
+}
+.tv-fact .fc-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tv-join {
+  border-radius: var(--r-lg);
+  padding: 10px 16px 10px 10px;
+  gap: 14px;
+}
+.tv-join > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tv-join small {
+  font-size: 13px;
+  font-weight: 700;
+}
+.tv-join b.display {
+  font-size: 26px;
+  letter-spacing: 0.06em;
+}
+/* кнопки ведущего — под колонкой игроков, не поверх QR */
+@media (min-width: 901px) {
+  .tv-actions {
+    left: 20px;
+    right: auto;
+  }
+}
+.tv-fact .fact-card {
+  background: none;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+}
+.tv-fact .fact-card .yr {
+  color: var(--accent);
+}

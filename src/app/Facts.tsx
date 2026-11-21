@@ -57,7 +57,7 @@ export function FactsList({ pack }: { pack: LorePack }) {
   );
 }
 
-export function Fact({ f, big }: { f: LoreFact; big?: boolean }) {
+export function Fact({ f, big, noSource }: { f: LoreFact; big?: boolean; noSource?: boolean }) {
   return (
     <div className={`fact-card ${big ? 'big' : ''}`}>
       {(f.year || f.kz) && (
@@ -67,7 +67,7 @@ export function Fact({ f, big }: { f: LoreFact; big?: boolean }) {
         </div>
       )}
       <p className="fc-text">{f.text}</p>
-      <span className="src">{f.source}</span>
+      {!noSource && f.source && !/\.(json|ts|md)\b/.test(f.source) && <span className="src">{f.source}</span>}
     </div>
   );
 }
