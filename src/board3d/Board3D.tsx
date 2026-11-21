@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import type { PlayerColor } from '../engine';
+import type { HarborType, PlayerColor } from '../engine';
 import type { BoardProps } from '../board/Board';
 import { HEIGHT, worldFor, type World } from './world';
 import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig';
@@ -27,6 +27,8 @@ export interface Board3DProps extends BoardProps {
   lowPower?: boolean;
   /** Эпоха — для разбойника и эффекта захваченного гекса. */
   era?: string;
+  /** Обмен через гавань: кораблик этой гавани уходит в рейс. */
+  sail?: { type: HarborType; key: number };
 }
 
 // ---------- камера ----------
@@ -377,7 +379,7 @@ function useReducedMotion(): boolean {
 }
 
 function Scene(props: Board3DProps & { rig: Rig }) {
-  const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era } = props;
+  const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era, sail } = props;
   const palette = props.palette ?? DEFAULT_PALETTE;
   const lowPower = !!props.lowPower;
   const reduced = useReducedMotion();
@@ -459,12 +461,12 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Sea centers={centers} radius={world.radius} sunDir={sunDir} />
       <Tiles tiles={tiles} />
       <Tokens tiles={tiles} numbers={numbers} />
-      <Harbors world={world} harbors={view.board.harbors} />
+      <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
       <Roads roads={view.roads} colors={colors} ctx={ctx} />
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
       <RaidZone target={robberPos} hexH={robberH} era={era} />
-      <Robber target={robberPos} hexH={robberH} sprite={era ? `${import.meta.env.BASE_URL}eras/${era}/robber-unit.webp` : undefined} />
+      <Robber target={robberPos} hexH={robberH} sprite={era ? `${import.meta.env.BASE_URL}eras/${era}/camp.webp` : undefined} />
       {flash && <Flashes tiles={tileMap} ids={flash.hexes} k={flash.key} />}
 
       {[...hl.hexes].map((id) => {

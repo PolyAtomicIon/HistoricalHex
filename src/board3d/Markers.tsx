@@ -6,7 +6,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { HarborType } from '../engine';
 import { HEIGHT, harborSpot, type World } from './world';
 import { useEnv } from './rig';
-import { flatHexGeo, hexRingGeo, type TileInfo } from './Terrain';
+import { box, flatHexGeo, hexRingGeo, merge, part, type TileInfo } from './Terrain';
 
 // ---------- вспомогательное ----------
 
@@ -71,46 +71,67 @@ function tokenTexture(n: number): THREE.CanvasTexture {
 
 const HARBOR_COLOR: Record<string, string> = { brick: '#c8643c', wood: '#2f7d3a', sheep: '#9fd06a', wheat: '#e8b931', ore: '#7d889c' };
 
-function harborTexture(type: HarborType): THREE.CanvasTexture {
-  return canvasTexture(`hb${type}`, 256, (g, s) => {
-    const grd = g.createRadialGradient(s / 2, s / 2, s * 0.1, s / 2, s / 2, s / 2);
-    grd.addColorStop(0, '#fff6df');
-    grd.addColorStop(1, '#f1dcae');
+/** Значок гавани: светлый диск, иконка ресурса эпохи (или якорь для 3:1) и курс. Без цветных обводок. */
+function harborTexture(type: HarborType, era?: string): THREE.CanvasTexture {
+  const key = `hb${type}:${era ?? ''}`;
+  const hit = texCache.get(key);
+  if (hit) return hit;
+  const s = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d')!;
+  const base = () => {
+    g.clearRect(0, 0, s, s);
+    const grd = g.createRadialGradient(s / 2, s * 0.42, s * 0.1, s / 2, s / 2, s / 2);
+    grd.addColorStop(0, '#fffaf0');
+    grd.addColorStop(1, '#ead7ad');
     g.fillStyle = grd;
     g.beginPath();
-    g.arc(s / 2, s / 2, s / 2 - 2, 0, Math.PI * 2);
+    g.arc(s / 2, s / 2, s / 2 - 3, 0, Math.PI * 2);
     g.fill();
-    g.strokeStyle = '#1b4f79';
-    g.lineWidth = s * 0.05;
-    g.beginPath();
-    g.arc(s / 2, s / 2, s / 2 - s * 0.05, 0, Math.PI * 2);
+    g.strokeStyle = 'rgba(60, 40, 20, 0.55)';
+    g.lineWidth = 4;
     g.stroke();
+    g.fillStyle = '#2b2118';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    if (type === 'any') {
-      // якорь линиями
-      g.strokeStyle = '#143a5c';
-      g.lineWidth = s * 0.045;
-      g.lineCap = 'round';
-      const cx = s / 2, top = s * 0.18, bot = s * 0.5;
-      g.beginPath(); g.arc(cx, top + s * 0.035, s * 0.035, 0, Math.PI * 2); g.stroke();
-      g.beginPath(); g.moveTo(cx, top + s * 0.07); g.lineTo(cx, bot); g.stroke();
-      g.beginPath(); g.moveTo(cx - s * 0.08, top + s * 0.12); g.lineTo(cx + s * 0.08, top + s * 0.12); g.stroke();
-      g.beginPath(); g.arc(cx, bot - s * 0.1, s * 0.12, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
-    } else {
+    g.font = `bold ${s * 0.25}px ${FONT}`;
+    g.fillText(type === 'any' ? '3:1' : '2:1', s / 2, s * 0.76);
+  };
+  base();
+  if (type === 'any') {
+    g.strokeStyle = '#2b2118';
+    g.lineWidth = s * 0.045;
+    g.lineCap = 'round';
+    const cx = s / 2, top = s * 0.16, bot = s * 0.52;
+    g.beginPath(); g.arc(cx, top + s * 0.035, s * 0.035, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.moveTo(cx, top + s * 0.07); g.lineTo(cx, bot); g.stroke();
+    g.beginPath(); g.moveTo(cx - s * 0.08, top + s * 0.12); g.lineTo(cx + s * 0.08, top + s * 0.12); g.stroke();
+    g.beginPath(); g.arc(cx, bot - s * 0.1, s * 0.12, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  texCache.set(key, t);
+  if (type !== 'any' && era) {
+    const img = new Image();
+    img.onload = () => {
+      base();
+      g.drawImage(img, s * 0.24, s * 0.08, s * 0.52, s * 0.52);
+      t.needsUpdate = true;
+    };
+    img.onerror = () => {
       g.fillStyle = HARBOR_COLOR[type] ?? '#888';
       g.beginPath();
       g.arc(s / 2, s * 0.36, s * 0.14, 0, Math.PI * 2);
       g.fill();
-      g.strokeStyle = 'rgba(0,0,0,0.25)';
-      g.lineWidth = s * 0.02;
-      g.stroke();
-    }
-    g.fillStyle = '#143a5c';
-    g.font = `bold ${s * 0.27}px ${FONT}`;
-    g.fillText(type === 'any' ? '3:1' : '2:1', s / 2, s * 0.7);
-  });
+      t.needsUpdate = true;
+    };
+    img.src = `${import.meta.env.BASE_URL}eras/${era}/res-${type}.webp`;
+  }
+  return t;
 }
+
 
 // ---------- жетоны ----------
 
@@ -171,7 +192,65 @@ function Pier({ a, b }: { a: [number, number]; b: [number, number] }) {
   );
 }
 
-function Harbor({ world, edge, type }: { world: World; edge: string; type: HarborType }) {
+const shipGeo = merge([
+  part(box(0.42, 0.07, 0.15), '#7a4a26', [0, 0.035, 0]),
+  part(box(0.12, 0.06, 0.11), '#7a4a26', [0.25, 0.05, 0], [0, Math.PI / 4, 0]),
+  part(box(0.36, 0.02, 0.13), '#b98a55', [0, 0.08, 0]),
+  part(box(0.08, 0.06, 0.08), '#a36a3a', [-0.1, 0.12, 0.02]),
+  part(box(0.07, 0.05, 0.07), '#a36a3a', [-0.02, 0.115, -0.03]),
+  part(new THREE.CylinderGeometry(0.012, 0.014, 0.42, 5), '#5a3a1e', [0.06, 0.29, 0]),
+  part(box(0.012, 0.24, 0.22), '#f4ecd8', [0.06, 0.32, 0]),
+]);
+shipGeo.scale(1.45, 1.45, 1.45);
+const shipMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.8 });
+
+/** Кораблик у причала: покачивается; при обмене через эту гавань уходит в рейс и возвращается. */
+function Ship({ spot, sailKey }: { spot: { a: [number, number]; b: [number, number]; p: [number, number] }; sailKey?: number }) {
+  const g = useRef<THREE.Group>(null);
+  const { reduced } = useEnv();
+  const t0 = useRef<number | null>(null);
+  const last = useRef(sailKey);
+  const dir = useMemo(() => {
+    const mx = (spot.a[0] + spot.b[0]) / 2;
+    const mz = (spot.a[1] + spot.b[1]) / 2;
+    const dx = spot.p[0] - mx;
+    const dz = spot.p[1] - mz;
+    const l = Math.hypot(dx, dz) || 1;
+    return [dx / l, dz / l] as const;
+  }, [spot]);
+  // Стоянка: сбоку от причала, носом в море
+  const side: [number, number] = [-dir[1], dir[0]];
+  const home: [number, number] = [spot.p[0] + dir[0] * 0.25 + side[0] * 0.42, spot.p[1] + dir[1] * 0.25 + side[1] * 0.42];
+  const yaw = Math.atan2(-dir[1], dir[0]);
+  useFrame(({ clock }) => {
+    const o = g.current;
+    if (!o) return;
+    if (sailKey !== last.current) {
+      last.current = sailKey;
+      t0.current = clock.elapsedTime;
+    }
+    const t = reduced ? 0 : clock.elapsedTime;
+    let out = 0;
+    let turn = 0;
+    if (t0.current !== null) {
+      const u = (clock.elapsedTime - t0.current) / 3.2;
+      if (u >= 1) t0.current = null;
+      else {
+        out = Math.sin(Math.min(1, u) * Math.PI) * 1.6;
+        turn = u > 0.5 ? Math.PI : 0;
+      }
+    }
+    o.position.set(home[0] + dir[0] * out, 0.02 + Math.sin(t * 1.6 + home[0]) * 0.015, home[1] + dir[1] * out);
+    o.rotation.set(Math.sin(t * 1.3 + home[1]) * 0.05, yaw + turn, Math.sin(t * 1.1) * 0.06);
+  });
+  return (
+    <group ref={g}>
+      <mesh geometry={shipGeo} material={shipMat} castShadow />
+    </group>
+  );
+}
+
+function Harbor({ world, edge, type, era, sailKey }: { world: World; edge: string; type: HarborType; era?: string; sailKey?: number }) {
   const spot = useMemo(() => harborSpot(world, edge), [world, edge]);
   const g = useRef<THREE.Group>(null);
   const { rig, reduced } = useEnv();
@@ -183,13 +262,14 @@ function Harbor({ world, edge, type }: { world: World; edge: string; type: Harbo
     o.rotation.x = rig.tilt;
     o.position.y = 0.3 + Math.sin(rig.tilt) * 0.22 + (reduced ? 0 : Math.sin(clock.elapsedTime * 1.2 + spot!.p[0]) * 0.015);
   });
-  const tex = useMemo(() => harborTexture(type), [type]);
+  const tex = useMemo(() => harborTexture(type, era), [type, era]);
   if (!spot) return null;
   return (
     <group>
       <Pier a={spot.a} b={spot.p} />
       <Pier a={spot.b} b={spot.p} />
       <mesh geometry={deckGeo} material={woodMat} position={[spot.p[0], 0.08, spot.p[1]]} castShadow receiveShadow />
+      <Ship spot={spot} sailKey={sailKey} />
       <group position={[spot.p[0], 0, spot.p[1]]}>
         <group ref={g}>
           <mesh geometry={faceGeo} scale={1.05}>
@@ -201,11 +281,11 @@ function Harbor({ world, edge, type }: { world: World; edge: string; type: Harbo
   );
 }
 
-export function Harbors({ world, harbors }: { world: World; harbors: { edge: string; type: HarborType }[] }) {
+export function Harbors({ world, harbors, era, sail }: { world: World; harbors: { edge: string; type: HarborType }[]; era?: string; sail?: { type: HarborType; key: number } }) {
   return (
     <>
       {harbors.map((h) => (
-        <Harbor key={h.edge} world={world} edge={h.edge} type={h.type} />
+        <Harbor key={h.edge} world={world} edge={h.edge} type={h.type} era={era} sailKey={sail && sail.type === h.type ? sail.key : undefined} />
       ))}
     </>
   );

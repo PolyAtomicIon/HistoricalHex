@@ -108,6 +108,7 @@ export function GameBoard({
       ghosts={ghosts}
       shake={fx.shake}
       static={boardStatic}
+      sail={fx.sail}
     />
   );
   if (!gl || lite || mode === '2d') return svg;
@@ -131,6 +132,7 @@ export function GameBoard({
           shake={fx.shake}
           lowPower={lowPower}
           era={era}
+          sail={fx.sail}
         />
       </Suspense>
     </Fallback>

@@ -20,3 +20,11 @@ for dir in art-gen/tiles/*/; do
   done
   echo "$era: $(ls "$out" | wc -l | tr -d ' ') files"
 done
+
+# Лагеря захватчиков и кораблик (art-gen/camps): camp-<эпоха>.png → public/eras/<эпоха>/camp.webp, ship.png → public/eras/ship.webp
+for png in art-gen/camps/camp-*.png; do
+  [ -e "$png" ] || continue
+  era=$(basename "$png" .png); era=${era#camp-}
+  cwebp -quiet -q 82 -alpha_q 90 -resize 320 320 "$png" -o "public/eras/$era/camp.webp"
+done
+[ -e art-gen/camps/ship.png ] && cwebp -quiet -q 82 -alpha_q 90 -resize 256 256 art-gen/camps/ship.png -o public/eras/ship.webp

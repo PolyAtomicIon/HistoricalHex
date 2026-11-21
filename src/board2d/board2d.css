@@ -439,3 +439,23 @@ html.lite .b2d .rb-ring { animation: none; }
 html.lite .b2d .rz-glow,
 html.lite .b2d .rz-fire { animation: none; }
 html.lite .b2d .rz-smoke { animation: none; opacity: 0.55; }
+
+/* Кораблики у гаваней */
+.b2d .ship {
+  animation: ship-bob 3.2s ease-in-out infinite alternate;
+}
+@keyframes ship-bob {
+  from { transform: translateY(-2px) rotate(-2deg); }
+  to { transform: translateY(2px) rotate(2deg); }
+}
+.b2d .ship.sailing {
+  animation: ship-sail 3.2s ease-in-out forwards;
+}
+@keyframes ship-sail {
+  0% { transform: translate(0, 0); }
+  45% { transform: translate(var(--dx), var(--dy)) scale(0.85); opacity: 0.85; }
+  55% { transform: translate(var(--dx), var(--dy)) scale(0.85); opacity: 0.85; }
+  100% { transform: translate(0, 0); }
+}
+html.lite .b2d .ship { animation: none; }
+html.lite .b2d .ship.sailing { animation: ship-sail 3.2s ease-in-out forwards; }

@@ -180,12 +180,14 @@ function geos(): Record<PropKind, THREE.BufferGeometry> {
   const cone = (r: number, h: number, s = 6) => new THREE.ConeGeometry(r, h, s);
 
   const wheatParts: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < 9; i++) {
-    const x = -0.4 + i * 0.1;
-    wheatParts.push(part(box(0.012, 0.15, 0.012), '#a9a043', [x, 0.075, 0]));
-    wheatParts.push(part(box(0.03, 0.06, 0.03), '#f4d25c', [x, 0.17, 0]));
-    wheatParts.push(part(box(0.012, 0.15, 0.012), '#b6a947', [x + 0.03, 0.075, 0.035], [0, 0, 0.05]));
-    wheatParts.push(part(box(0.03, 0.06, 0.03), '#ffdc6a', [x + 0.036, 0.17, 0.035], [0, 0, 0.05]));
+  // Плотный ряд пшеницы: золотой массив стеблей + крупные колосья сверху (читается с любой высоты камеры)
+  wheatParts.push(part(box(0.86, 0.12, 0.13), '#c99a2e', [0, 0.06, 0]));
+  wheatParts.push(part(box(0.84, 0.05, 0.11), '#e2b43f', [0, 0.14, 0]));
+  for (let i = 0; i < 15; i++) {
+    const x = -0.41 + i * 0.0585;
+    const z = (i % 3) * 0.03 - 0.03;
+    const tall = 0.02 * ((i * 7) % 3);
+    wheatParts.push(part(box(0.05, 0.09 + tall, 0.05), i % 2 ? '#ffd95e' : '#f2c447', [x, 0.2 + tall / 2, z], [0, 0, (i % 3 - 1) * 0.08]));
   }
 
   const sheepParts = [

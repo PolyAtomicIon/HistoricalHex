@@ -360,11 +360,14 @@ export function Robber({ target, hexH, sprite }: { target: [number, number] | nu
   useEffect(() => {
     if (!sprite) return;
     let alive = true;
-    new THREE.TextureLoader().load(sprite, (tex) => {
+    const done = (tex: THREE.Texture) => {
       if (!alive) return;
       tex.colorSpace = THREE.SRGBColorSpace;
       setSpriteMat(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    });
+    };
+    const loader = new THREE.TextureLoader();
+    // Лагерь эпохи; если его нет — отряд
+    loader.load(sprite, done, undefined, () => loader.load(sprite.replace('/camp.webp', '/robber-unit.webp'), done));
     return () => {
       alive = false;
     };

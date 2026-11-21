@@ -51,6 +51,8 @@ export interface Board2DProps {
   shake?: number;
   /** Без жестов (например, ТВ). */
   static?: boolean;
+  /** Обмен через гавань — кораблик уходит в рейс. */
+  sail?: { type: HarborType; key: number };
   className?: string;
 }
 
@@ -61,8 +63,11 @@ export function Board2D(props: Board2DProps) {
   const id = (s: string) => `b2-${uid}-${s}`;
   const pz = usePanZoom(!props.static);
   const tiles = useImages(TERRAINS.map((t) => eraIcon(era, `tile-${t}`)));
-  const unit = useImages([eraIcon(era, 'robber-unit')]);
-  const robberSrc = unit.has(eraIcon(era, 'robber-unit')) ? eraIcon(era, 'robber-unit') : eraIcon(era, 'robber');
+  const unit = useImages([eraIcon(era, 'camp'), eraIcon(era, 'robber-unit')]);
+  const shipSrc = `${import.meta.env.BASE_URL}eras/ship.webp`;
+  const ship = useImages([shipSrc]).has(shipSrc);
+  // На захваченном гексе — лагерь эпохи (шатёр); самолёты/всадники только в анимации налёта
+  const robberSrc = unit.has(eraIcon(era, 'camp')) ? eraIcon(era, 'camp') : unit.has(eraIcon(era, 'robber-unit')) ? eraIcon(era, 'robber-unit') : eraIcon(era, 'robber');
 
   const geo = useMemo(() => {
     const vertexPos = new Map<VertexId, { x: number; y: number }>();
@@ -229,7 +234,7 @@ export function Board2D(props: Board2DProps) {
           {/* Гавани */}
           <g className="b2d-harbors">
             {geo.harbors.map((h) => (
-              <Harbor key={h.edge} h={h} era={era} />
+              <Harbor key={h.edge} h={h} era={era} ship={ship ? shipSrc : undefined} sailKey={props.sail && props.sail.type === h.type ? props.sail.key : undefined} />
             ))}
           </g>
 
@@ -517,10 +522,36 @@ function Piece({ kind, color, shade }: { kind: 'settlement' | 'city'; color: Pla
   );
 }
 
-function Harbor({ h, era }: { h: { type: HarborType; a: { x: number; y: number }; b: { x: number; y: number }; ox: number; oy: number }; era: string }) {
+function Harbor({
+  h,
+  era,
+  ship,
+  sailKey,
+}: {
+  h: { type: HarborType; a: { x: number; y: number }; b: { x: number; y: number }; ox: number; oy: number };
+  era: string;
+  ship?: string;
+  sailKey?: number;
+}) {
   const r = S * 0.3;
+  const mx = (h.a.x + h.b.x) / 2;
+  const my = (h.a.y + h.b.y) / 2;
+  const l = Math.hypot(h.ox - mx, h.oy - my) || 1;
+  const dx = (h.ox - mx) / l;
+  const dy = (h.oy - my) / l;
+  // кораблик сбоку от причала
+  const sx = h.ox + dx * S * 0.15 - dy * S * 0.48;
+  const sy = h.oy + dy * S * 0.15 + dx * S * 0.48;
+  const flip = dx < 0;
   return (
     <g className="harbor">
+      {ship && (
+        <g transform={`translate(${sx} ${sy})`}>
+          <g key={sailKey ?? 'home'} className={`ship ${sailKey !== undefined ? 'sailing' : ''}`} style={{ ['--dx' as string]: `${dx * S * 1.6}px`, ['--dy' as string]: `${dy * S * 1.6}px` }}>
+            <image href={ship} x={-S * 0.3} y={-S * 0.3} width={S * 0.6} height={S * 0.6} transform={flip ? 'scale(-1 1)' : undefined} />
+          </g>
+        </g>
+      )}
       <line x1={h.a.x} y1={h.a.y} x2={h.ox} y2={h.oy} className="pier" />
       <line x1={h.b.x} y1={h.b.y} x2={h.ox} y2={h.oy} className="pier" />
       <circle cx={h.ox} cy={h.oy + 4} r={r} className="hb-shadow" />

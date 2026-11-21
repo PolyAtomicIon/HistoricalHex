@@ -1,7 +1,7 @@
 // События партии → анимации, звуки, рассказчик, полёт камеры. Общее для телефона и телевизора.
 
 import { useEffect, useRef, useState } from 'react';
-import type { GameEvent, PlayerId, PublicState, Resource } from '../engine';
+import type { GameEvent, HarborType, PlayerId, PublicState, Resource } from '../engine';
 import { RESOURCES } from '../engine';
 import type { LorePack } from '../lore';
 import { narrate } from '../lore';
@@ -28,6 +28,8 @@ export interface GameFx {
   flash?: { hexes: string[]; key: number };
   recent: string[];
   shake: number;
+  /** Обмен через гавань — кораблик уходит в рейс. */
+  sail?: { type: HarborType; key: number };
   reactions: ReactionItem[];
 }
 
@@ -174,9 +176,13 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             sfx.play('chime');
             say(narrate(p, 'tradeCompleted', { player: name(e.from), victim: name(e.to) }), e.from);
             break;
-          case 'bankTrade':
+          case 'bankTrade': {
             sfx.play('coin');
+            const ratio = e.giveCount / Math.max(1, e.receiveCount);
+            const type: HarborType | undefined = ratio === 2 ? (e.give as HarborType) : ratio === 3 ? 'any' : undefined;
+            if (type) setFx((f) => ({ ...f, sail: { type, key: k.current++ } }));
             break;
+          }
           case 'tradeOffered':
             if (me && me !== e.player) {
               sfx.play('react');
