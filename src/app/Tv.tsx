@@ -19,6 +19,57 @@ import { Sheet } from './Sheet';
 import { savedName, saveName } from './Home';
 import { ResIcon } from './ResIcon';
 import { tvFeed, tvPhase, type FeedRes } from './tvFeed';
+import { tableHarvest } from './income';
+import type { PublicState, Resource } from '../engine';
+import { RESOURCE_NAME } from '../i18n/ru';
+
+const TAG = { plenty: 'много', scarce: 'дефицит', none: 'никто' } as const;
+
+/** Урожай стола: что в достатке / в дефиците и кто что получит на каждом числе. */
+function Harvest({ pub }: { pub: PublicState }) {
+  const { rows, supply } = useMemo(() => tableHarvest(pub), [pub.buildings, pub.robberHex, pub.bank]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!rows.length) return null;
+  const max = Math.max(0.01, ...supply.map((x) => x.perRoll));
+  const hit = pub.dice && pub.phase !== 'setup' && pub.phase !== 'roll' ? pub.dice[0] + pub.dice[1] : 0;
+  return (
+    <div className="tv-harvest glass">
+      <div className="th-supply">
+        {supply.map((x) => (
+          <div key={x.r} className={`th-s ${x.tag ?? ''}`} title={`${RESOURCE_NAME[x.r]}: ≈${x.perRoll.toFixed(2)} за бросок, в банке ${x.bank}`}>
+            <ResIcon r={x.r} size={26} />
+            <span className="meter">
+              <i style={{ height: `${Math.max(6, (x.perRoll / max) * 100)}%` }} />
+            </span>
+            <small>{x.tag ? TAG[x.tag] : x.bank < 5 ? `банк ${x.bank}` : '\u00a0'}</small>
+          </div>
+        ))}
+      </div>
+      <div className="th-rows">
+        {rows.map((r) => (
+          <div key={r.n} className={`th-row ${r.n === hit ? 'hit' : ''}`}>
+            <span className={`th-n ${r.ways === 5 ? 'hot' : ''}`}>
+              {r.n}
+              <i>{'•'.repeat(r.ways)}</i>
+            </span>
+            <span className="th-gets">
+              {r.gets.map((g) => (
+                <span key={g.who} className="th-g" style={{ ['--pc' as string]: PLAYER_HEX[pub.players[g.who]?.color] }}>
+                  {(Object.entries(g.res) as [Resource, number][]).map(([res, c]) => (
+                    <span key={res} className="tf-r">
+                      <ResIcon r={res} size={18} />
+                      {c > 1 && <small>{c}</small>}
+                    </span>
+                  ))}
+                </span>
+              ))}
+              {r.blocked && <Icon name="ban" size={14} />}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const PIPS: Record<number, [number, number][]> = {
   1: [[2, 2]],
@@ -143,6 +194,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
             );
           })}
         </div>
+        <Harvest pub={pub} />
       </aside>
 
       <aside className="tv-right">
@@ -183,7 +235,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
                   </span>
                 ) : (
                   <span className="tf-text">
-                    {f.who && <b>{name(f.who)}</b>} <span className="faint">{f.text}</span>
+                    {f.who && <b style={{ ['--pc' as string]: PLAYER_HEX[pub.players[f.who]?.color] }}>{name(f.who)}</b>} <span className="faint">{f.text}</span>
                   </span>
                 )}
                 {f.res && (
@@ -227,14 +279,14 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         >
           <Icon name={muted ? 'mute' : 'sound'} size={18} />
         </button>
+        {room.isHost && (
+          <button onClick={() => setPanel('host')} aria-label="Ведущий" title="Ведущий">
+            <Icon name="crown" size={18} />
+          </button>
+        )}
       </div>
 
       <div className="tv-actions">
-        {room.isHost && (
-          <button className="btn glass" onClick={() => setPanel('host')}>
-            <Icon name="crown" /> Ведущий
-          </button>
-        )}
         {!screen && !room.seated && pub.phase !== 'finished' && (
           <button className="btn primary" onClick={() => setPanel('claim')}>
             Я играю в этой партии

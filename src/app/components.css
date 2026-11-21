@@ -4749,11 +4749,13 @@ html.lite .home .era-card.on .era-cover {
   font-size: 26px;
   letter-spacing: 0.06em;
 }
-/* кнопки ведущего — под колонкой игроков, не поверх QR */
+/* кнопки зрителя («Я играю», «На главную») — по центру над переключателем вида, не поверх колонок */
 @media (min-width: 901px) {
   .tv-actions {
-    left: 20px;
+    left: 50%;
     right: auto;
+    bottom: 76px;
+    transform: translateX(-50%);
   }
 }
 .tv-fact .fact-card {
@@ -4764,4 +4766,131 @@ html.lite .home .era-card.on .era-cover {
 }
 .tv-fact .fact-card .yr {
   color: var(--accent);
+}
+
+/* имя в ленте — цветом игрока */
+.tf-text b {
+  color: color-mix(in oklab, var(--pc, var(--ink)) 55%, white);
+}
+
+/* ─── ТВ: урожай стола ─── */
+.tv-harvest {
+  margin-top: auto;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+.th-supply {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.th-s {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.th-s .meter {
+  width: 10px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.th-s .meter i {
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  transition: height 600ms var(--ease-out);
+}
+.th-s small {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.th-s.plenty .meter i { background: var(--good); }
+.th-s.plenty small { color: var(--good); }
+.th-s.scarce .meter i { background: var(--bad); }
+.th-s.scarce small { color: var(--bad); }
+.th-s.none { opacity: 0.45; }
+.th-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.th-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 3px 6px;
+  border-radius: var(--r-sm);
+  transition: background 300ms;
+}
+.th-row.hit {
+  background: rgba(var(--accent-rgb), 0.2);
+  animation: toast-in 500ms var(--spring);
+}
+.th-n {
+  width: 30px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Unbounded', 'Manrope', sans-serif;
+  font-size: 15px;
+  line-height: 1;
+}
+.th-n i {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: -1px;
+  color: var(--ink-3);
+  font-family: 'Manrope', sans-serif;
+}
+.th-n.hot {
+  color: var(--bad);
+}
+.th-gets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+  color: var(--ink-3);
+}
+.th-g {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--pc) 26%, transparent);
+}
+.th-g::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pc);
+  margin-right: 2px;
+}
+.th-row { min-height: 31px; padding: 2px 6px; }
+.th-rows { gap: 1px; }
+.th-s .meter { height: 28px; }
+.tv-harvest { gap: 10px; padding: 12px; }
+@media (max-height: 780px) {
+  .th-supply { display: none; }
+}
+@media (max-width: 900px) {
+  .tv-harvest { display: none; }
 }
