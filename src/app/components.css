@@ -3541,3 +3541,16 @@ html.lite .home .era-card.on .era-cover {
   white-space: nowrap;
   max-width: calc(100vw - 32px);
 }
+
+/* Плашка «гекс захвачен»: в одну строку на каждую подпись (absolute + left:50% иначе ужимает до половины экрана) */
+.blocked-chip {
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+.blocked-chip .bc-text b,
+.blocked-chip .bc-text small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bc-text { min-width: 0; }

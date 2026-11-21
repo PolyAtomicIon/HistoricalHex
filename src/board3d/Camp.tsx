@@ -69,11 +69,26 @@ const flameMat = new THREE.MeshBasicMaterial({ color: '#ffb23a', toneMapped: fal
 const lanternGeo = box(0.05, 0.07, 0.05);
 const lanternMat = new THREE.MeshBasicMaterial({ color: '#ffc46b', toneMapped: false });
 
-// Купол блокады: низкополигональная полусфера, лёгкая заливка + сетка граней
-// Шестигранный купол меньше гекса: углы (там постройки игроков) остаются снаружи
-const domeGeo = new THREE.SphereGeometry(0.74, 6, 4, Math.PI / 6, Math.PI * 2, 0, Math.PI / 2);
-domeGeo.scale(1, 0.9, 1);
+// Купол блокады — геодезический щит: полусфера из треугольников (икосаэдр, вершиной вверх),
+// лёгкая заливка + светящиеся рёбра. Меньше гекса: углы с постройками игроков остаются снаружи.
+const domeGeo = (() => {
+  const ico = new THREE.IcosahedronGeometry(1, 1);
+  ico.rotateX(-Math.atan((1 + Math.sqrt(5)) / 2)); // вершина икосаэдра → вверх, рёбра середин ложатся на экватор
+  const src = ico.attributes.position;
+  const keep: number[] = [];
+  for (let i = 0; i < src.count; i += 3) {
+    if (src.getY(i) < -1e-3 || src.getY(i + 1) < -1e-3 || src.getY(i + 2) < -1e-3) continue;
+    for (let k = 0; k < 3; k++) keep.push(src.getX(i + k), src.getY(i + k), src.getZ(i + k));
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
+  g.scale(0.74, 0.62, 0.74);
+  g.computeVertexNormals();
+  return g;
+})();
 const domeEdges = new THREE.EdgesGeometry(domeGeo, 1);
+const rimGeo = new THREE.TorusGeometry(0.74, 0.012, 6, 48);
+rimGeo.rotateX(Math.PI / 2);
 
 const FIRE_AT: Record<string, [number, number, number]> = {
   genghis: [-0.33, 0.1, 0.18],
@@ -96,8 +111,8 @@ export function Camp({ era }: { era: string }) {
       flame.current.scale.set(1, k, 1);
     }
     const pulse = 0.5 + 0.5 * Math.sin(t * 2.2);
-    if (dome.current) dome.current.opacity = 0.07 + pulse * 0.06;
-    if (edges.current) edges.current.opacity = 0.35 + pulse * 0.3;
+    if (dome.current) dome.current.opacity = 0.06 + pulse * 0.05;
+    if (edges.current) edges.current.opacity = 0.45 + pulse * 0.4;
     if (light.current) light.current.intensity = 0.8 + Math.sin(t * 13) * 0.25;
   });
   return (
@@ -110,11 +125,14 @@ export function Camp({ era }: { era: string }) {
       </group>
       {/* купол блокады */}
       <mesh geometry={domeGeo} renderOrder={9}>
-        <meshBasicMaterial ref={dome} color="#ff3b2f" transparent opacity={0.1} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial ref={dome} color="#ff3b2f" transparent opacity={0.1} depthWrite={false} side={THREE.DoubleSide} toneMapped={false} />
       </mesh>
       <lineSegments geometry={domeEdges} renderOrder={10}>
-        <lineBasicMaterial ref={edges} color="#ff6b5b" transparent opacity={0.5} depthWrite={false} />
+        <lineBasicMaterial ref={edges} color="#ff8a7a" transparent opacity={0.5} depthWrite={false} toneMapped={false} />
       </lineSegments>
+      <mesh geometry={rimGeo} renderOrder={10}>
+        <meshBasicMaterial color="#ff5a48" toneMapped={false} />
+      </mesh>
     </group>
   );
 }

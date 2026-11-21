@@ -4,7 +4,7 @@
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { FLAMES, barrelGeo, fireT, puff, tankHullGeo, tankMat, turretGeo } from './units';
+import { FLAMES, MUZZLE, fireT, puff, tankHullGeo, tankMat, turretGeo } from './units';
 
 export interface Tanks3DEvent {
   key: number;
@@ -46,6 +46,8 @@ export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
   const muzzleMats = useMemo(() => mk(SHOTS.length), [ev.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const flameMats = useMemo(() => mk(SHOTS.length * FLAMES), [ev.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const smokeMats = useMemo(() => Array.from({ length: 10 }, () => new THREE.SpriteMaterial({ map: puff(), color: '#221e1c', transparent: true, depthWrite: false, opacity: 0 })), [ev.key]);
+  const dustMats = useMemo(() => Array.from({ length: TANKS.length * 4 }, () => new THREE.SpriteMaterial({ map: puff(), color: '#9a8466', transparent: true, depthWrite: false, opacity: 0 })), [ev.key]);
+  const dusts = useRef<(THREE.Sprite | null)[]>([]);
   const tracerMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffe08a', toneMapped: false }), []);
 
   const stopAt = (i: number) => {
@@ -54,9 +56,10 @@ export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
     return [x - dir.x * dist + side.x * k.side, z - dir.z * dist + side.z * k.side] as const;
   };
   const muzzleOf = (i: number) => {
-    const h = hulls.current[i];
-    if (!h) return null;
-    return new THREE.Vector3(h.position.x + dir.x * 0.75, h.position.y + 0.42, h.position.z + dir.z * 0.75);
+    const tu = turrets.current[i];
+    if (!tu) return null;
+    tu.updateWorldMatrix(true, false);
+    return tu.localToWorld(new THREE.Vector3(...MUZZLE));
   };
 
   useFrame(({ clock }) => {
@@ -81,6 +84,16 @@ export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
       const ka = Math.min(1, Math.max(0, (t - 2.5 - i * 0.12) / 0.5));
       tu.rotation.y = aim * ka;
       h.visible = t < T;
+      // пыль позади, пока едет
+      for (let q = 0; q < 4; q++) {
+        const d = dusts.current[i * 4 + q];
+        if (!d) continue;
+        const ph = (t * 1.6 + q / 4) % 1;
+        const m = d.material as THREE.SpriteMaterial;
+        m.opacity = u < 1 && t > k.delay ? Math.sin(ph * Math.PI) * 0.5 * (1 - u * 0.6) : Math.max(0, m.opacity - 0.02);
+        d.position.set(h.position.x - dir.x * (0.42 + ph * 0.5), y + 0.08 + ph * 0.22, h.position.z - dir.z * (0.42 + ph * 0.5) + (q % 2 ? 0.18 : -0.18));
+        d.scale.setScalar(0.18 + ph * 0.4);
+      }
     });
     SHOTS.forEach((s, j) => {
       const ts = t - s.t;
@@ -138,9 +151,8 @@ export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
       {TANKS.map((_, i) => (
         <group key={i} ref={(el) => (hulls.current[i] = el)} scale={0.5}>
           <mesh geometry={tankHullGeo} material={tankMat} castShadow />
-          <group ref={(el) => (turrets.current[i] = el)} position={[0.05, 0.86, 0]}>
+          <group ref={(el) => (turrets.current[i] = el)} position={[0.12, 0.74, 0]}>
             <mesh geometry={turretGeo} material={tankMat} castShadow />
-            <mesh geometry={barrelGeo} material={tankMat} position={[0.25, 0.02, 0]} />
           </group>
         </group>
       ))}
@@ -154,6 +166,9 @@ export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
             <sprite key={q} ref={(el) => (flames.current[j * FLAMES + q] = el)} material={flameMats[j * FLAMES + q]} renderOrder={12} />
           ))}
         </group>
+      ))}
+      {dustMats.map((m, i) => (
+        <sprite key={`d${i}`} ref={(el) => (dusts.current[i] = el)} material={m} />
       ))}
       {smokeMats.map((m, i) => (
         <sprite key={i} ref={(el) => (smokes.current[i] = el)} material={m} />
