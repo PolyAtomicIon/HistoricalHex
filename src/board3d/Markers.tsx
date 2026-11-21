@@ -219,7 +219,7 @@ function harborTexture(type: HarborType, era?: string): THREE.CanvasTexture {
 
 // ---------- жетоны ----------
 
-const TOKEN_R = 0.29;
+const TOKEN_R = 0.26;
 /** Насколько жетон парит над плиткой: выше пропсов своей местности. */
 const TOKEN_LIFT: Record<string, number> = { forest: 0.5, mountains: 0.6, hills: 0.42, pasture: 0.37, fields: 0.39, desert: 0.37 };
 // Латунный ободок: верх уже низа — скошенная грань ловит блик

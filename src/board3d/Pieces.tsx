@@ -13,7 +13,7 @@ import { Camp } from './Camp';
 
 // ---------- геометрия ----------
 
-const roadGeo = new RoundedBoxGeometry(0.76, 0.15, 0.24, 2, 0.05);
+const roadGeo = new RoundedBoxGeometry(0.72, 0.12, 0.19, 2, 0.04);
 
 function prism(w: number, h: number, d: number): THREE.BufferGeometry {
   const s = new THREE.Shape();
@@ -64,9 +64,9 @@ const cityWindowsGeo = merge(
 );
 const windowMat = new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: false });
 
-houseGeo.scale(2.0, 2.0, 2.0);
-cityGeo.scale(1.85, 1.85, 1.85);
-cityWindowsGeo.scale(1.85, 1.85, 1.85);
+houseGeo.scale(1.6, 1.6, 1.6);
+cityGeo.scale(1.5, 1.5, 1.5);
+cityWindowsGeo.scale(1.5, 1.5, 1.5);
 
 // Толстый мультяшный контур: та же геометрия, чуть больше, тёмная, вывернута внутрь (BackSide)
 const hullCache = new Map<string, THREE.MeshBasicMaterial>();
@@ -79,7 +79,7 @@ function hullMat(color: PlayerColor): THREE.MeshBasicMaterial {
   return m;
 }
 // Площадка цвета игрока под постройкой — видно, чьё, даже когда дом закрыт деревом
-const padGeo = new THREE.CylinderGeometry(0.36, 0.39, 0.045, 24);
+const padGeo = new THREE.CylinderGeometry(0.3, 0.33, 0.04, 24);
 const padCache = new Map<string, THREE.MeshStandardMaterial>();
 function padMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = padCache.get(color);

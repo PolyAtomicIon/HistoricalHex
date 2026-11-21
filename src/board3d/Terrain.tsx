@@ -565,9 +565,9 @@ function clearAround(props: Record<PropKind, Inst[]>, spots: [number, number][])
   const out = {} as Record<PropKind, Inst[]>;
   for (const k of Object.keys(props) as PropKind[]) {
     if (k === 'peak') out[k] = props[k].map((o) => (near(o.x, o.z, 0.82) ? { ...o, s: o.s * 0.68, sy: (o.sy ?? o.s) * 0.68 } : o));
-    else if (k === 'wheat' || k === 'furrow') out[k] = props[k].filter((o) => !segNear(o, 0.43, 0.36));
+    else if (k === 'wheat' || k === 'furrow') out[k] = props[k].filter((o) => !segNear(o, 0.43, 0.3));
     else if (k === 'dune') out[k] = props[k].filter((o) => !near(o.x, o.z, 0.5));
-    else out[k] = props[k].filter((o) => !near(o.x, o.z, 0.44));
+    else out[k] = props[k].filter((o) => !near(o.x, o.z, 0.38));
   }
   return out;
 }
