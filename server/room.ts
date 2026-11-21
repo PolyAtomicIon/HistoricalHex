@@ -23,6 +23,31 @@ import { RandomOrgDice } from '../src/net/randomOrg';
 
 const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS ?? 1300);
 const BOT_REPLY_MS = Number(process.env.BOT_REPLY_MS ?? 900);
+const PACE_SCALE = Number(process.env.BOT_PACE_SCALE ?? 1);
+
+/**
+ * Сколько дать людям досмотреть последнее событие, прежде чем бот сделает следующий шаг.
+ * Иначе бросок, налёт и постройка бота накладываются — «три действия сразу».
+ */
+export function paceAfter(events: GameEvent[]): number {
+  let ms = 0;
+  for (const e of events) {
+    const t =
+      e.type === 'robberMoved' ? 6800 // сцена налёта/войска в 3D идёт 5–7 с
+      : e.type === 'diceRolled' ? (e.total === 7 ? 3000 : 2400) // кубики + доход
+      : e.type === 'devCardPlayed' ? 2200
+      : e.type === 'monopoly' || e.type === 'yearOfPlenty' ? 2600
+      : e.type === 'longestRoad' || e.type === 'largestArmy' ? 2600
+      : e.type === 'built' ? (e.kind === 'city' ? 2400 : 1600)
+      : e.type === 'stole' ? 1800
+      : e.type === 'tradeCompleted' || e.type === 'bankTrade' ? 1600
+      : e.type === 'tradeOffered' ? 1400
+      : e.type === 'turnStarted' ? 1500
+      : 0;
+    ms = Math.max(ms, t);
+  }
+  return Math.round(ms * PACE_SCALE);
+}
 export const NAME_MAX = 20;
 
 /** Общий запас бросков random.org на весь сервер. */
@@ -83,6 +108,8 @@ export class Room {
   private waitingSince = new Map<PlayerId, number>();
   private botMemory: Record<PlayerId, BotMemory> = {};
   private botTimer?: ReturnType<typeof setTimeout>;
+  /** Раньше этого момента бот не ходит: люди досматривают прошлое событие. */
+  private paceUntil = 0;
   private queue: Promise<unknown> = Promise.resolve();
   private disposed = false;
 
@@ -436,6 +463,8 @@ export class Room {
     for (const pid of fresh) Room.onWaiting?.(this, pid);
     this.changed();
     this.sendEvents(events);
+    // бот ждёт, пока люди досмотрят событие (налёт, кубики…), — по одному действию за раз
+    this.paceUntil = Math.max(this.paceUntil, now + paceAfter(events));
     this.scheduleBots();
   }
 
@@ -613,7 +642,7 @@ export class Room {
           }
         }).catch((e) => console.error('bot queue failed', this.pin, e));
       },
-      delay ?? (isTurn ? BOT_DELAY_MS : BOT_REPLY_MS),
+      delay ?? Math.max(isTurn ? BOT_DELAY_MS : BOT_REPLY_MS, this.paceUntil - Date.now()),
     );
   }
 

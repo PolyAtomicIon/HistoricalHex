@@ -86,3 +86,34 @@ describe('ИИ-персонажи', () => {
     expect(leaderboard().length).toBe(4);
   }, 20000);
 });
+
+import { profileByPortal, signInPortal, signPortalTicket, verifyPortalTicket } from '../server/accounts';
+describe('вход через AQL Portal', () => {
+  const secret = 'portal-secret-123';
+  const now = 1_800_000_000_000;
+  const mk = (over: Partial<{ uid: string; name: string; exp: number; jti: string }> = {}) =>
+    signPortalTicket({ uid: 'u42', name: 'Айгерим', exp: now / 1000 + 120, jti: Math.random().toString(36), ...over }, secret);
+
+  it('верный билет принимается, имя и id на месте', () => {
+    expect(verifyPortalTicket(mk(), secret, now)).toEqual({ uid: 'u42', name: 'Айгерим', photo: undefined });
+  });
+  it('подделка, чужой секрет, просрочка и слишком долгий срок — отказ', () => {
+    const t = mk();
+    expect(verifyPortalTicket(t.slice(0, -2) + '00', secret, now)).toBeNull();
+    expect(verifyPortalTicket(mk(), 'other', now)).toBeNull();
+    expect(verifyPortalTicket(mk({ exp: now / 1000 - 1 }), secret, now)).toBeNull();
+    expect(verifyPortalTicket(mk({ exp: now / 1000 + 3600 }), secret, now)).toBeNull();
+    expect(verifyPortalTicket('мусор', secret, now)).toBeNull();
+  });
+  it('повтор того же билета не проходит', () => {
+    const t = mk({ jti: 'once-1' });
+    expect(verifyPortalTicket(t, secret, now)).not.toBeNull();
+    expect(verifyPortalTicket(t, secret, now)).toBeNull();
+  });
+  it('вход привязывает устройство; второе устройство видит тот же профиль', () => {
+    const a = signInPortal('dev-A', { uid: 'u77', name: 'Нурлан' });
+    const b = signInPortal('dev-B', { uid: 'u77', name: 'Нурлан' });
+    expect(a.id).toBe(b.id);
+    expect(profileByPortal('u77')?.portalId).toBe('u77');
+  });
+});

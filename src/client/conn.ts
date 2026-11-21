@@ -56,7 +56,7 @@ export interface ConnState {
   /** Разница часов сервера и устройства. */
   clockSkew: number;
   /** Профиль, рейтинг (приходит по запросу 'profile'). */
-  profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string };
+  profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; portal?: string };
   /** Ссылка на бота для входа (живёт 10 минут). */
   tgLink?: string;
   /** Web Push: публичный ключ сервера и включены ли уведомления для этого устройства. */
@@ -122,6 +122,9 @@ class Connection {
         // Внутри Telegram Mini App — входим автоматически
         const init = tgInitData();
         if (init) this.ws?.send(JSON.stringify({ t: 'tgAuth', initData: init } satisfies ClientMsg));
+        // Пришли из AQL Portal: ссылка …?aql=<билет> — входим и убираем билет из адреса
+        const aql = portalTicket();
+        if (aql) this.ws?.send(JSON.stringify({ t: 'portalAuth', ticket: aql } satisfies ClientMsg));
         if (typeof document !== 'undefined' && document.hidden) this.ws?.send(JSON.stringify({ t: 'vis', hidden: true } satisfies ClientMsg));
         return this.patch({ me: m.me, vapid: m.vapid, pushOn: m.push });
       }
@@ -130,7 +133,7 @@ class Connection {
       case 'playerProfile':
         return this.patch({ playerProfile: { pid: m.pid, profile: m.profile } });
       case 'profile':
-        return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot } });
+        return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot, portal: m.portal } });
       case 'created':
         safeSet(PIN_KEY, m.pin);
         this.resume = { t: 'open', pin: m.pin };
@@ -255,4 +258,23 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     conn.send({ t: 'vis', hidden: document.hidden });
   });
+}
+
+/** Билет входа из AQL Portal (?aql=…): берётся один раз и сразу убирается из адресной строки. */
+let aqlTicket: string | null | undefined;
+function portalTicket(): string | null {
+  if (aqlTicket !== undefined) return aqlTicket;
+  aqlTicket = null;
+  try {
+    const u = new URL(location.href);
+    const t = u.searchParams.get('aql');
+    if (t) {
+      aqlTicket = t;
+      u.searchParams.delete('aql');
+      history.replaceState(null, '', u.toString());
+    }
+  } catch {
+    /* ok */
+  }
+  return aqlTicket;
 }

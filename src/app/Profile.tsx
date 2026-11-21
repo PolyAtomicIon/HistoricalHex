@@ -7,6 +7,15 @@ import { eraCover, eraIcon } from './era';
 import { ArtIcon, Icon } from './icons';
 import { inTelegram } from './tg';
 
+/** Вход через Telegram временно скрыт (весь код на месте). */
+const SHOW_TELEGRAM = false;
+/** Портал проверит вход ученика, подпишет билет и вернёт в игру на этот же адрес. Адрес портала — от сервера. */
+export function portalLoginUrl(portal: string): string {
+  const back = new URL(location.href);
+  back.searchParams.delete('aql');
+  return `${portal.replace(/\/$/, '')}/historicalhex/launch?return=${encodeURIComponent(back.toString())}`;
+}
+
 export function ProfileView() {
   const { profile: data, status, tgLink } = useConn();
   const [tab, setTab] = useState<'me' | 'top'>('me');
@@ -16,7 +25,8 @@ export function ProfileView() {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
 
-  const needLink = !!data?.tgBot && !data.profile.telegram && !inTelegram();
+  // Telegram пока скрыт: вход — через AQL Portal (код Telegram на месте, включается флагом)
+  const needLink = SHOW_TELEGRAM && !!data?.tgBot && !data.profile.telegram && !inTelegram();
   useEffect(() => {
     if (needLink && status === 'online') conn.send({ t: 'tgLink' });
   }, [needLink, status]);
@@ -54,14 +64,14 @@ export function ProfileView() {
               className="pf-name"
               onClick={() => {
                 setName(p.name);
-                setEditing(!p.telegram);
+                setEditing(!p.telegram && !p.portal);
               }}
             >
               {p.name}
-              {!p.telegram && <Icon name="feather" size={14} />}
+              {!p.telegram && !p.portal && <Icon name="feather" size={14} />}
             </button>
           )}
-          <div className="faint small">{p.telegram ? `Telegram${p.username ? ` · @${p.username}` : ''}` : 'Гость на этом устройстве'}</div>
+          <div className="faint small">{p.portal ? 'AQL Portal' : p.telegram ? `Telegram${p.username ? ` · @${p.username}` : ''}` : 'Гость на этом устройстве'}</div>
         </div>
         <div className="pf-rating">
           <b className="display">{p.rating}</b>
@@ -102,7 +112,18 @@ export function ProfileView() {
             })}
           </div>
 
-          {!p.telegram && (
+          {!p.portal && data.portal && (
+            <div className="portal-login">
+              <span className="pl-text">
+                <b>Войди через AQL Portal</b>
+                <small>Профиль, рейтинг и серия — твои на любом устройстве</small>
+              </span>
+              <a className="btn primary" href={portalLoginUrl(data.portal)}>
+                Войти
+              </a>
+            </div>
+          )}
+          {SHOW_TELEGRAM && !p.telegram && (
             <div className="hint-card">
               <Icon name="star" size={18} />
               <span>
@@ -114,7 +135,7 @@ export function ProfileView() {
               </span>
             </div>
           )}
-          {!p.telegram && data.tgBot && !inTelegram() && (
+          {SHOW_TELEGRAM && !p.telegram && data.tgBot && !inTelegram() && (
             <div className="row">
               <a className={`btn grow tg-btn ${tgLink ? '' : 'disabled'}`} href={tgLink} target="_blank" rel="noreferrer">
                 Войти через Telegram

@@ -64,8 +64,8 @@ export interface GameFx {
   reactions: ReactionItem[];
   /** Журнал партии (с момента входа), до 200 строк. */
   log: LogEntry[];
-  /** Важное событие с объяснением — висит, пока не нажали «Понятно». */
-  notice: Notice | null;
+  /** Важные события с объяснением — по одному, каждое висит, пока не нажали «Понятно». */
+  notices: Notice[];
 }
 
 /**
@@ -82,7 +82,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     shake: 0,
     reactions: [],
     log: loadLog(),
-    notice: null,
+    notices: [],
   });
   // журнал живёт и после перезагрузки страницы (по PIN комнаты)
   useEffect(() => {
@@ -108,11 +108,42 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       return c ? PLAYER_HEX[c] : undefined;
     };
 
+    // Очередь: реплики рассказчика и кино-вставки идут строго по одной, каждая — свои секунды
+    const sayQ: { text: string; color?: string }[] = [];
+    let sayBusy = false;
+    const pumpSay = () => {
+      const n = sayQ.shift();
+      if (!n) {
+        sayBusy = false;
+        return;
+      }
+      sayBusy = true;
+      setFx((f) => ({ ...f, narration: { text: n.text, key: k.current++, color: n.color } }));
+      timers.push(setTimeout(pumpSay, Math.min(4200, 1800 + n.text.length * 28)));
+    };
     const say = (text: string, who?: PlayerId) => {
       if (!text) return;
-      setFx((f) => ({ ...f, narration: { text, key: k.current++, color: color(who) } }));
+      if (sayQ.length >= 4) sayQ.shift(); // не копим хвост — старое уже неактуально
+      sayQ.push({ text, color: color(who) });
+      if (!sayBusy) pumpSay();
     };
-    const cine = (e: Omit<CinematicEvent, 'key'>) => setFx((f) => ({ ...f, cinematic: { ...e, key: k.current++ } }));
+    const cineQ: Omit<CinematicEvent, 'key'>[] = [];
+    let cineBusy = false;
+    const pumpCine = () => {
+      const e = cineQ.shift();
+      if (!e) {
+        cineBusy = false;
+        return;
+      }
+      cineBusy = true;
+      setFx((f) => ({ ...f, cinematic: { ...e, key: k.current++ } }));
+      timers.push(setTimeout(pumpCine, 2000));
+    };
+    const cine = (e: Omit<CinematicEvent, 'key'>) => {
+      cineQ.push(e);
+      if (!cineBusy) pumpCine();
+    };
+    const timers: ReturnType<typeof setTimeout>[] = [];
     const raid = (kind: 'robber' | 'knight', target?: string, eraOverride?: string) => {
       const era = eraOverride ?? packRef.current.id;
       const sprite = kind === 'robber' ? eraIcon(era, 'attack') : era === 'ww2' ? eraIcon(era, 'tank') : eraIcon(era, 'dev-knight');
@@ -140,7 +171,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       w.__robber = () => pubRef.current?.robberHex;
       w.__focus = (id) => setFx((f) => ({ ...f, focus: id.startsWith('h') ? { hex: id, key: k.current++ } : { vertex: id, key: k.current++ } }));
       (window as unknown as { __pub: () => unknown }).__pub = () => pubRef.current;
-      (window as unknown as { __notice: (t: string, x: string) => void }).__notice = (title, text) => setFx((f) => ({ ...f, notice: { title, text, key: k.current++ } }));
+      (window as unknown as { __notice: (t: string, x: string) => void }).__notice = (title, text) => setFx((f) => ({ ...f, notices: [...f.notices, { title, text, key: k.current++ }] }));
       (window as unknown as { __say: (t: string) => void }).__say = (t) => say(t);
     }
 
@@ -163,7 +194,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
         setFx((f) => ({
           ...f,
           log: [...f.log, ...lines.map((l) => ({ ...l, key: k.current++ }))].slice(-200),
-          notice: note ? { ...note, key: k.current++ } : f.notice,
+          notices: note ? [...f.notices, { ...note, key: k.current++ }].slice(-6) : f.notices,
         }));
       for (const e of events) {
         switch (e.type) {
@@ -308,6 +339,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     return () => {
       offEvents();
       offReact();
+      timers.forEach(clearTimeout);
     };
   }, [me]);
 

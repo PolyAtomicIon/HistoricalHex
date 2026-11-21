@@ -65,7 +65,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
   return (
     <main className="screen tv">
       <div className="stage">
-        <GameBoard pub={pub} era={pack.id} boardStatic colors={colors} mode={mode} palette={pack.palette} fx={fx} spotlight={spot} />
+        <GameBoard pub={pub} era={pack.id} boardStatic colors={colors} mode={mode} palette={pack.palette} fx={fx} spotlight={spot} hifi={!lite} />
       </div>
 
       <aside className="tv-left">

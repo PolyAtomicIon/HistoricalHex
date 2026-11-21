@@ -96,6 +96,8 @@ export type ClientMsg =
   | { t: 'profile' }
   /** Вход через Telegram: initData из Mini App или данные Login Widget. */
   | { t: 'tgAuth'; initData?: string; widget?: Record<string, string | number> }
+  /** Вход через AQL Portal: подписанный порталом билет из ссылки ?aql=… */
+  | { t: 'portalAuth'; ticket: string }
   | { t: 'rename'; name: string }
   /** Ссылка на бота для входа из обычного браузера. */
   | { t: 'tgLink' }
@@ -116,6 +118,8 @@ export interface ProfileView {
   username?: string;
   photo?: string;
   telegram: boolean;
+  /** Вошёл через AQL Portal. */
+  portal?: boolean;
   rating: number;
   games: number;
   wins: number;
@@ -148,7 +152,7 @@ export type ServerMsg =
   | { t: 'react'; from: PlayerId; emoji: string; at: number }
   | { t: 'error'; message: string; fatal?: boolean }
   | { t: 'pong'; now: number }
-  | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string }
+  | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; /** Адрес AQL Portal: есть — показываем вход через портал. */ portal?: string }
   | { t: 'tgLink'; url: string }
   | { t: 'playerProfile'; pid: string; profile: ProfileView | null };
 

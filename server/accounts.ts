@@ -11,6 +11,8 @@ import { PERSONAS, personaById, simulateGame } from './personas';
 export interface Profile {
   id: string;
   tgId?: string;
+  /** Аккаунт AQL Portal (id пользователя портала). */
+  portalId?: string;
   name: string;
   username?: string;
   photo?: string;
@@ -38,6 +40,7 @@ export interface FinishedGame {
 interface Store {
   getProfile(id: string): Profile | undefined;
   getByTg(tgId: string): Profile | undefined;
+  getByPortal(portalId: string): Profile | undefined;
   putProfile(p: Profile): void;
   deviceProfile(pid: string): string | undefined;
   linkDevice(pid: string, profileId: string): void;
@@ -55,6 +58,7 @@ class MemoryStore implements Store {
   games = new Set<string>();
   getProfile = (id: string) => this.profiles.get(id);
   getByTg = (tg: string) => [...this.profiles.values()].find((p) => p.tgId === tg);
+  getByPortal = (id: string) => [...this.profiles.values()].find((p) => p.portalId === id);
   putProfile = (p: Profile) => void this.profiles.set(p.id, structuredClone(p));
   deviceProfile = (pid: string) => this.devices.get(pid);
   linkDevice = (pid: string, id: string) => void this.devices.set(pid, id);
@@ -78,14 +82,22 @@ class SqliteStore implements Store {
       CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, data TEXT NOT NULL, finished_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS profiles_rating ON profiles(rating DESC);
     `);
+    // AQL Portal: колонка добавляется к старой базе один раз
+    try {
+      db.exec('ALTER TABLE profiles ADD COLUMN portal_id TEXT');
+    } catch {
+      /* уже есть */
+    }
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS profiles_portal ON profiles(portal_id)');
   }
   private row = (r: unknown) => (r ? (JSON.parse((r as { data: string }).data) as Profile) : undefined);
   getProfile = (id: string) => this.row(this.db.prepare('SELECT data FROM profiles WHERE id = ?').get(id));
   getByTg = (tg: string) => this.row(this.db.prepare('SELECT data FROM profiles WHERE tg_id = ?').get(tg));
+  getByPortal = (id: string) => this.row(this.db.prepare('SELECT data FROM profiles WHERE portal_id = ?').get(id));
   putProfile = (p: Profile) =>
     void this.db
-      .prepare('INSERT INTO profiles (id, tg_id, data, rating, games) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tg_id = excluded.tg_id, data = excluded.data, rating = excluded.rating, games = excluded.games')
-      .run(p.id, p.tgId ?? null, JSON.stringify(p), p.rating, p.games);
+      .prepare('INSERT INTO profiles (id, tg_id, portal_id, data, rating, games) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tg_id = excluded.tg_id, portal_id = excluded.portal_id, data = excluded.data, rating = excluded.rating, games = excluded.games')
+      .run(p.id, p.tgId ?? null, p.portalId ?? null, JSON.stringify(p), p.rating, p.games);
   deviceProfile = (pid: string) => (this.db.prepare('SELECT profile_id FROM devices WHERE pid = ?').get(pid) as { profile_id: string } | undefined)?.profile_id;
   linkDevice = (pid: string, id: string) =>
     void this.db.prepare('INSERT INTO devices (pid, profile_id) VALUES (?, ?) ON CONFLICT(pid) DO UPDATE SET profile_id = excluded.profile_id').run(pid, id);
@@ -154,6 +166,7 @@ export function view(p: Profile): ProfileView {
     username: p.username,
     photo: p.photo,
     telegram: !!p.tgId,
+    portal: !!p.portalId,
     rating: Math.round(p.rating),
     games: p.games,
     wins: p.wins,
@@ -358,4 +371,67 @@ export function renameProfile(pid: string, name: string): Profile {
   p.name = name.trim().slice(0, 24) || p.name;
   store.putProfile(p);
   return p;
+}
+
+// ───────────────────────── AQL Portal ─────────────────────────
+//
+// Вход через портал: портал подписывает короткий билет общим секретом (PORTAL_LOGIN_SECRET, иначе PORTAL_API_KEY)
+// и отправляет ученика в игру по ссылке …/catan/?aql=<билет>. Билет = base64url(JSON) + "." + hex(HMAC-SHA256).
+// JSON: { v: 1, uid, name, photo?, exp (unix-секунды), jti (одноразовый) }. Живёт ≤ 5 минут, повтор не принимается.
+
+export interface PortalUser {
+  uid: string;
+  name: string;
+  photo?: string;
+}
+
+const usedTickets = new Map<string, number>();
+
+export function signPortalTicket(u: PortalUser & { exp: number; jti: string }, secret: string): string {
+  const body = Buffer.from(JSON.stringify({ v: 1, ...u })).toString('base64url');
+  return `${body}.${createHmac('sha256', secret).update(body).digest('hex')}`;
+}
+
+export function verifyPortalTicket(ticket: string, secret: string, now = Date.now()): PortalUser | null {
+  if (!secret || typeof ticket !== 'string' || ticket.length > 4000) return null;
+  const [body, sig] = ticket.split('.');
+  if (!body || !sig) return null;
+  const calc = createHmac('sha256', secret).update(body).digest('hex');
+  if (!safeEq(calc, sig)) return null;
+  let p: { v?: number; uid?: unknown; name?: unknown; photo?: unknown; exp?: unknown; jti?: unknown };
+  try {
+    p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+  const t = now / 1000;
+  if (p.v !== 1 || typeof p.uid !== 'string' || !p.uid || typeof p.exp !== 'number' || typeof p.jti !== 'string') return null;
+  if (!(p.exp > t && p.exp - t <= 300)) return null;
+  for (const [k, e] of usedTickets) if (e < t) usedTickets.delete(k);
+  if (usedTickets.has(p.jti)) return null;
+  usedTickets.set(p.jti, p.exp);
+  return {
+    uid: p.uid.slice(0, 64),
+    name: (typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'Игрок').slice(0, 40),
+    photo: typeof p.photo === 'string' && p.photo.startsWith('https://') ? p.photo.slice(0, 500) : undefined,
+  };
+}
+
+/** Войти через AQL Portal: устройство привязывается к профилю этого ученика (первый вход «повышает» гостевой). */
+export function signInPortal(pid: string, u: PortalUser): Profile {
+  let p = store.getByPortal(u.uid);
+  if (!p) {
+    const own = profileOf(pid, u.name);
+    p = own.portalId ? { ...newProfile('p' + u.uid, u.name) } : own;
+    p.portalId = u.uid;
+  }
+  p.name = u.name;
+  if (u.photo) p.photo = u.photo;
+  store.putProfile(p);
+  store.linkDevice(pid, p.id);
+  return p;
+}
+
+export function profileByPortal(uid: string): Profile | undefined {
+  return store.getByPortal(uid);
 }

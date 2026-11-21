@@ -14,7 +14,7 @@ let server: ChildProcess;
 beforeAll(async () => {
   execSync('npm run -s build:server', { stdio: 'ignore' });
   server = spawn('node', ['dist-server/server.mjs'], {
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: mkdtempSync(join(tmpdir(), 'hh-')), BOT_DELAY_MS: '1', BOT_REPLY_MS: '1' },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: mkdtempSync(join(tmpdir(), 'hh-')), BOT_DELAY_MS: '1', BOT_REPLY_MS: '1', BOT_PACE_SCALE: '0' },
     stdio: 'pipe',
   });
   await new Promise<void>((ok) => server.stdout!.on('data', (d) => String(d).includes('server on') && ok()));
@@ -157,4 +157,14 @@ describe('server', () => {
     b.ws.close();
     c.ws.close();
   }, 30_000);
+});
+
+import { paceAfter } from '../server/room';
+describe('темп ботов', () => {
+  it('после налёта ждём сцену, после кубиков — анимацию, по максимуму из событий', () => {
+    expect(paceAfter([{ type: 'robberMoved', player: 'a', hex: 'h' }])).toBeGreaterThanOrEqual(6000);
+    expect(paceAfter([{ type: 'diceRolled', player: 'a', dice: [2, 3], total: 5 }])).toBeGreaterThanOrEqual(2000);
+    expect(paceAfter([{ type: 'turnSkipped', player: 'a' }])).toBe(0);
+    expect(paceAfter([{ type: 'built', player: 'a', kind: 'road', at: 'e' }, { type: 'longestRoad', player: 'a', length: 5 }])).toBe(2600);
+  });
 });

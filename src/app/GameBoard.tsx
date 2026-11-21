@@ -78,7 +78,10 @@ export function GameBoard({
   ghosts,
   me,
   pin,
+  hifi,
 }: {
+  /** Большой экран (ноутбук → ТВ): максимум детализации и эффектов. */
+  hifi?: boolean;
   /** Показать место на карте (шаг плана): камера летит туда, место подсвечивается. */
   pin?: { at: string; key: number } | null;
   pub: PublicState;
@@ -166,7 +169,8 @@ export function GameBoard({
           focus={pinFocus ?? spotFocus ?? fx.focus}
           ghosts={ghosts}
           shake={fx.shake}
-          lowPower={lowPower}
+          lowPower={hifi ? false : lowPower}
+          hifi={hifi}
           era={era}
           sail={fx.sail}
           viewStatic={boardStatic}

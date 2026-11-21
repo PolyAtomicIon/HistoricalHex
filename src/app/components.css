@@ -4541,3 +4541,17 @@ html.lite .home .era-card.on .era-cover {
 .trs-btns .btn.big { min-height: 56px; font-size: 17px; }
 .trs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .trs-ans { margin: 0; text-align: center; color: var(--ink-2); }
+
+/* Вход через AQL Portal в профиле */
+.portal-login {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.portal-login .pl-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.portal-login .pl-text b { font-size: 15px; }
+.portal-login .pl-text small { font-size: 13px; color: var(--ink-2); }
+.portal-login .btn { flex: none; min-height: 44px; border-radius: 12px; padding: 0 18px; }

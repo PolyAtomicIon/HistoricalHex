@@ -13,12 +13,16 @@ import type { Client, SavedRoom } from './room';
 import { Room } from './room';
 import { TgBot } from './tgbot';
 import { addSubscription, hasPush, initPush, removeSubscriptions, sendPush, vapidPublicKey } from './push';
-import { findProfile, leaderboard, openAccounts, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInTelegram, verifyMiniApp, verifyWidget, view } from './accounts';
+import { findProfile, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
 const TG_BOT = process.env.TG_BOT_NAME ?? '';
 const APP_URL = process.env.APP_URL ?? 'https://bekzaty.abmco.kz/catan/';
 const PORTAL_KEY = process.env.PORTAL_API_KEY ?? '';
+/** Секрет подписи билетов входа из AQL Portal (по умолчанию — тот же ключ API). */
+const PORTAL_SECRET = process.env.PORTAL_LOGIN_SECRET ?? PORTAL_KEY;
+/** Адрес портала для кнопки входа; кнопка видна, только когда задан и есть секрет. */
+const PORTAL_URL = PORTAL_SECRET ? (process.env.PORTAL_URL ?? '') : '';
 const bot = TG_TOKEN && TG_BOT ? new TgBot(TG_TOKEN, TG_BOT, APP_URL) : undefined;
 bot?.start();
 
@@ -136,11 +140,19 @@ const http = createServer((req, res) => {
       res.writeHead(401).end();
       return;
     }
-    const ids = (new URL(req.url, 'http://x').searchParams.get('tg_ids') ?? '').split(',').filter((x) => /^\d{1,20}$/.test(x)).slice(0, 500);
-    const out = ids.flatMap((id) => {
-      const p = profileByTg(id);
-      return p ? [{ tg_id: id, ...view(p) }] : [];
-    });
+    const q = new URL(req.url, 'http://x').searchParams;
+    const ids = (q.get('tg_ids') ?? '').split(',').filter((x) => /^\d{1,20}$/.test(x)).slice(0, 500);
+    const pids = (q.get('portal_ids') ?? '').split(',').filter((x) => /^[\w-]{1,64}$/.test(x)).slice(0, 500);
+    const out = [
+      ...ids.flatMap((id) => {
+        const p = profileByTg(id);
+        return p ? [{ tg_id: id, ...view(p) }] : [];
+      }),
+      ...pids.flatMap((id) => {
+        const p = profileByPortal(id);
+        return p ? [{ portal_id: id, ...view(p) }] : [];
+      }),
+    ];
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(out));
     return;
@@ -206,11 +218,11 @@ wss.on('connection', (ws: WebSocket) => {
 
     switch (msg.t) {
       case 'profile':
-        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
       case 'rename': {
         if (typeof msg.name !== 'string') throw new Error('Плохое имя');
         renameProfile(me, msg.name);
-        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
       }
       case 'pushSub':
         if (!addSubscription(me, msg.sub)) throw new Error('Не удалось включить уведомления');
@@ -240,9 +252,16 @@ wss.on('connection', (ws: WebSocket) => {
         const who = me;
         const url = bot.loginLink(who, (u) => {
           signInTelegram(who, u);
-          send({ t: 'profile', profile: view(profileOf(who)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+          send({ t: 'profile', profile: view(profileOf(who)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
         });
         return send({ t: 'tgLink', url });
+      }
+      case 'portalAuth': {
+        if (!PORTAL_SECRET) throw new Error('Вход через AQL Portal ещё не настроен');
+        const u = verifyPortalTicket(String(msg.ticket ?? ''), PORTAL_SECRET);
+        if (!u) throw new Error('Ссылка входа из AQL Portal устарела — открой игру из портала ещё раз');
+        signInPortal(me, u);
+        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
       }
       case 'tgAuth': {
         if (!TG_TOKEN) throw new Error('Вход через Telegram ещё не настроен');
@@ -254,7 +273,7 @@ wss.on('connection', (ws: WebSocket) => {
               : null;
         if (!u || typeof u.id !== 'number') throw new Error('Telegram не подтвердил вход');
         signInTelegram(me, u);
-        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
       }
       case 'create': {
         if (++created > CREATE_LIMIT) throw new Error('Слишком много новых комнат — подожди');

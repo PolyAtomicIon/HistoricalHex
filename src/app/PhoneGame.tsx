@@ -107,8 +107,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   }, [connNotice?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [logOpen, setLogOpen] = useState(false);
   // Важное (награды, монополия) — карточкой с объяснением, пока не нажали «Понятно»
-  const [noticeSeen, setNoticeSeen] = useState(0);
-  const notice = fx.notice && fx.notice.key !== noticeSeen ? fx.notice : null;
+  const [noticeSeen, setNoticeSeen] = useState<number[]>([]);
+  const notice = fx.notices.find((n) => !noticeSeen.includes(n.key)) ?? null;
+  const markSeen = (key: number) => setNoticeSeen((s) => [...s.slice(-20), key]);
   const { status: connStatus, vapid, pushOn } = useConn();
   // Один раз предложить уведомления «Твой ход» (через 20 с после входа в партию)
   const [askPush, setAskPushState] = useState(false);
@@ -608,10 +609,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <b className="nc-title">{notice.title}</b>
             <p className="nc-text">{notice.text}</p>
             <div className="fp-actions">
-              <button className="btn primary small-act" onClick={() => setNoticeSeen(notice.key)}>
+              <button className="btn primary small-act" onClick={() => markSeen(notice.key)}>
                 Понятно
               </button>
-              <button className="btn ghost small-act" onClick={() => { setNoticeSeen(notice.key); setSheet('plan'); setLogOpen(true); }}>
+              <button className="btn ghost small-act" onClick={() => { markSeen(notice.key); setSheet('plan'); setLogOpen(true); }}>
                 <Icon name="book" size={16} /> Журнал
               </button>
             </div>

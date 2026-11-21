@@ -12,6 +12,7 @@ import { boardLocator } from '../fx/util';
 import { Raid3D, type Raid3DEvent } from './Raid3D';
 import { Tanks3D, type Tanks3DEvent } from './Tanks3D';
 import { ATTACK3D_MS, Warriors3D, type Attack3DEvent } from './Warriors3D';
+import { Atmosphere } from './Atmosphere';
 import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig';
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
@@ -40,6 +41,8 @@ export interface Board3DProps extends BoardProps {
   me?: string;
   /** Рёбра «Самой длинной дороги» — подсветка магистрали. */
   longest?: string[];
+  /** Большой экран (ноутбук → ТВ): облака, птицы, облёт камеры, тени в высоком разрешении. */
+  hifi?: boolean;
   /** Игрок, чьи постройки сейчас смотрят (тап по игроку): белый контур и ореол его цвета. */
   spot?: string;
   /** Обмен через гавань: кораблик этой гавани уходит в рейс. */
@@ -98,6 +101,7 @@ function CameraRig({
   shake,
   rig,
   reduced,
+  drift,
 }: {
   mode: BoardMode;
   world: World;
@@ -105,9 +109,11 @@ function CameraRig({
   shake: number | undefined;
   rig: Rig;
   reduced: boolean;
+  /** Большой экран: камера медленно облетает остров, когда нет событий. */
+  drift?: boolean;
 }) {
   const { camera, gl, size, scene } = useThree();
-  const goal = useRef<Goal>({ az: 0.3, pol: 0.88, zoom: 1, panX: 0, panZ: 0, ...PRESET[mode] });
+  const goal = useRef<Goal>({ az: 0.3, pol: 0.88, zoom: 1, panX: 0, panZ: 0, ...PRESET[mode], ...(drift ? { zoom: 0.8 } : {}) });
   const cur = useRef<Goal | null>(null);
   const orbit = useRef({ az: 0.3, pol: 0.88 });
   const modeRef = useRef(mode);
@@ -157,7 +163,7 @@ function CameraRig({
     g.amp = p.amp;
     g.az = p.az ?? orbit.current.az;
     g.pol = p.pol ?? orbit.current.pol;
-    g.zoom = 1;
+    g.zoom = drift ? 0.8 : 1;
     g.panX = 0;
     g.panZ = 0;
   }, [mode]);
@@ -328,6 +334,7 @@ function CameraRig({
     const dt = Math.min(dtRaw, 0.05);
     const g = goal.current;
     const c = cur.current!;
+    if (drift && !reduced && !flight.current) g.az += dt * 0.035;
     const L = reduced ? 20 : 5.5;
     c.az = damp(c.az, g.az, L, dt);
     c.pol = damp(c.pol, g.pol, L, dt);
@@ -531,7 +538,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
 
   return (
     <EnvCtx.Provider value={env}>
-      <CameraRig mode={mode} world={world} focus={focus} shake={shake} rig={rig} reduced={reduced} />
+      <CameraRig mode={mode} world={world} focus={focus} shake={shake} rig={rig} reduced={reduced} drift={props.hifi} />
+      {props.hifi && <Atmosphere radius={world.radius} />}
 
       <fog attach="fog" args={[fogColor, 10, 400]} />
       {/* небо/земля + тёплый ключ пониже (длинные тени = объём) + холодный контровой с обратной стороны */}
@@ -542,7 +550,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
         intensity={2.75}
         color={palette.light}
         castShadow={!lowPower}
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={props.hifi ? [4096, 4096] : [2048, 2048]}
         shadow-camera-left={-R}
         shadow-camera-right={R}
         shadow-camera-top={R}
