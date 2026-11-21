@@ -3294,3 +3294,73 @@ html.lite .home .era-card.on .era-cover {
   width: 36px;
   padding: 0;
 }
+
+/* «Твой гекс захвачен» — заметно, но не мешает: под статусом, тап — как убрать */
+.blocked-chip {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(var(--safe-t) + 120px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 22px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(70, 12, 10, 0.86) !important;
+  animation: pill-in 320ms var(--ease-out);
+}
+.bc-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+}
+.bc-ic::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  height: 3px;
+  border-radius: 2px;
+  background: #ff4b3e;
+  transform: rotate(-35deg);
+}
+.bc-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.bc-text b {
+  font-size: 13px;
+}
+.bc-text small {
+  font-size: 12px;
+  color: rgba(255, 220, 215, 0.85);
+}
+.bc-q {
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 13px;
+  font-weight: 900;
+}
+/* Подпись под заголовком шторки — одна строка */
+.sheet-desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lore-region {
+  margin: 0;
+}

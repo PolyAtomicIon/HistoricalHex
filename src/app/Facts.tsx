@@ -11,6 +11,7 @@ export function FactsList({ pack }: { pack: LorePack }) {
   const facts = pack.facts.filter((f) => only === 'all' || f.kz);
   return (
     <div className="stack">
+      <p className="faint small lore-region">{pack.region}</p>
       {pack.intro.map((p, i) => (
         <p key={i} className="intro-p">
           {p}
@@ -28,7 +29,7 @@ export function FactsList({ pack }: { pack: LorePack }) {
           </div>
         ))}
         <div className="item">
-          <ArtIcon src={eraIcon(pack.id, 'robber')} size={40} />
+          <ArtIcon src={eraIcon(pack.id, 'robber-unit')} size={40} />
           <div className="grow">
             <div className="t">{pack.robber.name}</div>
             <div className="s">{pack.robber.note}</div>

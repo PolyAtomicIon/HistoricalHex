@@ -8,12 +8,14 @@ const MIN = 1;
 const MAX = 3.2;
 const SLOP = 8;
 
-export function usePanZoom(enabled: boolean) {
+export function usePanZoom(enabled: boolean, onSwipe?: (dir: 1 | -1) => void) {
   const ref = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const t = useRef({ s: 1, x: 0, y: 0 });
   const pts = useRef(new Map<number, { x: number; y: number }>());
-  const g = useRef<{ moved: boolean; sx: number; sy: number; d0: number; s0: number; x0: number; y0: number; mx: number; my: number } | null>(null);
+  const g = useRef<{ moved: boolean; sx: number; sy: number; d0: number; s0: number; x0: number; y0: number; mx: number; my: number; lx?: number; ly?: number; multi?: boolean } | null>(null);
+  const swipeRef = useRef(onSwipe);
+  swipeRef.current = onSwipe;
   const suppress = useRef(false);
   const lastTap = useRef(0);
   const anim = useRef(0);
@@ -83,7 +85,7 @@ export function usePanZoom(enabled: boolean) {
     } else if (p.length === 2) {
       const mx = (p[0].x + p[1].x) / 2;
       const my = (p[0].y + p[1].y) / 2;
-      g.current = { moved: true, sx: mx, sy: my, d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), s0: t.current.s, x0: t.current.x, y0: t.current.y, mx, my };
+      g.current = { moved: true, multi: true, sx: mx, sy: my, d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), s0: t.current.s, x0: t.current.x, y0: t.current.y, mx, my };
       suppress.current = true;
     }
   };
@@ -105,6 +107,8 @@ export function usePanZoom(enabled: boolean) {
     }
     const dx = p[0].x - st.sx;
     const dy = p[0].y - st.sy;
+    st.lx = p[0].x;
+    st.ly = p[0].y;
     if (!st.moved && Math.hypot(dx, dy) < SLOP) return;
     if (!st.moved) {
       st.moved = true;
@@ -121,7 +125,7 @@ export function usePanZoom(enabled: boolean) {
     if (pts.current.size === 1) {
       // Остался один палец — продолжаем как перетаскивание от текущего места
       const [p] = [...pts.current.values()];
-      g.current = { moved: true, sx: p.x, sy: p.y, d0: 0, s0: t.current.s, x0: t.current.x, y0: t.current.y, mx: 0, my: 0 };
+      g.current = { moved: true, multi: true, sx: p.x, sy: p.y, d0: 0, s0: t.current.s, x0: t.current.x, y0: t.current.y, mx: 0, my: 0 };
       return;
     }
     if (pts.current.size === 0) {
@@ -129,6 +133,13 @@ export function usePanZoom(enabled: boolean) {
       const c = clampT(s, x, y);
       if (c.s !== s || c.x !== x || c.y !== y) animateTo(c.s, c.x, c.y);
       else apply(false);
+      // Свайп влево-вправо без зума — повернуть карту
+      const st = g.current;
+      if (st && st.moved && !st.multi && s <= 1.02 && st.lx !== undefined && st.ly !== undefined) {
+        const dx = st.lx - st.sx;
+        const dy = st.ly - st.sy;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) swipeRef.current?.(dx > 0 ? 1 : -1);
+      }
       // Двойной тап по пустому месту — приблизить/отдалить
       if (g.current && !g.current.moved) {
         const now = Date.now();

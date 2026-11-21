@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 export type SfxName =
   | 'diceShake' | 'diceLand' | 'tick' | 'pop' | 'coin' | 'chime' | 'whoosh' | 'tudum'
   | 'attack' | 'fanfare' | 'victory' | 'error' | 'yourTurn' | 'react' | 'steal'
-  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank';
+  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank' | 'siren';
 
 export interface SfxOpts {
   /** 0..1.5 extra gain for this call */
@@ -170,6 +170,15 @@ const drum = (x: Ctx, at: number, f: number, gain = 0.6, len = 0.35) => {
 };
 
 const RECIPES: Record<SfxName, (x: Ctx, o: SfxOpts) => void> = {
+  siren: (x) => {
+    // воздушная тревога: вой вверх-вниз, две волны
+    for (let i = 0; i < 2; i++) {
+      const at = i * 1.1;
+      tone(x, { at, f: 330, to: 620, dur: 0.55, type: 'sawtooth', gain: 0.09, attack: 0.15, lp: 1600 });
+      tone(x, { at: at + 0.55, f: 620, to: 330, dur: 0.55, type: 'sawtooth', gain: 0.08, attack: 0.02, lp: 1600 });
+      tone(x, { at, f: 332, to: 624, dur: 0.55, type: 'square', gain: 0.03, attack: 0.15, lp: 1200 });
+    }
+  },
   gallop: (x) => {
     // топот: тройки ударов, нарастает и уходит
     for (let i = 0; i < 7; i++) {

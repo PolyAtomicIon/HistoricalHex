@@ -519,3 +519,4 @@ html.lite .b2d .rz-smoke { animation: none; opacity: 0.6; }
 .b2d .road {
   transition: opacity 0.3s;
 }
+.b2d-rot { transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1); }

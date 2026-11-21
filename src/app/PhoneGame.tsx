@@ -15,6 +15,7 @@ import {
   legalSettlementVertices,
   playersAtHex,
   topologyFor,
+  TERRAIN_RESOURCE,
 } from '../engine';
 import type { RoomView } from '../proto';
 import { REACTIONS } from '../proto';
@@ -290,6 +291,27 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const hints = goalHints(pub, priv, me);
   const fact = useRotatingFact(pack, 16000);
   const showFact = !myTurn && pub.phase !== 'finished' && pub.phase !== 'discard' && !planPick && !pub.trade;
+  // Мои постройки у захваченного гекса — показать явно и подсказать, как убрать
+  const blocked = useMemo(() => {
+    const hex = pub.board.hexes.find((h) => h.id === pub.robberHex);
+    if (!hex || hex.terrain === 'desert' || hex.number === undefined) return null;
+    const topo = topologyFor(pub.board.layout);
+    const corners = [...topo.vertices.values()].filter((v) => v.hexes.includes(hex.id)).map((v) => v.id);
+    const mine = corners.filter((v) => pub.buildings[v]?.owner === me);
+    if (!mine.length) return null;
+    const cities = mine.filter((v) => pub.buildings[v]?.kind === 'city').length;
+    return { res: TERRAIN_RESOURCE[hex.terrain], number: hex.number, loss: mine.length + cities };
+  }, [pub.robberHex, pub.buildings, pub.board, me]);
+  const [blockInfo, setBlockInfo] = useState(false);
+  const wasBlocked = useRef<string | null>(null);
+  useEffect(() => {
+    const k = blocked ? pub.robberHex : null;
+    if (k && k !== wasBlocked.current) {
+      haptic('error');
+      conn.notify(`${pack.robber.name}: твой гекс захвачен — ${RESOURCE_NAME[blocked!.res]} ${blocked!.number} без дохода`);
+    }
+    wasBlocked.current = k;
+  }, [blocked, pub.robberHex]); // eslint-disable-line react-hooks/exhaustive-deps
   const readyCard =
     myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed
       ? priv.devCards.find((c) => c.playable && c.type !== 'victoryPoint')?.type
@@ -357,6 +379,21 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
       {connStatus !== 'online' && <div className="reconnect glass">Переподключаемся…</div>}
+
+      {blocked && !focusPlayer && (
+        <button className="blocked-chip glass strong" onClick={() => setBlockInfo(true)}>
+          <span className="bc-ic">
+            <ResIcon r={blocked.res} size={22} />
+          </span>
+          <span className="bc-text">
+            <b>Твой гекс захвачен</b>
+            <small>
+              {RESOURCE_NAME[blocked.res]} · {blocked.number} — без дохода
+            </small>
+          </span>
+          <span className="bc-q">?</span>
+        </button>
+      )}
 
       {myTurn && <TurnBanner key={`tb${pub.turn}`} color={PLAYER_HEX[meP.color]} />}
 
@@ -524,11 +561,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} ${plural(priv.mustDiscard, 'карту', 'карты', 'карт')}`} description="Выпало 7: у кого больше 7 карт — сбрасывает половину">
+      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} ${plural(priv.mustDiscard, 'карту', 'карты', 'карт')}`} description="Выпала 7 — сбрось половину карт">
         <Discard priv={priv} busy={busy} send={sendVoid} />
       </Sheet>
 
-      <Sheet open={sheet === 'dice'} onClose={() => setSheet(null)} title="Что выпало на кубиках?" description="Брось настоящие кубики и отметь числа">
+      <Sheet open={sheet === 'dice'} onClose={() => setSheet(null)} title="Что выпало на кубиках?" description="Отметь, что выпало">
         <PhysicalDice
           busy={busy}
           canRoll={myTurn && pub.phase === 'roll'}
@@ -539,7 +576,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={sheet === 'plan'} onClose={() => setSheet(null)} title="План хода" description="Собери ходы заранее. После каждого чужого хода план перепроверяется.">
+      <Sheet open={sheet === 'plan'} onClose={() => setSheet(null)} title="План хода" description="Ходы заранее — в свой ход одной кнопкой">
         <PlanSheet
           checked={checked}
           plan={plan}
@@ -572,6 +609,50 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
+      <Sheet open={blockInfo && !!blocked} onClose={() => setBlockInfo(false)} title={`${pack.robber.name} на твоём гексе`}>
+        {blocked && (
+          <div className="stack">
+            <div className="hint-card">
+              <ResIcon r={blocked.res} size={28} />
+              <span>
+                Пока он там, на число <b>{blocked.number}</b> ты не получаешь {RESOURCE_NAME[blocked.res]}
+                {blocked.loss > 1 ? ` (теряешь ${blocked.loss} шт. за бросок)` : ''}.
+              </span>
+            </div>
+            <div className="label">Как убрать</div>
+            <div className="item">
+              <ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={40} />
+              <span className="grow">
+                <span className="t">Сыграй карту «{pack.devCards.knight.name}»</span>
+                <span className="s" style={{ display: 'block' }}>
+                  Переставишь его на чужой гекс и заберёшь карту у соседа. {priv.devCards.some((c) => c.type === 'knight') ? 'У тебя она есть!' : 'Купить: овцы, зерно, руда.'}
+                </span>
+              </span>
+            </div>
+            <div className="item">
+              <Icon name="dice" />
+              <span className="grow">
+                <span className="t">Выброси 7 в свой ход</span>
+                <span className="s" style={{ display: 'block' }}>
+                  Тогда переставляешь его ты.
+                </span>
+              </span>
+            </div>
+            {priv.devCards.some((c) => c.type === 'knight' && c.playable) && myTurn && !pub.devCardPlayed && (
+              <button
+                className="btn primary wide"
+                onClick={() => {
+                  setBlockInfo(false);
+                  setSheet('dev');
+                }}
+              >
+                Сыграть «{pack.devCards.knight.name}»
+              </button>
+            )}
+          </div>
+        )}
+      </Sheet>
+
       <Sheet open={sheet === 'pprofile' && !!profileOf} onClose={() => setSheet(null)} title="Профиль игрока">
         {profileOf && pub.players[profileOf] && (
           <PlayerProfileCard
@@ -586,7 +667,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         )}
       </Sheet>
 
-      <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
+      <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={pack.years}>
         <div className="stack">
           <Fact f={openFact ?? fact} big />
           <button className="btn wide" onClick={() => setSheet('lore')}>
@@ -595,7 +676,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       </Sheet>
 
-      <Sheet open={sheet === 'lore'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
+      <Sheet open={sheet === 'lore'} onClose={() => setSheet(null)} title={pack.title} description={pack.years}>
         <FactsList pack={pack} />
       </Sheet>
 
@@ -703,7 +784,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       </Sheet>
 
-      <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title="Кто доиграет за тебя?" description="Карты и постройки останутся. Вернёшься с этого же телефона — заберёшь место у бота.">
+      <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title="Кто доиграет за тебя?" description="Вернёшься — место снова твоё">
         <div className="stack">
           {BOT_LEVELS.map((l) => (
             <button

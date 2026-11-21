@@ -2,7 +2,8 @@
 // жесты (перетаскивание, щипок, колесо), анимации дохода и построек.
 // Работает и на старых телефонах (SVG, без WebGL); в лёгком режиме анимации проще.
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { EdgeId, HarborType, HexId, PlayerColor, PlayerId, PublicState, Terrain, VertexId } from '../engine';
 import { HEX_CORNERS, TERRAIN_RESOURCE, topologyFor } from '../engine';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
@@ -68,7 +69,9 @@ export function Board2D(props: Board2DProps) {
   const topo = topologyFor(view.board.layout);
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const id = (s: string) => `b2-${uid}-${s}`;
-  const pz = usePanZoom(!props.static);
+  // Поворот карты свайпом влево-вправо (шаг 60° — сетка гексов совпадает сама с собой)
+  const [rot, setRot] = useState(0);
+  const pz = usePanZoom(!props.static, (d) => setRot((r) => r + d * 60));
   const tiles = useImages(TERRAINS.map((t) => eraIcon(era, `tile-${t}`)));
   const unit = useImages([eraIcon(era, 'camp'), eraIcon(era, 'robber-unit')]);
   const shipSrc = `${import.meta.env.BASE_URL}eras/ship.webp`;
@@ -82,13 +85,9 @@ export function Board2D(props: Board2DProps) {
     for (const v of topo.vertices.values()) vertexPos.set(v.id, px(v.x, v.y));
     const hexPos = new Map<HexId, { x: number; y: number }>();
     for (const h of topo.hexes.values()) hexPos.set(h.id, px(h.x, h.y));
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const grow = (x: number, y: number) => {
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    };
+    // Точки контура; рамка считается по всем шести поворотам (карту можно крутить свайпом по 60°)
+    const pts: { x: number; y: number }[] = [];
+    const grow = (x: number, y: number) => void pts.push({ x, y });
     for (const c of hexPos.values()) for (const p of HEX_PTS) grow(c.x + p.x, c.y + p.y);
     const harbors = view.board.harbors.flatMap((h) => {
       const edge = topo.edges.get(h.edge);
@@ -106,8 +105,45 @@ export function Board2D(props: Board2DProps) {
       return [{ ...h, a, b, ox, oy }];
     });
     const pad = 14;
-    return { vertexPos, hexPos, harbors, viewBox: `${minX - pad} ${minY - pad} ${maxX - minX + 2 * pad} ${maxY - minY + 2 * pad}` };
+    let cx = 0, cy = 0;
+    for (const c of hexPos.values()) { cx += c.x; cy += c.y; }
+    cx /= Math.max(1, hexPos.size);
+    cy /= Math.max(1, hexPos.size);
+    // Рамка для каждого из шести поворотов: при повороте viewBox плавно подстраивается
+    const boxes = Array.from({ length: 6 }, (_, k) => {
+      const a = (k * Math.PI) / 3;
+      const co = Math.cos(a), si = Math.sin(a);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const p of pts) {
+        const x = cx + (p.x - cx) * co - (p.y - cy) * si;
+        const y = cy + (p.x - cx) * si + (p.y - cy) * co;
+        x0 = Math.min(x0, x); y0 = Math.min(y0, y);
+        x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+      }
+      return [x0 - pad, y0 - pad, x1 - x0 + 2 * pad, y1 - y0 + 2 * pad];
+    });
+    return { vertexPos, hexPos, harbors, cx, cy, boxes };
   }, [topo, view.board.harbors]);
+
+  // viewBox следует за поворотом: рамка под текущий угол, переход синхронно с CSS-поворотом (600 мс)
+  const svgRef = useRef<SVGSVGElement>(null);
+  const kRot = (((rot / 60) % 6) + 6) % 6;
+  const vb = useRef(geo.boxes[kRot]);
+  useEffect(() => {
+    const from = vb.current;
+    const to = geo.boxes[kRot];
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / 600);
+      const e = 1 - Math.pow(1 - k, 5); // ≈ cubic-bezier(0.22, 1, 0.36, 1) у .b2d-rot
+      vb.current = from.map((v, i) => v + (to[i] - v) * e);
+      svgRef.current?.setAttribute('viewBox', vb.current.join(' '));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [kRot, geo]);
 
   const recentSet = new Set(recent);
   const hl = {
@@ -202,7 +238,7 @@ export function Board2D(props: Board2DProps) {
     const fn = (hex: string) => {
       const c = geo.hexPos.get(hex);
       const svg = pz.ref.current?.querySelector<SVGSVGElement>('svg.b2d-svg');
-      const m = svg?.getScreenCTM();
+      const m = (svg?.querySelector<SVGGElement>('.b2d-rot') ?? svg)?.getScreenCTM();
       if (!c || !svg || !m) return null;
       const pt = new DOMPoint(c.x, c.y).matrixTransform(m);
       return { x: pt.x, y: pt.y };
@@ -231,7 +267,7 @@ export function Board2D(props: Board2DProps) {
     <div className={`b2d ${props.className ?? ''} ${interactive ? 'picking' : ''} ${props.spotlight ? 'spot' : ''}`} ref={pz.ref} {...pz.handlers} onClick={onSnap}>
       <div className="b2d-sea" aria-hidden />
       <div className="b2d-inner" ref={pz.inner}>
-        <svg key={`s${shaking}`} className={`b2d-svg ${shaking ? 'shake' : ''}`} viewBox={geo.viewBox} role="img" aria-label="Карта острова">
+        <svg key={`s${shaking}`} ref={svgRef} className={`b2d-svg ${shaking ? 'shake' : ''}`} viewBox={vb.current.join(' ')} role="img" aria-label="Карта острова">
           <defs>
             <clipPath id={id('hex')}>
               <polygon points={hexPath(0.965)} />
@@ -266,6 +302,8 @@ export function Board2D(props: Board2DProps) {
               <stop offset="100%" stopColor="#000" stopOpacity="0.28" />
             </linearGradient>
           </defs>
+          <RotCtx.Provider value={rot}>
+          <g className="b2d-rot" style={{ transform: `rotate(${rot}deg)`, transformOrigin: `${geo.cx}px ${geo.cy}px` }}>
 
           {/* Берег: песок и пена под тайлами */}
           <g className="b2d-coast">
@@ -335,6 +373,7 @@ export function Board2D(props: Board2DProps) {
               const robbed = h.id === view.robberHex;
               return (
                 <g key={h.id} transform={`translate(${c.x} ${c.y})`} className={`token ${red ? 'red' : ''} ${robbed ? 'off' : ''}`}>
+                  <Up>
                   <circle className="tk-shadow" cx={0} cy={5} r={S * 0.29} />
                   <circle className="tk-face" r={S * 0.29} fill={`url(#${id('token')})`} />
                   <text className="tk-num" y={-S * 0.035}>
@@ -344,6 +383,7 @@ export function Board2D(props: Board2DProps) {
                     <circle key={k} className="tk-pip" cx={(k - (pips - 1) / 2) * S * 0.07} cy={S * 0.16} r={S * 0.022} />
                   ))}
                   {robbed && <line className="tk-slash" x1={-S * 0.22} y1={S * 0.22} x2={S * 0.22} y2={-S * 0.22} />}
+                  </Up>
                 </g>
               );
             })}
@@ -358,7 +398,9 @@ export function Board2D(props: Board2DProps) {
                 if (!h || !c || h.terrain === 'desert') return null;
                 return (
                   <g key={hid} transform={`translate(${c.x} ${c.y - S * 0.2})`}>
-                    <image className="gain-pop" href={eraIcon(era, `res-${TERRAIN_RESOURCE[h.terrain]}`)} x={-S * 0.3} y={-S * 0.3} width={S * 0.6} height={S * 0.6} />
+                    <Up>
+                      <image className="gain-pop" href={eraIcon(era, `res-${TERRAIN_RESOURCE[h.terrain]}`)} x={-S * 0.3} y={-S * 0.3} width={S * 0.6} height={S * 0.6} />
+                    </Up>
                   </g>
                 );
               })}
@@ -388,6 +430,7 @@ export function Board2D(props: Board2DProps) {
             if (!c) return null;
             return (
               <g className="b2d-robber" style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
+                <Up>
                 <g key={view.robberHex} className="rb-land">
                   <ellipse className="rb-shadow" cx={0} cy={S * 0.06} rx={S * 0.36} ry={S * 0.36} />
                   <circle className="rb-halo" r={S * 0.5} fill={`url(#${id('halo')})`} />
@@ -404,6 +447,7 @@ export function Board2D(props: Board2DProps) {
                     </g>
                   )}
                 </g>
+                </Up>
               </g>
             );
           })()}
@@ -467,7 +511,9 @@ export function Board2D(props: Board2DProps) {
               return (
                 <g key={vid} data-v={vid} transform={`translate(${p.x} ${p.y})`}>
                   <g className={`piece ${b.kind} ${recentSet.has(vid) ? 'recent' : ''} ${props.spotlight ? (b.owner === props.spotlight ? 'lit' : 'dim') : ''}`}>
-                    <Piece kind={b.kind} color={color} shade={id('shade')} />
+                    <Up>
+                      <Piece kind={b.kind} color={color} shade={id('shade')} />
+                    </Up>
                   </g>
                 </g>
               );
@@ -523,6 +569,8 @@ export function Board2D(props: Board2DProps) {
               );
             })}
           </g>
+          </g>
+          </RotCtx.Provider>
         </svg>
       </div>
       {!props.static && pz.zoomed && (
@@ -561,6 +609,13 @@ function useImages(urls: string[]): Set<string> {
   return ok;
 }
 const loaded = new Set<string>();
+
+const RotCtx = createContext(0);
+/** Обратный поворот: числа, постройки, значки остаются прямыми, когда карта повёрнута. */
+function Up({ children }: { children: ReactNode }) {
+  const rot = useContext(RotCtx);
+  return <g style={{ transform: `rotate(${-rot}deg)`, transformOrigin: '0px 0px', transition: 'transform 600ms cubic-bezier(0.22, 1, 0.36, 1)' }}>{children}</g>;
+}
 
 const HOUSE = 'M -0.2 0.17 L -0.2 -0.04 L 0 -0.24 L 0.2 -0.04 L 0.2 0.17 Z';
 const CITY = 'M -0.32 0.2 L -0.32 -0.04 L -0.1 -0.04 L -0.1 -0.2 L 0.06 -0.36 L 0.22 -0.2 L 0.22 0.2 Z';
@@ -611,18 +666,22 @@ function Harbor({
       )}
       <line x1={h.a.x} y1={h.a.y} x2={h.ox} y2={h.oy} className="pier" />
       <line x1={h.b.x} y1={h.b.y} x2={h.ox} y2={h.oy} className="pier" />
-      <circle cx={h.ox} cy={h.oy + 4} r={r} className="hb-shadow" />
-      <circle cx={h.ox} cy={h.oy} r={r} className="hb-face" />
-      {h.type === 'any' ? (
-        <text x={h.ox} y={h.oy - S * 0.03} className="hb-any">
-          ?
-        </text>
-      ) : (
-        <image href={eraIcon(era, `res-${h.type}`)} x={h.ox - S * 0.17} y={h.oy - S * 0.24} width={S * 0.34} height={S * 0.34} />
-      )}
-      <text x={h.ox} y={h.oy + S * 0.18} className="hb-ratio">
-        {h.type === 'any' ? '3:1' : '2:1'}
-      </text>
+      <g transform={`translate(${h.ox} ${h.oy})`}>
+        <Up>
+          <circle cx={0} cy={4} r={r} className="hb-shadow" />
+          <circle cx={0} cy={0} r={r} className="hb-face" />
+          {h.type === 'any' ? (
+            <text x={0} y={-S * 0.03} className="hb-any">
+              ?
+            </text>
+          ) : (
+            <image href={eraIcon(era, `res-${h.type}`)} x={-S * 0.17} y={-S * 0.24} width={S * 0.34} height={S * 0.34} />
+          )}
+          <text x={0} y={S * 0.18} className="hb-ratio">
+            {h.type === 'any' ? '3:1' : '2:1'}
+          </text>
+        </Up>
+      </g>
     </g>
   );
 }

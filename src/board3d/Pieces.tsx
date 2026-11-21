@@ -9,6 +9,7 @@ import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
 import { box, merge, part } from './Terrain';
 import { hashStr, type World } from './world';
 import { useEnv } from './rig';
+import { Camp } from './Camp';
 
 // ---------- геометрия ----------
 
@@ -373,7 +374,7 @@ const eyeGeo = new THREE.SphereGeometry(0.02, 8, 6);
 const eyeMat = new THREE.MeshBasicMaterial({ color: '#ffcf4a', toneMapped: false });
 const robberMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.7 });
 
-export function Robber({ target, hexH, sprite }: { target: [number, number] | null; hexH: number; sprite?: string }) {
+export function Robber({ target, hexH, sprite, era }: { target: [number, number] | null; hexH: number; sprite?: string; era?: string }) {
   const { rig, reduced } = useEnv();
   const g = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
@@ -414,20 +415,38 @@ export function Robber({ target, hexH, sprite }: { target: [number, number] | nu
     const x = c.from[0] + (c.to[0] - c.from[0]) * e;
     const z = c.from[1] + (c.to[1] - c.from[1]) * e;
     c.at = [x, z];
-    const hop = u < 1 ? Math.sin(u * Math.PI) * 0.7 : 0;
+    const hop = era ? 0 : u < 1 ? Math.sin(u * Math.PI) * 0.7 : 0;
     const t = reduced ? 0 : clock.elapsedTime;
-    const idle = spriteMat ? 0 : Math.sin(t * 2) * 0.012;
+    const idle = spriteMat || era ? 0 : Math.sin(t * 2) * 0.012;
     const land = u >= 1 && c.t0 !== -99 ? Math.max(0, 1 - (clock.elapsedTime - c.t0 - T) * 4) : 0;
+    if (era) {
+      // Лагерь не прыгает: стоит на старом месте, пока идёт налёт, потом вырастает на новом гексе
+      const D = reduced || c.t0 === -99 ? 0 : era === 'ww2' ? 5.8 : 1.1;
+      const el = c.t0 === -99 ? 99 : clock.elapsedTime - c.t0;
+      if (el < D) {
+        o.position.set(c.from[0], hexH, c.from[1]);
+        body.current.scale.setScalar(Math.max(0.001, 1 - Math.max(0, el - (D - 0.3)) / 0.3));
+      } else {
+        const g = Math.min(1, (el - D) / 0.55);
+        const k = g < 1 ? 1 - Math.pow(1 - g, 3) + Math.sin(g * Math.PI) * 0.12 : 1;
+        o.position.set(c.to[0], hexH, c.to[1]);
+        body.current.scale.set(k, k, k);
+        c.at = c.to;
+      }
+      return;
+    }
     o.position.set(x, hexH + hop + idle, z);
     body.current.scale.set(1 + land * 0.18 * Math.sin(land * 9), 1 - land * 0.18 * Math.sin(land * 9), 1 + land * 0.18 * Math.sin(land * 9));
-    body.current.rotation.y = spriteMat ? 0 : rig.az + Math.sin(t * 0.7) * 0.15;
+    body.current.rotation.y = spriteMat || era ? 0 : rig.az + Math.sin(t * 0.7) * 0.15;
   });
 
   if (!target) return null;
   return (
     <group ref={g} position={[target[0], hexH, target[1]]}>
       <group ref={body}>
-        {spriteMat ? (
+        {era ? (
+          <Camp era={era} />
+        ) : spriteMat ? (
           <sprite material={spriteMat} position={[0, 0.5, 0]} scale={[1.15, 1.15, 1.15]} />
         ) : (
           <>

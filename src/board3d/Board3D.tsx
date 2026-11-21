@@ -10,6 +10,7 @@ import type { BoardProps } from '../board/Board';
 import { HEIGHT, worldFor, type World } from './world';
 import { boardLocator } from '../fx/util';
 import { Raid3D, type Raid3DEvent } from './Raid3D';
+import { Tanks3D, type Tanks3DEvent } from './Tanks3D';
 import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig';
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
@@ -253,11 +254,13 @@ function CameraRig({
       const dx = e.clientX - p.x;
       const dy = e.clientY - p.y;
       if (ptrs.size === 1) {
-        // Один палец — двигаем карту (как в картах на телефоне); мышь с Shift — вращение
-        if (modeRef.current === '3d' && e.pointerType === 'mouse' && e.shiftKey) {
-          const g = goal.current;
-          g.az -= dx * 0.006;
-          g.pol = clamp(g.pol - dy * 0.005, 0.35, 1.3);
+        // Один палец: без зума — вращаем карту (влево-вправо — поворот, вверх-вниз — наклон);
+        // приближено — двигаем карту. Мышь с Shift — всегда вращение.
+        const g = goal.current;
+        const rotate = modeRef.current === '3d' && (g.zoom < 1.25 || (e.pointerType === 'mouse' && e.shiftKey));
+        if (rotate) {
+          g.az -= dx * 0.007;
+          g.pol = clamp(g.pol - dy * 0.004, 0.4, 1.25);
           orbit.current = { az: g.az, pol: g.pol };
         } else panBy(dx, dy);
       } else if (ptrs.size === 2) {
@@ -489,14 +492,17 @@ function Scene(props: Board3DProps & { rig: Rig }) {
     return p ? [p[0] - 0.44, p[1] + 0.2] : null;
   }, [world, view.robberHex]);
   const robberH = HEIGHT[tileMap.get(view.robberHex)?.terrain ?? 'desert'];
-  // 3D-налёт: только ВОВ (бомбардировщики); живёт ~4 с
+  // ВОВ: налёт — звено бомбардировщиков над картой; рыцарь — танковая колонна бьёт по лагерю
   const [raid3d, setRaid3d] = useState<Raid3DEvent | null>(null);
+  const [tanks3d, setTanks3d] = useState<Tanks3DEvent | null>(null);
   useEffect(() => {
-    if (!raid || raid.kind !== 'robber' || raid.era !== 'ww2' || !raid.target) return;
+    if (!raid || raid.era !== 'ww2' || !raid.target) return;
     const p = world.hex.get(raid.target);
     if (!p) return;
-    setRaid3d({ key: raid.key, at: [p[0], HEIGHT[tileMap.get(raid.target)?.terrain ?? 'desert'], p[1]] });
-    const t = setTimeout(() => setRaid3d(null), 4200);
+    const ev = { key: raid.key, at: [p[0], HEIGHT[tileMap.get(raid.target)?.terrain ?? 'desert'], p[1]] as [number, number, number] };
+    if (raid.kind === 'robber') setRaid3d(ev);
+    else setTanks3d(ev);
+    const t = setTimeout(() => (raid.kind === 'robber' ? setRaid3d(null) : setTanks3d(null)), 5400);
     return () => clearTimeout(t);
   }, [raid?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -534,6 +540,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Ghosts ghosts={ghosts} ctx={ctx} />
       <ViewShift on={!props.viewStatic} />
       {raid3d && <Raid3D key={raid3d.key} ev={raid3d} />}
+      {tanks3d && <Tanks3D key={tanks3d.key} ev={tanks3d} />}
       <Locator world={world} tileMap={tileMap} />
       <RaidZone
         target={robberPos}
@@ -545,7 +552,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
           return t && t !== 'desert' ? TERRAIN_RESOURCE[t] : undefined;
         })()}
       />
-      <Robber target={robberPos} hexH={robberH} sprite={era ? `${import.meta.env.BASE_URL}eras/${era}/camp.webp` : undefined} />
+      <Robber target={robberPos} hexH={robberH} era={era} />
       {flash && <Flashes tiles={tileMap} ids={flash.hexes} k={flash.key} />}
 
       {[...hl.hexes].map((id) => {

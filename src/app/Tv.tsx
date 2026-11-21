@@ -186,7 +186,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         </div>
       </Sheet>
 
-      <Sheet open={panel === 'claim'} onClose={() => setPanel(null)} title="Сесть за стол" description="Вернуться на своё место или занять место бота.">
+      <Sheet open={panel === 'claim'} onClose={() => setPanel(null)} title="Сесть за стол" description="Своё место или место бота">
         <form
           className="stack"
           onSubmit={(e) => {

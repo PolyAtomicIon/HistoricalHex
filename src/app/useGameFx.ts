@@ -69,6 +69,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     const raid = (kind: 'robber' | 'knight', target?: string) => {
       const era = packRef.current.id;
       const sprite = kind === 'robber' ? eraIcon(era, 'attack') : era === 'ww2' ? eraIcon(era, 'tank') : eraIcon(era, 'dev-knight');
+      const hex = target ? pubRef.current?.board.hexes.find((h) => h.id === target) : undefined;
       setFx((f) => ({ ...f, raid: { kind, era, sprite, target, key: k.current++ } }));
       // тряска — в момент удара, а не в начале
       setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), kind === 'robber' ? 1450 : 1000);
@@ -92,7 +93,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             }));
             if (e.total === 7) {
               setTimeout(() => {
-                cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber') });
+                cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber-unit') });
                 setFx((f) => ({ ...f, shake: f.shake + 1 }));
               }, rollDurationMs);
             }
@@ -145,7 +146,8 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
           case 'devCardPlayed': {
             const card = p.devCards[e.card];
             if (e.card === 'knight') {
-              raid('knight');
+              raid('knight', pubRef.current?.robberHex);
+              if (pubRef.current?.robberHex) setFx((f) => ({ ...f, focus: { hex: pubRef.current!.robberHex, key: k.current++ } }));
               say(`${card.name}: ${narrate(p, 'knight', { player: name(e.player) })}`, e.player);
             } else if (e.card === 'roadBuilding') {
               cine({ kind: 'roadBuilding', title: card.name, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });

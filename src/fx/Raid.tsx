@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { haptic, sfx } from './sfx';
 import { FxPortal, boardLocator, prefersReducedMotion } from './util';
 
+
 export interface RaidEvent {
   /** robber — налёт разбойника; knight — рыцарь прогоняет. */
   kind: 'robber' | 'knight';
@@ -25,7 +26,7 @@ function styleOf(e: RaidEvent): Style {
   return e.kind === 'robber' ? 'archers' : 'samurai';
 }
 
-const DURATION: Record<Style, number> = { archers: 2300, ninja: 2000, bomber: 2700, samurai: 1600, tank: 2300 };
+const DURATION: Record<Style, number> = { archers: 2300, ninja: 2000, bomber: 5000, samurai: 1600, tank: 4600 };
 
 /** skipBomber — карта в 3D сама показывает звено бомбардировщиков; здесь только звук. */
 export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBomber?: boolean }) {
@@ -47,8 +48,11 @@ export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBombe
         sfx.play('attack');
         break;
       case 'bomber':
-        sfx.play('plane');
-        setTimeout(() => sfx.play('bomb'), 950);
+        sfx.play('siren');
+        setTimeout(() => sfx.play('plane', { volume: 1.3 }), 500);
+        setTimeout(() => sfx.play('plane', { volume: 1.1 }), 1500);
+        setTimeout(() => sfx.play('bomb'), 1950);
+        setTimeout(() => sfx.play('bomb', { volume: 0.8 }), 2250);
         setTimeout(() => haptic('heavy'), 1600);
         break;
       case 'tank':
@@ -61,7 +65,8 @@ export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBombe
   }, [event?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!shown) return null;
-  if (skipBomber && styleOf(shown) === 'bomber' && shown.target) return null;
+  // В 3D самолёты и танки летают/едут прямо над картой — здесь только звук
+  if (skipBomber && (styleOf(shown) === 'bomber' || styleOf(shown) === 'tank') && shown.target) return null;
   return (
     <FxPortal>
       <RaidScene key={shown.key} ev={shown} />
