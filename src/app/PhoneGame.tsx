@@ -19,13 +19,13 @@ import {
 import type { RoomView } from '../proto';
 import { REACTIONS } from '../proto';
 import { conn, useConn } from '../client/conn';
-import type { LorePack } from '../lore';
+import type { LoreFact, LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { Icon, ArtIcon } from './icons';
 import { eraIcon } from './era';
 import { setLitePref, useLite } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, myPhaseText, phaseText } from '../i18n/ru';
-import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
+import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted, useMusicOn } from '../fx';
 import { Sheet } from './Sheet';
 import { PlayerProfileCard } from './Profile';
 import { TurnSettings } from './TurnSettings';
@@ -70,11 +70,13 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const connStatus = useConn().status;
   const [mode, setMode] = useBoardMode();
   const [muted, setMuted] = useMuted();
+  const [music, setMusic] = useMusicOn();
   const { pref: litePref, auto: liteAuto, lite: liteOn } = useLite();
   const [sheet, setSheet] = useState<SheetId>(null);
   // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
   const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number } | null>(null);
   const [profileOf, setProfileOf] = useState<PlayerId | null>(null);
+  const [openFact, setOpenFact] = useState<LoreFact | null>(null);
   useEffect(() => {
     if (!focusPlayer) return;
     const t = setTimeout(() => setFocusPlayer(null), 4200);
@@ -383,16 +385,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
-      {showFact && (
-        <button key={fact.text} className="fact-teaser glass" onClick={() => setSheet('fact')}>
-          <Icon name="book" size={18} />
-          <span className="ft-text">
-            {fact.year && <b>{fact.year} · </b>}
-            {fact.text}
-          </span>
-          <span className="ft-more">Читать</span>
-        </button>
-      )}
+      {showFact && <FactPopup pack={pack} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />}
 
       {planReady && !build && !selected && !planPick && (
         <button className="plan-run glass" disabled={busy} onClick={() => void runPlan()}>
@@ -541,7 +534,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
         <div className="stack">
-          <Fact f={fact} big />
+          <Fact f={openFact ?? fact} big />
           <button className="btn wide" onClick={() => setSheet('lore')}>
             <Icon name="book" /> Все факты и словарь эпохи
           </button>
@@ -595,6 +588,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               </button>
             ))}
           </div>
+          <button className="item" onClick={() => setMusic(!music)}>
+            <Icon name="music" />
+            <span className="grow t">Музыка эпохи</span>
+            <span className={`switch ${music ? 'on' : ''}`} aria-hidden />
+          </button>
           <button className="item" onClick={() => setMuted(!muted)}>
             <Icon name={muted ? 'mute' : 'sound'} />
             <span className="grow t">{muted ? 'Звук выключен' : 'Звук включён'}</span>
@@ -714,6 +712,50 @@ export function PlayersBar({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Факт эпохи: всплывает снизу раз в ~40 с, пока ждёшь чужой ход; «Читать» — шторка, «×» — убрать. */
+function FactPopup({ pack, onRead }: { pack: LorePack; onRead: (f: LoreFact) => void }) {
+  const [i, setI] = useState(() => Math.floor(Math.random() * pack.facts.length));
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const cycle = (delay: number) => {
+      t = setTimeout(() => {
+        setI((x) => (x + 1 + Math.floor(Math.random() * 3)) % pack.facts.length);
+        setShown(true);
+        t = setTimeout(() => {
+          setShown(false);
+          cycle(40000);
+        }, 12000);
+      }, delay);
+    };
+    cycle(6000);
+    return () => clearTimeout(t);
+  }, [pack]);
+  const f = pack.facts[i % pack.facts.length];
+  if (!shown || !f) return null;
+  return (
+    <div key={i} className="fact-pop glass strong" role="status">
+      <ArtIcon src={eraIcon(pack.id, 'emblem')} size={40} className="fp-ic" />
+      <div className="fp-body">
+        <div className="fp-head">
+          {f.year && <span className="fp-year">{f.year}</span>}
+          {f.kz && <span className="kz-tag">Казахстан</span>}
+          <span className="fp-label">Факт эпохи</span>
+        </div>
+        <p className="fp-text">{f.text}</p>
+        <div className="fp-actions">
+          <button className="btn small-act" onClick={() => onRead(f)}>
+            <Icon name="book" size={16} /> Читать
+          </button>
+          <button className="btn ghost small-act" onClick={() => setShown(false)} aria-label="Скрыть">
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

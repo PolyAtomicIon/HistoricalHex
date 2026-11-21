@@ -24,6 +24,7 @@ import {
   LogOut,
   Map as MapIcon,
   Menu,
+  Music,
   Pencil,
   Play,
   Route,
@@ -65,7 +66,8 @@ export type IconName =
   | 'ban'
   | 'play'
   | 'up'
-  | 'feather';
+  | 'feather'
+  | 'music';
 
 const L: Record<IconName, LucideIcon> = {
   menu: Menu,
@@ -97,6 +99,7 @@ const L: Record<IconName, LucideIcon> = {
   play: Play,
   up: ArrowUp,
   feather: Pencil,
+  music: Music,
 };
 
 export function Icon({ name, size = 22, className, style }: { name: IconName; size?: number; className?: string; style?: CSSProperties }) {

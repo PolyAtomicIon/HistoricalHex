@@ -85,8 +85,19 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
     }, landAt - 120);
 
     // run the tumble after the DOM nodes are mounted
-    const raf = requestAnimationFrame(() => {
-      if (reduced) return;
+    // Кубики монтируются через портал на рендер позже — ждём, пока появятся в DOM (иначе анимация не стартует
+    // и кубики остаются прозрачными)
+    let raf = 0;
+    let tries = 0;
+    const start = () => {
+      if (reduced) {
+        wraps.forEach((w) => w.current && (w.current.style.opacity = '1'));
+        return;
+      }
+      if (!cubes[0]!.current || !wraps[0]!.current || !cubes[1]!.current || !wraps[1]!.current) {
+        if (tries++ < 30) raf = requestAnimationFrame(start);
+        return;
+      }
       roll.dice.forEach((v, i) => {
         const cube = cubes[i]!.current;
         const wrap = wraps[i]!.current;
@@ -121,7 +132,8 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
           ),
         );
       });
-    });
+    };
+    raf = requestAnimationFrame(start);
 
     later(() => setActive(null), big ? 3000 : 2200);
     return () => cancelAnimationFrame(raf);

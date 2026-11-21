@@ -6,6 +6,7 @@ import type { LorePack } from '../lore/types';
 import { getLorePack } from '../lore';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, TERRAIN_NAME } from '../i18n/ru';
 import { RESOURCE_ICON } from '../ui/theme';
+import { playEraMusic } from '../fx/music';
 
 const BASE = {
   res: { ...RESOURCE_NAME },
@@ -22,6 +23,7 @@ export function applyEra(pack: LorePack | undefined): void {
   if (applied === (pack?.id ?? '')) return;
   applied = pack?.id ?? '';
   if (pack) currentEra = pack.id;
+  playEraMusic(pack?.id ?? null);
   ROBBER.name = pack ? pack.robber.name : 'Разбойник';
   for (const r of RESOURCES) {
     RESOURCE_NAME[r] = pack ? pack.resources[r].name.toLowerCase() : BASE.res[r];

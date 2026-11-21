@@ -6,6 +6,7 @@ import { conn, useConn } from '../client/conn';
 import { Home } from './Home';
 import { Lobby } from './Lobby';
 import { PhoneGame, setPieceNames } from './PhoneGame';
+import { EraIntro, useIntroOnce } from './EraIntro';
 import { Tv } from './Tv';
 import { useEra } from './era';
 import { Icon } from './icons';
@@ -43,9 +44,22 @@ export function App() {
 function InGame({ room }: { room: RoomView }) {
   const pack = useEra(room.settings.lore);
   setPieceNames(pack.pieces);
-  if (tvMode || !room.private) return <Tv room={room} pack={pack} screen={tvMode} />;
-  if (room.public!.players[room.me]?.away && room.public!.phase !== 'finished') return <Away />;
-  return <PhoneGame room={room} pack={pack} />;
+  // Заставка эпохи — один раз на комнату, пока партия не закончилась
+  const [intro, closeIntro] = useIntroOnce(room.pin, room.public?.phase !== 'finished');
+  const screen =
+    tvMode || !room.private ? (
+      <Tv room={room} pack={pack} screen={tvMode} />
+    ) : room.public!.players[room.me]?.away && room.public!.phase !== 'finished' ? (
+      <Away />
+    ) : (
+      <PhoneGame room={room} pack={pack} />
+    );
+  return (
+    <>
+      {screen}
+      {intro && <EraIntro pack={pack} onDone={closeIntro} />}
+    </>
+  );
 }
 
 function Away() {
