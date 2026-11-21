@@ -89,6 +89,8 @@ export type ClientMsg =
   /** Вход через Telegram: initData из Mini App или данные Login Widget. */
   | { t: 'tgAuth'; initData?: string; widget?: Record<string, string | number> }
   | { t: 'rename'; name: string }
+  /** Ссылка на бота для входа из обычного браузера. */
+  | { t: 'tgLink' }
   | { t: 'ping' };
 
 export interface ProfileView {
@@ -126,6 +128,7 @@ export type ServerMsg =
   | { t: 'react'; from: PlayerId; emoji: string; at: number }
   | { t: 'error'; message: string; fatal?: boolean }
   | { t: 'pong'; now: number }
-  | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string };
+  | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string }
+  | { t: 'tgLink'; url: string };
 
 export const REACTIONS = ['👍', '😂', '😱', '🔥', '😤', '🤝', '👀', '🙏', '💀', '🎉'] as const;

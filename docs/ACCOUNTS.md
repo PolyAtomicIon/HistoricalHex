@@ -18,6 +18,7 @@
    ```
    TG_BOT_TOKEN=<токен от BotFather>
    TG_BOT_NAME=<username бота без @>
+   PORTAL_API_KEY=<длинная случайная строка, её же положить в .env портала>
    ```
 
 5. `systemctl restart historicalhex`. Служба уже читает этот файл (`EnvironmentFile=-/etc/historicalhex.env`).
@@ -32,4 +33,6 @@
 2. Кнопка «Играть» в портале → `t.me/<бот>/play`, личность совпадёт сама.
 3. Для учеников без Telegram — подписанный билет от портала (`payload.hmac`, 60 с).
 
-Вход через Login Widget в Казахстане ненадёжен (`telegram.org` блокируется), поэтому для браузера дальше нужен вход диплинком `t.me/<бот>?start=login_<nonce>` с long-poll `getUpdates` — сервер уже умеет проверять подписи, осталось добавить опрос бота.
+Вход из обычного браузера — через бота (`server/tgbot.ts`): профиль выдаёт ссылку `t.me/<бот>?start=login_<код>`, сервер опрашивает `getUpdates` и привязывает устройство, когда игрок нажмёт «Start». Login Widget не используем: в Казахстане `telegram.org` блокируется. Бот на `/start` без кода отвечает кнопкой «Играть» (Mini App).
+
+API для портала уже есть: `GET /catan/api/portal/players?tg_ids=1,2` с `Authorization: Bearer <PORTAL_API_KEY>` (ключ — в `/etc/historicalhex.env`). Пока ключа нет, эндпоинт отвечает 401.

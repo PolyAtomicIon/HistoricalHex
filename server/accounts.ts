@@ -289,6 +289,11 @@ export function signInTelegram(pid: string, u: TgUser): Profile {
   return p;
 }
 
+/** Профиль по Telegram id (для интеграции с AQL Portal). */
+export function profileByTg(tgId: string): Profile | undefined {
+  return store.getByTg(tgId);
+}
+
 export function renameProfile(pid: string, name: string): Profile {
   const p = profileOf(pid);
   p.name = name.trim().slice(0, 24) || p.name;

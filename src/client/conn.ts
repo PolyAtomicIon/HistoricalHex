@@ -57,6 +57,8 @@ export interface ConnState {
   clockSkew: number;
   /** Профиль, рейтинг (приходит по запросу 'profile'). */
   profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string };
+  /** Ссылка на бота для входа (живёт 10 минут). */
+  tgLink?: string;
 }
 
 export type EventListener = (events: GameEvent[], source?: DiceSource) => void;
@@ -117,6 +119,8 @@ class Connection {
         if (init) this.ws?.send(JSON.stringify({ t: 'tgAuth', initData: init } satisfies ClientMsg));
         return this.patch({ me: m.me });
       }
+      case 'tgLink':
+        return this.patch({ tgLink: m.url });
       case 'profile':
         return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot } });
       case 'created':

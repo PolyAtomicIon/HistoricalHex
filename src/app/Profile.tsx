@@ -8,13 +8,18 @@ import { ArtIcon, Icon } from './icons';
 import { inTelegram } from './tg';
 
 export function ProfileView() {
-  const { profile: data, status } = useConn();
+  const { profile: data, status, tgLink } = useConn();
   const [tab, setTab] = useState<'me' | 'top'>('me');
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   useEffect(() => {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
+
+  const needLink = !!data?.tgBot && !data.profile.telegram && !inTelegram();
+  useEffect(() => {
+    if (needLink && status === 'online') conn.send({ t: 'tgLink' });
+  }, [needLink, status]);
 
   if (!data) {
     return (
@@ -104,15 +109,20 @@ export function ProfileView() {
                 {inTelegram()
                   ? 'Входим через Telegram…'
                   : data.tgBot
-                    ? 'Открой игру в Telegram — профиль и рейтинг будут с тобой на любом телефоне.'
+                    ? 'Войди через Telegram — профиль и рейтинг будут с тобой на любом телефоне. Бот пришлёт подтверждение.'
                     : 'Статистика пока хранится на этом устройстве. Скоро — вход через Telegram.'}
               </span>
             </div>
           )}
           {!p.telegram && data.tgBot && !inTelegram() && (
-            <a className="btn wide tg-btn" href={`https://t.me/${data.tgBot}/play`} target="_blank" rel="noreferrer">
-              Открыть в Telegram
-            </a>
+            <div className="row">
+              <a className={`btn grow tg-btn ${tgLink ? '' : 'disabled'}`} href={tgLink} target="_blank" rel="noreferrer">
+                Войти через Telegram
+              </a>
+              <a className="btn grow" href={`https://t.me/${data.tgBot}/play`} target="_blank" rel="noreferrer">
+                Играть в Telegram
+              </a>
+            </div>
           )}
         </>
       ) : (

@@ -11,10 +11,15 @@ import { DEFAULT_SETTINGS } from '../src/proto';
 import { cryptoRng, victoryPoints } from '../src/engine';
 import type { Client, SavedRoom } from './room';
 import { Room } from './room';
-import { leaderboard, openAccounts, profileOf, recordGame, renameProfile, signInTelegram, verifyMiniApp, verifyWidget, view } from './accounts';
+import { TgBot } from './tgbot';
+import { leaderboard, openAccounts, profileByTg, profileOf, recordGame, renameProfile, signInTelegram, verifyMiniApp, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
 const TG_BOT = process.env.TG_BOT_NAME ?? '';
+const APP_URL = process.env.APP_URL ?? 'https://bekzaty.abmco.kz/catan/';
+const PORTAL_KEY = process.env.PORTAL_API_KEY ?? '';
+const bot = TG_TOKEN && TG_BOT ? new TgBot(TG_TOKEN, TG_BOT, APP_URL) : undefined;
+bot?.start();
 
 const PORT = Number(process.env.PORT ?? 8790);
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -101,6 +106,21 @@ function newPin(): string {
 }
 
 const http = createServer((req, res) => {
+  // Для AQL Portal: статистика по Telegram id. GET /api/portal/players?tg_ids=1,2  (Authorization: Bearer <PORTAL_API_KEY>)
+  if (req.url?.includes('/api/portal/players')) {
+    if (!PORTAL_KEY || req.headers.authorization !== `Bearer ${PORTAL_KEY}`) {
+      res.writeHead(401).end();
+      return;
+    }
+    const ids = (new URL(req.url, 'http://x').searchParams.get('tg_ids') ?? '').split(',').filter((x) => /^\d{1,20}$/.test(x)).slice(0, 500);
+    const out = ids.flatMap((id) => {
+      const p = profileByTg(id);
+      return p ? [{ tg_id: id, ...view(p) }] : [];
+    });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(out));
+    return;
+  }
   if (req.url?.endsWith('/api/leaderboard')) {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'max-age=30' });
     res.end(JSON.stringify(leaderboard(50)));
@@ -167,6 +187,15 @@ wss.on('connection', (ws: WebSocket) => {
         if (typeof msg.name !== 'string') throw new Error('Плохое имя');
         renameProfile(me, msg.name);
         return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+      }
+      case 'tgLink': {
+        if (!bot) throw new Error('Вход через Telegram ещё не настроен');
+        const who = me;
+        const url = bot.loginLink(who, (u) => {
+          signInTelegram(who, u);
+          send({ t: 'profile', profile: view(profileOf(who)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+        });
+        return send({ t: 'tgLink', url });
       }
       case 'tgAuth': {
         if (!TG_TOKEN) throw new Error('Вход через Telegram ещё не настроен');
