@@ -55,7 +55,7 @@ export interface GameFx {
   raid: RaidEvent | null;
   gains: { list: Gain[]; key: number };
   narration: Narration | null;
-  focus?: { hex?: string; vertex?: string; edge?: string; key: number; hold?: number; zoom?: number };
+  focus?: { hex?: string; vertex?: string; edge?: string; key: number; hold?: number; zoom?: number; free?: boolean };
   flash?: { hexes: string[]; key: number };
   recent: string[];
   shake: number;
@@ -169,13 +169,19 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), late ?? (kind === 'robber' ? 1450 : 1000));
     };
     if (import.meta.env.DEV) {
-      const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined; __focus: (id: string) => void };
+      const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined; __focus: (id: string, hold?: number, zoom?: number) => void };
       w.__raid = (kind, target, era) => {
         raid(kind, target, era);
         if (target) setFx((f) => ({ ...f, focus: { hex: target, key: k.current++, ...attackShot(era ?? packRef.current.id, kind) } }));
       };
       w.__robber = () => pubRef.current?.robberHex;
-      w.__focus = (id) => setFx((f) => ({ ...f, focus: id.startsWith('h') ? { hex: id, key: k.current++ } : { vertex: id, key: k.current++ } }));
+      w.__focus = (id, hold, zoom) =>
+        setFx((f) => ({
+          ...f,
+          focus: { ...(id.startsWith('h') ? { hex: id } : id.includes('~') ? { edge: id } : { vertex: id }), key: k.current++, ...(hold ? { hold, free: true } : {}), ...(zoom ? { zoom } : {}) },
+        }));
+      // DEV: кораблик гавани уходит в рейс — window.__sail('any' | 'wood' | …)
+      (window as unknown as { __sail: (t: HarborType) => void }).__sail = (type) => setFx((f) => ({ ...f, sail: { type, key: k.current++ } }));
       (window as unknown as { __pub: () => unknown }).__pub = () => pubRef.current;
       (window as unknown as { __notice: (t: string, x: string) => void }).__notice = (title, text) => setFx((f) => ({ ...f, notices: [...f.notices, { title, text, key: k.current++ }] }));
       (window as unknown as { __say: (t: string) => void }).__say = (t) => say(t);

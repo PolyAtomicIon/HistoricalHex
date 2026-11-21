@@ -7,6 +7,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { HarborType } from '../engine';
 import { HEIGHT, harborSpot, type World } from './world';
 import { useEnv } from './rig';
+import { puff } from './units';
 import { box, flatHexGeo, hexRingGeo, merge, part, type TileInfo } from './Terrain';
 
 // ---------- вспомогательное ----------
@@ -315,12 +316,21 @@ const shipGeo = merge([
 shipGeo.scale(1.45, 1.45, 1.45);
 const shipMat = dimmable(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.8 }));
 
-/** Кораблик у причала: покачивается; при обмене через эту гавань уходит в рейс и возвращается. */
+/** Кораблик у причала: покачивается; при обмене через эту гавань уходит в рейс (дугой в море,
+ *  за кормой — пенный след), разворачивается и возвращается к причалу. */
+const VOYAGE = 4.6;
+const WAKE = 16;
+const wakeGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const ease = (u: number) => u * u * (3 - 2 * u);
 function Ship({ spot, sailKey }: { spot: { a: [number, number]; b: [number, number]; p: [number, number] }; sailKey?: number }) {
   const g = useRef<THREE.Group>(null);
+  const wake = useRef<(THREE.Mesh | null)[]>([]);
+  const trail = useRef<{ x: number; z: number; age: number }[]>([]);
+  const lastDrop = useRef(0);
   const { reduced } = useEnv();
   const t0 = useRef<number | null>(null);
   const last = useRef(sailKey);
+  const wakeMat = useMemo(() => Array.from({ length: WAKE }, () => new THREE.MeshBasicMaterial({ map: puff(), color: '#f4fbff', transparent: true, opacity: 0, depthWrite: false })), []);
   const dir = useMemo(() => {
     const mx = (spot.a[0] + spot.b[0]) / 2;
     const mz = (spot.a[1] + spot.b[1]) / 2;
@@ -333,31 +343,66 @@ function Ship({ spot, sailKey }: { spot: { a: [number, number]; b: [number, numb
   const side: [number, number] = [-dir[1], dir[0]];
   const home: [number, number] = [spot.p[0] + dir[0] * 0.25 + side[0] * 0.42, spot.p[1] + dir[1] * 0.25 + side[1] * 0.42];
   const yaw = Math.atan2(-dir[1], dir[0]);
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, dt) => {
     const o = g.current;
     if (!o) return;
     if (sailKey !== last.current) {
       last.current = sailKey;
-      t0.current = clock.elapsedTime;
+      t0.current = reduced ? null : clock.elapsedTime;
     }
     const t = reduced ? 0 : clock.elapsedTime;
     let out = 0;
+    let drift = 0;
     let turn = 0;
+    let moving = false;
     if (t0.current !== null) {
-      const u = (clock.elapsedTime - t0.current) / 3.2;
+      const u = (clock.elapsedTime - t0.current) / VOYAGE;
       if (u >= 1) t0.current = null;
       else {
-        out = Math.sin(Math.min(1, u) * Math.PI) * 1.6;
-        turn = u > 0.5 ? Math.PI : 0;
+        moving = true;
+        // туда — дугой в сторону, обратно — по другой дуге; разворот плавный в середине рейса
+        const go = u < 0.5 ? ease(u / 0.5) : ease((1 - u) / 0.5);
+        out = go * 2.6;
+        drift = Math.sin(go * Math.PI) * (u < 0.5 ? 0.55 : -0.55);
+        turn = ease(Math.min(1, Math.max(0, (u - 0.42) / 0.16))) * Math.PI;
       }
     }
-    o.position.set(home[0] + dir[0] * out, 0.02 + Math.sin(t * 1.6 + home[0]) * 0.015, home[1] + dir[1] * out);
-    o.rotation.set(Math.sin(t * 1.3 + home[1]) * 0.05, yaw + turn, Math.sin(t * 1.1) * 0.06);
+    const x = home[0] + dir[0] * out + side[0] * drift;
+    const z = home[1] + dir[1] * out + side[1] * drift;
+    o.position.set(x, 0.02 + Math.sin(t * 1.6 + home[0]) * 0.015, z);
+    o.rotation.set(Math.sin(t * 1.3 + home[1]) * 0.05, yaw + turn, Math.sin(t * 1.1) * 0.06 + (moving ? 0.05 : 0));
+    // пенный след: точки за кормой, расплываются и тают
+    const tr = trail.current;
+    for (const p of tr) p.age += dt;
+    if (moving && clock.elapsedTime - lastDrop.current > 0.09) {
+      lastDrop.current = clock.elapsedTime;
+      tr.unshift({ x, z, age: 0 });
+      if (tr.length > WAKE) tr.length = WAKE;
+    }
+    for (let i = 0; i < WAKE; i++) {
+      const m = wake.current[i];
+      const p = tr[i];
+      if (!m) continue;
+      if (!p || p.age > 1.4) {
+        m.visible = false;
+        continue;
+      }
+      m.visible = true;
+      const k = p.age / 1.4;
+      m.position.set(p.x, 0.035, p.z);
+      m.scale.setScalar(0.14 + k * 0.32);
+      wakeMat[i].opacity = (1 - k) * 0.5;
+    }
   });
   return (
-    <group ref={g}>
-      <mesh geometry={shipGeo} material={shipMat} castShadow />
-    </group>
+    <>
+      <group ref={g}>
+        <mesh geometry={shipGeo} material={shipMat} castShadow />
+      </group>
+      {wakeMat.map((mat, i) => (
+        <mesh key={i} ref={(el) => (wake.current[i] = el)} geometry={wakeGeo} material={mat} visible={false} renderOrder={1} />
+      ))}
+    </>
   );
 }
 

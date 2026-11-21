@@ -26,7 +26,7 @@ export interface Board3DProps extends BoardProps {
   mode: BoardMode;
   palette?: Palette;
   /** Полёт камеры к цели: смена `key` запускает полёт и возврат (3d/25d); в 2d — мягкий наезд. */
-  focus?: { hex?: string; vertex?: string; edge?: string; key: number; hold?: number; zoom?: number };
+  focus?: { hex?: string; vertex?: string; edge?: string; key: number; hold?: number; zoom?: number; free?: boolean };
   /** «Призраки» запланированных фигур. */
   ghosts?: GhostSpec[];
   /** Тряска экрана: смена значения — ~400 мс тряски. */
@@ -196,7 +196,7 @@ function CameraRig({
       g.panX = pt[0];
       g.panZ = pt[1];
     }
-    clampPan(g, g.zoom);
+    if (!focus.free) clampPan(g, g.zoom);
     const f = flight.current;
     f.timer = window.setTimeout(() => {
       g.zoom = f.base.zoom;
