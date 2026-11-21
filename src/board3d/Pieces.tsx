@@ -13,7 +13,8 @@ import { Camp } from './Camp';
 
 // ---------- геометрия ----------
 
-const roadGeo = new RoundedBoxGeometry(0.72, 0.12, 0.19, 2, 0.04);
+// Дорога — низкая мощёная полоса, не «брусок»
+const roadGeo = new RoundedBoxGeometry(0.6, 0.06, 0.13, 2, 0.025);
 
 function prism(w: number, h: number, d: number): THREE.BufferGeometry {
   const s = new THREE.Shape();
@@ -26,11 +27,13 @@ function prism(w: number, h: number, d: number): THREE.BufferGeometry {
   return g;
 }
 
-const plinth = () => part(new THREE.CylinderGeometry(0.15, 0.17, 0.3, 8), '#6e6a66', [0, -0.13, 0]);
+// Фундамент — отдельной тёмной сваей под домом (без контура), чтобы не было «кольца» на земле
+const foundGeo = new THREE.CylinderGeometry(0.1, 0.12, 0.3, 8);
+foundGeo.translate(0, -0.15, 0);
+const foundMat = new THREE.MeshStandardMaterial({ color: '#4a4540', roughness: 0.9 });
 
 // Дом (поселение): одноэтажная хата — белые стены, тёмная крыша, труба.
 const houseGeo = merge([
-  plinth(),
   part(box(0.28, 0.13, 0.22), '#ffffff', [0, 0.065, 0]),
   part(prism(0.34, 0.13, 0.27), '#8f8f8f', [0, 0.13, 0]),
   part(box(0.045, 0.08, 0.045), '#6f6f6f', [0.07, 0.22, 0.04]),
@@ -39,7 +42,6 @@ const houseGeo = merge([
 
 // Город: особняк с башней — двухэтажный корпус, зубчатая башня со шпилем, светящиеся окна.
 const cityGeo = merge([
-  plinth(),
   part(box(0.36, 0.2, 0.26), '#ffffff', [-0.05, 0.1, 0]), // два этажа
   part(box(0.37, 0.018, 0.27), '#bdbdbd', [-0.05, 0.1, 0]), // карниз между этажами
   part(prism(0.4, 0.12, 0.3), '#7a7a7a', [-0.05, 0.2, 0]),
@@ -64,9 +66,9 @@ const cityWindowsGeo = merge(
 );
 const windowMat = new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: false });
 
-houseGeo.scale(1.6, 1.6, 1.6);
-cityGeo.scale(1.5, 1.5, 1.5);
-cityWindowsGeo.scale(1.5, 1.5, 1.5);
+houseGeo.scale(1.4, 1.4, 1.4);
+cityGeo.scale(1.3, 1.3, 1.3);
+cityWindowsGeo.scale(1.3, 1.3, 1.3);
 
 // Толстый мультяшный контур: та же геометрия, чуть больше, тёмная, вывернута внутрь (BackSide)
 const hullCache = new Map<string, THREE.MeshBasicMaterial>();
@@ -78,18 +80,9 @@ function hullMat(color: PlayerColor): THREE.MeshBasicMaterial {
   }
   return m;
 }
-// Площадка цвета игрока под постройкой — видно, чьё, даже когда дом закрыт деревом
-const padGeo = new THREE.CylinderGeometry(0.3, 0.33, 0.04, 24);
-const padCache = new Map<string, THREE.MeshStandardMaterial>();
-function padMat(color: PlayerColor): THREE.MeshStandardMaterial {
-  let m = padCache.get(color);
-  if (!m) {
-    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], emissive: PLAYER_HEX[color], emissiveIntensity: 0.25, roughness: 0.6 });
-    padCache.set(color, m);
-  }
-  return m;
-}
-
+// Мягкая тень под постройкой (вместо цветной площадки)
+const shadowGeo = new THREE.CircleGeometry(0.26, 24).rotateX(-Math.PI / 2);
+const shadowMat = new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.28, depthWrite: false });
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
 function pieceMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = matCache.get(color);
@@ -229,9 +222,9 @@ function Road({ id, color, ctx }: { id: string; color: PlayerColor; ctx: PieceCt
   const xf = edgeXform(ctx, id);
   if (!xf) return null;
   return (
-    <group position={[xf.x, xf.y + 0.045, xf.z]} rotation={[0, xf.ang, 0]}>
+    <group position={[xf.x, xf.y + 0.032, xf.z]} rotation={[0, xf.ang, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
-        <mesh geometry={roadGeo} material={hullMat(color)} scale={[1.05, 1.45, 1.4]} />
+        <mesh geometry={roadGeo} material={hullMat(color)} scale={[1.04, 1.5, 1.35]} position={[0, 0.002, 0]} />
         <mesh geometry={roadGeo} material={roadMat(color)} castShadow receiveShadow />
       </group>
       {recent && <Puff color={PLAYER_HEX[color]} />}
@@ -250,6 +243,65 @@ export function Roads({ roads, colors, ctx }: { roads: Record<string, string>; c
   );
 }
 
+// ---------- свободные места: кружки под дома, штрихи под дороги ----------
+
+const slotRingGeo = new THREE.RingGeometry(0.08, 0.115, 28).rotateX(-Math.PI / 2);
+const slotDotGeo = new THREE.CircleGeometry(0.08, 28).rotateX(-Math.PI / 2);
+const slotLineGeo = new THREE.PlaneGeometry(0.44, 0.05).rotateX(-Math.PI / 2);
+const slotRingMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.75, depthWrite: false, toneMapped: false });
+const slotDotMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.22, depthWrite: false });
+const slotLineMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.62, depthWrite: false, toneMapped: false });
+
+function Instances({ geo, mat, mats, order }: { geo: THREE.BufferGeometry; mat: THREE.Material; mats: THREE.Matrix4[]; order: number }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => {
+    const m = ref.current;
+    if (!m) return;
+    mats.forEach((x, i) => m.setMatrixAt(i, x));
+    m.instanceMatrix.needsUpdate = true;
+  }, [mats]);
+  if (mats.length === 0) return null;
+  return <instancedMesh key={mats.length} ref={ref} args={[geo, mat, mats.length]} renderOrder={order} frustumCulled={false} />;
+}
+
+/** Сетка поля: где можно поставить дом (кружок) и дорогу (штрих). Занятые места не рисуются. */
+export function Slots({ ctx, buildings, roads }: { ctx: PieceCtx; buildings: Record<string, unknown>; roads: Record<string, unknown> }) {
+  const bKey = Object.keys(buildings).sort().join(',');
+  const rKey = Object.keys(roads).sort().join(',');
+  const { verts, edges } = useMemo(() => {
+    const o = new THREE.Object3D();
+    const verts: THREE.Matrix4[] = [];
+    for (const v of ctx.world.topo.vertices.keys()) {
+      if (v in buildings) continue;
+      const p = ctx.world.vert.get(v);
+      if (!p) continue;
+      o.position.set(p[0], vertexY(ctx, v) + 0.012, p[1]);
+      o.rotation.set(0, 0, 0);
+      o.updateMatrix();
+      verts.push(o.matrix.clone());
+    }
+    const edges: THREE.Matrix4[] = [];
+    for (const e of ctx.world.topo.edges.keys()) {
+      if (e in roads) continue;
+      const xf = edgeXform(ctx, e);
+      if (!xf) continue;
+      o.position.set(xf.x, xf.y + 0.01, xf.z);
+      o.rotation.set(0, xf.ang, 0);
+      o.updateMatrix();
+      edges.push(o.matrix.clone());
+    }
+    return { verts, edges };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, bKey, rKey]);
+  return (
+    <>
+      <Instances geo={slotLineGeo} mat={slotLineMat} mats={edges} order={2} />
+      <Instances geo={slotDotGeo} mat={slotDotMat} mats={verts} order={2} />
+      <Instances geo={slotRingGeo} mat={slotRingMat} mats={verts} order={3} />
+    </>
+  );
+}
+
 // ---------- здания ----------
 
 function Building({ id, kind, color, ctx }: { id: string; kind: 'settlement' | 'city'; color: PlayerColor; ctx: PieceCtx }) {
@@ -262,8 +314,9 @@ function Building({ id, kind, color, ctx }: { id: string; kind: 'settlement' | '
   return (
     <group position={[p[0], y + 0.02, p[1]]} rotation={[0, yaw, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
-        <mesh geometry={padGeo} material={padMat(color)} position={[0, 0.01, 0]} receiveShadow />
-        <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={hullMat(color)} scale={[1.13, 1.08, 1.13]} position={[0, -0.015, 0]} />
+        <mesh geometry={foundGeo} material={foundMat} />
+        <mesh geometry={shadowGeo} material={shadowMat} position={[0, 0.006, 0]} renderOrder={2} />
+        <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={hullMat(color)} scale={[1.08, 1.06, 1.08]} position={[0, 0.004, 0]} />
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={pieceMat(color)} castShadow receiveShadow />
         {kind === 'city' && <mesh geometry={cityWindowsGeo} material={windowMat} />}
       </group>

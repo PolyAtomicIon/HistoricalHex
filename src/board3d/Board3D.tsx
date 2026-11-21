@@ -15,7 +15,7 @@ import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
 import { EdgeMarker, Flashes, Harbors, HexMarker, Tokens, VertexMarker, useResetCursor } from './Markers';
-import { Buildings, Ghosts, RaidZone, Robber, Roads, edgeY, vertexY, type GhostSpec, type PieceCtx } from './Pieces';
+import { Buildings, Ghosts, RaidZone, Robber, Roads, Slots, edgeY, vertexY, type GhostSpec, type PieceCtx } from './Pieces';
 
 export type BoardMode = '2d' | '25d' | '3d';
 
@@ -543,6 +543,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Tiles tiles={tiles} clear={buildSpots} />
       <Tokens tiles={tiles} numbers={numbers} hide={view.robberHex} />
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
+      <Slots ctx={ctx} buildings={view.buildings} roads={view.roads} />
       <Roads roads={view.roads} colors={colors} ctx={ctx} />
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
