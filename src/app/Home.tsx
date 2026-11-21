@@ -69,7 +69,6 @@ export function Home({ initialPin }: { initialPin?: string }) {
 
   return (
     <main className="screen home hub">
-      <div className="ambient" aria-hidden />
       <Sheet open={!!profileOpen} onClose={() => setProfileOpen(null)} title={profileOpen === 'top' ? 'Лидеры' : 'Профиль'}>
         <ProfileView key={profileOpen ?? 'x'} initialTab={profileOpen ?? 'me'} />
       </Sheet>
@@ -172,10 +171,12 @@ export function Home({ initialPin }: { initialPin?: string }) {
                     <div key={l.id} className={`p${l.place}`}>
                       {l.place === 1 && <Icon name="crown" size={16} />}
                       <span className="pf-ava sm">{l.photo ? <img src={l.photo} alt="" /> : l.name.charAt(0).toUpperCase()}</span>
-                      <b>{l.ai ? `ИИ · ${l.name}` : l.name}</b>
-                      <span className="hub-step">
-                        {l.place} · {l.rating}
-                      </span>
+                      <b>
+                        {l.name}
+                        {l.ai && <Icon name="bot" size={12} />}
+                      </b>
+                      <small className="hub-rating">{l.rating}</small>
+                      <span className="hub-step display">{l.place}</span>
                     </div>
                   ) : (
                     <div key={`e${i}`} />
@@ -184,9 +185,9 @@ export function Home({ initialPin }: { initialPin?: string }) {
               </div>
               {me && (
                 <div className="hub-myrow">
-                  <span className="n">{myRow?.place ?? '—'}</span>
-                  <span className="nm">Ты · {me.name}</span>
-                  <small>{me.games} парт.</small>
+                  {myRow && <span className="n">{myRow.place}</span>}
+                  <span className="nm">Ты</span>
+                  <small>{me.games > 0 ? `${me.games} парт. · ${me.wins} побед` : 'сыграй первую партию'}</small>
                   <b>{me.rating}</b>
                 </div>
               )}
