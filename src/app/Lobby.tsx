@@ -82,28 +82,45 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
       <div className="ambient" aria-hidden />
       <div key={pack.id} className="hero-bg" style={{ backgroundImage: `url(${eraCover(pack.id)})` }} aria-hidden />
       <div className={tv ? 'center-col' : 'lobby-col'}>
-        <header className="lobby-head">
-          <button className="era-badge glass" onClick={() => host && setSheet('settings')} disabled={!host} aria-label={host ? 'Сменить эпоху' : undefined}>
+        {tv ? (
+          <header className="lobby-head">
+            <div className="era-badge glass">
+              <ArtIcon src={eraIcon(pack.id, 'emblem')} size={30} />
+              <b>{pack.title}</b>
+            </div>
+            <div className="pin-block">
+              <span className="label">PIN</span>
+              <span className="display pin">{room.pin.replace(/(\d{3})(\d{3})/, '$1 $2')}</span>
+            </div>
+          </header>
+        ) : (
+          <button className="era-badge glass lb-era" onClick={() => host && setSheet('settings')} disabled={!host} aria-label={host ? `Эпоха: ${pack.title}. Сменить` : pack.title}>
             <ArtIcon src={eraIcon(pack.id, 'emblem')} size={30} />
-            <b>{pack.title}</b>
-            {host && <Icon name="next" size={14} />}
+            <span className="lb-era-t">
+              <b>{pack.title}</b>
+              <small>{pack.years}</small>
+            </span>
+            {host && <Icon name="next" size={16} />}
           </button>
-          <div className="pin-block">
-            <span className="label">PIN</span>
-            <span className="display pin">{room.pin.replace(/(\d{3})(\d{3})/, '$1 $2')}</span>
-          </div>
-        </header>
+        )}
 
         <section className={`panel glass stack lobby-join ${tv ? 'tv' : ''}`}>
           <div className="row">
-            <Qr text={joinLink(room.pin)} size={tv ? 220 : 104} />
+            <Qr text={joinLink(room.pin)} size={tv ? 220 : 96} />
             <div className="stack grow join-txt">
-              <b>Сканируй и заходи</b>
-              <span className="muted small">или введи PIN на сайте</span>
-              {!tv && (
-                <a className="btn wide" href={joinLink(room.pin, true)} target="_blank" rel="noreferrer">
-                  <Icon name="tv" /> Экран для ТВ
-                </a>
+              {tv ? (
+                <>
+                  <b>Сканируй и заходи</b>
+                  <span className="muted small">или введи PIN на сайте</span>
+                </>
+              ) : (
+                <>
+                  <span className="lb-pin-l">PIN для входа</span>
+                  <span className="display lb-pin">{room.pin.replace(/(\d{3})(\d{3})/, '$1 $2')}</span>
+                  <a className="btn lb-tv" href={joinLink(room.pin, true)} target="_blank" rel="noreferrer">
+                    <Icon name="tv" size={18} /> На ТВ
+                  </a>
+                </>
               )}
             </div>
           </div>

@@ -5504,3 +5504,100 @@ div.lb-seat.empty { cursor: default; }
 .lobby-foot .btn.primary { background: var(--ink); color: #0b0f14; box-shadow: none; border: 0; }
 .lobby-foot .btn.primary:disabled { background: rgba(255, 255, 255, 0.08); color: var(--ink-2); opacity: 1; }
 .lobby-foot .lf-exit { border: 0; }
+
+/* ─── Лобби: шапка в одну строку, PIN компактнее, кнопка выхода — иконка ровно по центру ─── */
+.lobby2 .lobby-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lobby2 .era-badge {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: max-content;
+  min-height: 48px;
+  padding: 6px 14px 6px 8px;
+  justify-content: flex-start;
+}
+.lobby2 .era-badge b {
+  min-width: 0;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.lobby2 .pin-block {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1;
+}
+.lobby2 .pin-block .label { font-size: 11px; margin: 0 0 4px; }
+.lobby2 .pin { font-size: 28px !important; letter-spacing: 0.04em; }
+.lobby-foot .lf-exit {
+  width: 56px;
+  min-width: 56px;
+  height: 56px;
+  min-height: 56px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.lobby-foot .lf-exit > * { margin: 0; }
+
+/* лобби: эпоха во всю ширину, PIN — в карточке с QR */
+.lobby2 .lb-era {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: none;
+  min-height: 60px;
+  padding: 8px 16px 8px 10px;
+  border-radius: var(--r-md);
+  text-align: left;
+}
+.lb-era-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lb-era-t b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-era-t small { font-size: 12px; color: var(--ink-3); }
+.lobby2 .lobby-join .row { align-items: center; gap: 14px; }
+.lobby2 .join-txt { gap: 4px; min-width: 0; }
+.lb-pin-l { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.lb-pin { font-size: clamp(26px, 8.4vw, 34px); line-height: 1.05; letter-spacing: 0.03em; white-space: nowrap; }
+.lb-tv {
+  align-self: flex-start;
+  min-height: 40px;
+  margin-top: 6px;
+  padding: 0 14px;
+  gap: 6px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 0;
+}
+.lb-sec { flex-wrap: wrap; row-gap: 8px; }
+.lb-level { margin-left: auto; }
+@media (max-width: 360px) {
+  .lb-level { margin-left: 0; width: 100%; }
+  .lb-level button { flex: 1; }
+  .lb-seat { min-height: 88px; }
+}
+.lb-pin { font-size: clamp(24px, 7.4vw, 34px); }
+.lobby2 .lb-era small { display: block; }
+.lobby2 .lb-era { flex: none; }
+.lobby-col > * { flex-shrink: 0; }
+.hub-hello small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 360px) {
+  .hub-head { gap: 6px; }
+  .hub-me { gap: 10px; }
+  .hub-me .pf-ava { width: 42px; height: 42px; }
+  .hub-chip { min-width: 0; padding: 6px 8px; }
+  .hub-chip small { font-size: 10px; }
+  .hub-actions { gap: 8px; }
+  .hub-actions .btn { font-size: 15px; padding: 0 10px; gap: 5px; }
+  .hub-actions .btn svg { width: 17px; height: 17px; }
+  .hub-hero-text b { font-size: 21px; }
+}
