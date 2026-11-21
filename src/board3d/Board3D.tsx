@@ -242,19 +242,34 @@ function CameraRig({
       const dx = e.clientX - p.x;
       const dy = e.clientY - p.y;
       if (ptrs.size === 1) {
-        if (modeRef.current === '3d') {
+        // Один палец — двигаем карту (как в картах на телефоне); мышь с Shift — вращение
+        if (modeRef.current === '3d' && e.pointerType === 'mouse' && e.shiftKey) {
           const g = goal.current;
           g.az -= dx * 0.006;
           g.pol = clamp(g.pol - dy * 0.005, 0.35, 1.3);
           orbit.current = { az: g.az, pol: g.pol };
         } else panBy(dx, dy);
       } else if (ptrs.size === 2) {
+        const ang = () => {
+          const [a, b] = [...ptrs.values()];
+          return Math.atan2(b.y - a.y, b.x - a.x);
+        };
         const before = mid();
+        const a0 = ang();
         ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
         const after = mid();
         if (pinch > 0 && after.d > 0) zoomBy(after.d / pinch);
         pinch = after.d;
-        if (modeRef.current !== '3d') panBy(after.x - before.x, after.y - before.y);
+        panBy(after.x - before.x, after.y - before.y);
+        // Два пальца — поворот карты
+        if (modeRef.current === '3d') {
+          let da = ang() - a0;
+          if (da > Math.PI) da -= 2 * Math.PI;
+          if (da < -Math.PI) da += 2 * Math.PI;
+          const g = goal.current;
+          g.az -= da;
+          orbit.current = { az: g.az, pol: g.pol };
+        }
         return;
       }
       p.x = e.clientX;
