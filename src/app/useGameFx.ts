@@ -70,6 +70,8 @@ export interface GameFx {
   attackUntil: number;
   /** Кто сейчас выбирает цель атаки (фаза разбойника) — зловещее предупреждение всем. */
   threat?: { player: PlayerId; key: number };
+  /** Итог кражи: вор и жертва видят ресурс, остальные — только факт. Показывается после удара. */
+  steal?: { thief: PlayerId; victim: PlayerId; resource?: Resource; key: number };
 }
 
 /**
@@ -263,15 +265,22 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             say(narrate(p, 'robberMoved', { player: name(e.player) }), e.player);
             break;
           }
-          case 'stole':
-            sfx.play('steal');
-            if (me === e.victim) haptic('error');
+          case 'stole': {
+            const st = { thief: e.thief, victim: e.victim, resource: e.resource as Resource | undefined };
+            // итог — когда отыграл удар атаки, а не поверх него
+            timers.push(setTimeout(() => {
+              sfx.play('steal');
+              if (me === st.victim) haptic('error');
+              if (me === st.thief) haptic('success');
+              setFx((f) => ({ ...f, steal: { ...st, key: k.current++ } }));
+            }, 2600));
             say(
               narrate(p, 'stole', { player: name(e.thief), victim: name(e.victim) }) +
                 (e.resource && (me === e.thief || me === e.victim) ? ` (${RESOURCE_NAME[e.resource as Resource]})` : ''),
               e.thief,
             );
             break;
+          }
           case 'devCardPlayed': {
             const card = p.devCards[e.card];
             if (e.card === 'knight') {

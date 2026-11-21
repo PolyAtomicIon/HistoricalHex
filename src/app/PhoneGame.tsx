@@ -304,9 +304,6 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     prevBroken.current = broken;
   }, [broken]);
 
-  const victims =
-    targets?.kind === 'hex' && selected ? playersAtHex(pub, selected, me).filter((p) => pub.players[p].resourceCount > 0) : [];
-
   const colors = useMemo(
     () => Object.fromEntries(pub.order.map((id) => [id, pub.players[id].color])) as Record<PlayerId, PlayerColor>,
     [pub],
@@ -547,39 +544,37 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
-      {targets && selected && !planPick && (
+      {targets && selected && !planPick && targets.kind === 'hex' && (
+        <RobberPick
+          pub={pub}
+          me={me}
+          hex={selected}
+          busy={busy}
+          onCancel={() => setSelected(undefined)}
+          onGo={async (victim) => {
+            haptic('success');
+            const ok = await send(targets.action(selected, victim));
+            if (ok) setSelected(undefined);
+          }}
+        />
+      )}
+      {targets && selected && !planPick && targets.kind !== 'hex' && (
         <div className="confirm glass strong">
-          {targets.kind === 'hex' && victims.length > 1 ? (
-            <>
-              <span className="q">У кого украсть?</span>
-              {victims.map((v) => (
-                <button key={v} className="btn primary" disabled={busy} onClick={() => void send(targets.action(selected, v))}>
-                  {pub.players[v].name}
-                </button>
-              ))}
-            </>
-          ) : (
-            <>
-              <span className="q">
-                {targets.confirm}
-                {targets.kind === 'hex' && victims.length === 1 && ` Украдёшь у ${pub.players[victims[0]].name}`}
-              </span>
-              <button className="btn ghost" onClick={() => setSelected(undefined)}>
-                Отмена
-              </button>
-              <button
-                className="btn primary"
-                disabled={busy}
-                onClick={async () => {
-                  haptic('success');
-                  const ok = await send(targets.action(selected, victims[0]));
-                  if (ok) setSelected(undefined);
-                }}
-              >
-                Да
-              </button>
-            </>
-          )}
+          <span className="q">{targets.confirm}</span>
+          <button className="btn ghost" onClick={() => setSelected(undefined)}>
+            Отмена
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy}
+            onClick={async () => {
+              haptic('success');
+              const ok = await send(targets.action(selected));
+              if (ok) setSelected(undefined);
+            }}
+          >
+            Да
+          </button>
         </div>
       )}
 
@@ -1008,6 +1003,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       <Threat t={threatInfo(fx, pub, pack, me)} />
       <Raid event={fx.raid} skipBomber={shownMode === '3d'} />
       <Cinematic event={fx.cinematic} />
+      <StealReveal ev={fx.steal} pub={pub} me={me} />
+      <DevCardReveal cards={priv.devCards} pack={pack} />
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
       <ReactionsLayer items={fx.reactions} />
       {pub.phase === 'finished' && <Finished pub={pub} me={me} pack={pack} />}
@@ -1532,8 +1529,9 @@ function Actions(props: {
   }
 
   switch (pub.phase) {
-    case 'setup':
     case 'moveRobber':
+      return <RobberHands pub={pub} me={me} />;
+    case 'setup':
     case 'roadBuilding':
       return <p className="dock-note">Нажми на светящееся место на карте</p>;
     case 'roll':
@@ -1674,6 +1672,124 @@ function computeTargets(pub: PublicState, me: PlayerId, myTurn: boolean, mode: B
     default:
       return null;
   }
+}
+
+/** Фаза разбойника: кому есть что терять — карты на руках у соперников. */
+function RobberHands({ pub, me }: { pub: PublicState; me: PlayerId }) {
+  const others = pub.order.filter((id) => id !== me);
+  return (
+    <div className="rob-dock">
+      <p className="dock-note">Выбери гекс соседа — заберёшь у него случайную карту</p>
+      <div className="rob-hands">
+        {others.map((id) => {
+          const p = pub.players[id];
+          return (
+            <span key={id} className={`rob-h ${p.resourceCount === 0 ? 'empty' : ''}`}>
+              <i style={{ background: PLAYER_HEX[p.color] }}>{p.name.charAt(0).toUpperCase()}</i>
+              <b>{p.name}</b>
+              <small>
+                <Icon name="hand" size={13} /> {p.resourceCount}
+              </small>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Выбран гекс: у кого забрать карту (видно, сколько карт на руке; у кого пусто — нельзя). */
+function RobberPick({ pub, me, hex, busy, onCancel, onGo }: { pub: PublicState; me: PlayerId; hex: string; busy: boolean; onCancel: () => void; onGo: (victim?: PlayerId) => void }) {
+  const near = playersAtHex(pub, hex, me);
+  const withCards = near.filter((id) => pub.players[id].resourceCount > 0);
+  return (
+    <div className="rob-pick glass strong" role="dialog" aria-label="Кого грабить">
+      <b className="rp-title">{withCards.length ? 'У кого забрать карту?' : near.length ? 'Здесь у соседей пусто на руках' : 'Рядом никого — украсть не у кого'}</b>
+      {near.length > 0 && (
+        <div className="rp-list">
+          {near.map((id) => {
+            const p = pub.players[id];
+            const n = p.resourceCount;
+            return (
+              <button key={id} className="rp-v" disabled={busy || n === 0} onClick={() => onGo(id)}>
+                <i style={{ background: PLAYER_HEX[p.color] }}>{p.name.charAt(0).toUpperCase()}</i>
+                <span className="rp-name">{p.name}</span>
+                <span className="rp-n">{n === 0 ? 'нет карт' : `${n} ${plural(n, 'карта', 'карты', 'карт')}`}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="rp-btns">
+        <button className="btn" onClick={onCancel}>
+          Другой гекс
+        </button>
+        {withCards.length === 0 && (
+          <button className="btn primary" disabled={busy} onClick={() => onGo(undefined)}>
+            Всё равно сюда
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Итог кражи крупно: вор — что взял, жертва — что потеряла, остальные — кто у кого. Касание закрывает. */
+function StealReveal({ ev, pub, me }: { ev?: { thief: PlayerId; victim: PlayerId; resource?: Resource; key: number }; pub: PublicState; me: PlayerId }) {
+  const [shown, setShown] = useState<typeof ev>(undefined);
+  useEffect(() => {
+    if (!ev) return;
+    setShown(ev);
+    const t = setTimeout(() => setShown(undefined), 4500);
+    return () => clearTimeout(t);
+  }, [ev?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!shown) return null;
+  const thief = pub.players[shown.thief]?.name ?? '?';
+  const victim = pub.players[shown.victim]?.name ?? '?';
+  const res = shown.resource;
+  const role = me === shown.thief ? 'won' : me === shown.victim ? 'lost' : 'saw';
+  const resName = res ? RESOURCE_NAME[res].charAt(0).toUpperCase() + RESOURCE_NAME[res].slice(1) : '';
+  return (
+    <div key={shown.key} className={`steal-pop ${role}`} role="alert" onClick={() => setShown(undefined)}>
+      <div className="sp-card glass strong">
+        <span className="sp-kicker">{role === 'won' ? 'Добыча' : role === 'lost' ? 'У тебя забрали' : 'Кража'}</span>
+        <span className="sp-art">{role !== 'saw' && res ? <ResIcon r={res} size={96} /> : <Icon name="cards" size={56} />}</span>
+        <b className="sp-title">{role === 'won' ? `+1 ${resName}` : role === 'lost' ? `−1 ${resName}` : `${thief} забирает карту`}</b>
+        <small className="sp-sub">{role === 'won' ? `у игрока ${victim}` : role === 'lost' ? `забрал ${thief}` : `у игрока ${victim}`}</small>
+      </div>
+    </div>
+  );
+}
+
+/** Купил карту развития — показать, какая выпала и что она делает (раньше было не видно). */
+function DevCardReveal({ cards, pack }: { cards: PrivateView['devCards']; pack: LorePack }) {
+  const prev = useRef(cards.length);
+  const [shown, setShown] = useState<{ type: DevCardType; key: number } | null>(null);
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = cards.length;
+    if (cards.length <= was) return;
+    const fresh = [...cards].reverse().find((c) => c.isNew) ?? cards[cards.length - 1];
+    if (!fresh) return;
+    sfx.play('chime');
+    setShown({ type: fresh.type, key: Date.now() });
+    const t = setTimeout(() => setShown(null), 5000);
+    return () => clearTimeout(t);
+  }, [cards.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!shown) return null;
+  return (
+    <div key={shown.key} className="steal-pop won dev" role="alert" onClick={() => setShown(null)}>
+      <div className="sp-card glass strong">
+        <span className="sp-kicker">Новая карта</span>
+        <span className="sp-art">
+          <ArtIcon src={eraIcon(pack.id, `dev-${shown.type}`)} size={104} />
+        </span>
+        <b className="sp-title">{pack.devCards[shown.type].name}</b>
+        <small className="sp-sub">{DEV_RULE[shown.type]}</small>
+        {shown.type !== 'victoryPoint' && <small className="sp-sub faint">Сыграть можно со следующего хода — «Карты» в доке</small>}
+      </div>
+    </div>
+  );
 }
 
 const DEV_RULE: Record<DevCardType, string> = {

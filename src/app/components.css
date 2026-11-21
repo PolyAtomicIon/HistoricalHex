@@ -5971,3 +5971,119 @@ div.lb-seat.empty { cursor: default; }
 /* Бейдж на круглых кнопках дока (План, Карты) — поверх края, не обрезается */
 .actions .btn.icon-only { overflow: visible; }
 .actions .btn.icon-only .cnt.dot { top: 3px; right: 3px; }
+
+/* ═══════════ Разбойник: у кого сколько карт, кого грабить, что украли ═══════════ */
+.rob-dock { display: flex; flex-direction: column; gap: 10px; }
+.rob-dock .dock-note { margin: 0; }
+.rob-hands { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.rob-hands::-webkit-scrollbar { display: none; }
+.rob-h {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.rob-h.empty { opacity: 0.45; }
+.rob-h i,
+.rp-v i {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-weight: 900;
+  font-size: 12px;
+  color: #0b1020;
+}
+.rob-h b { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rob-h small { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.rob-pick {
+  position: absolute;
+  z-index: 8;
+  left: 12px;
+  right: 12px;
+  max-width: 480px;
+  margin: 0 auto;
+  bottom: calc(var(--safe-b) + var(--dock-h) + 12px);
+  padding: 16px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: deal-in 460ms var(--spring) both;
+}
+.rp-title { font-size: 17px; }
+.rp-list { display: flex; flex-direction: column; gap: 8px; }
+.rp-v {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 14px 0 10px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.rp-v i { width: 32px; height: 32px; font-size: 14px; }
+.rp-v:not(:disabled):active { transform: scale(0.98); }
+.rp-v:disabled { opacity: 0.4; cursor: default; }
+.rp-name { flex: 1; min-width: 0; font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-n { flex: none; font-size: 14px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rp-btns { display: flex; gap: 8px; }
+.rp-btns .btn { flex: 1; min-height: 48px; border-radius: 16px; font-weight: 800; }
+
+.steal-pop {
+  position: fixed;
+  inset: 0;
+  z-index: 9100; /* над кубиками и кино-эффектами (9000) */
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(7, 11, 16, 0.45);
+  animation: steal-fade 4.5s linear both;
+  cursor: pointer;
+}
+@keyframes steal-fade {
+  0% { opacity: 0; }
+  6% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.sp-card {
+  width: min(320px, 100%);
+  padding: 22px 20px 24px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  animation: deal-in 520ms var(--spring) both;
+}
+.sp-kicker { font-size: 12px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); }
+.steal-pop.won .sp-kicker { color: var(--good); }
+.steal-pop.lost .sp-kicker { color: var(--bad); }
+.sp-art { display: grid; place-items: center; min-height: 100px; animation: deal-pop 520ms var(--spring) 120ms both; }
+.sp-title { font: 800 30px/1.1 Unbounded, Manrope, sans-serif; letter-spacing: -0.02em; }
+.steal-pop.won .sp-title { color: var(--good); }
+.steal-pop.lost .sp-title { color: var(--bad); }
+.steal-pop.saw .sp-title { font-size: 22px; }
+.sp-sub { font-size: 15px; color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) {
+  .steal-pop, .sp-card, .sp-art, .rob-pick { animation: none; }
+}
+.steal-pop.dev { animation-duration: 5s; }
+.steal-pop.dev .sp-title { color: var(--ink); font-size: 26px; }
+.steal-pop.dev .sp-kicker { color: var(--accent); }
+.sp-sub.faint { font-size: 13px; color: var(--ink-3); }
