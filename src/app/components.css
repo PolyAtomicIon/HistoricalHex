@@ -3570,3 +3570,84 @@ html.lite .home .era-card.on .era-cover {
   font-size: 13px;
 }
 .blocked-chip .bc-ic { width: 38px; height: 38px; border-radius: 14px; flex: none; } /* 22 − 8 */
+
+/* Награды на аватаре игрока: золотые значки в правом нижнем углу; две — рядом, наезжая друг на друга */
+.pc-awards {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  display: flex;
+  flex-direction: row-reverse;
+  pointer-events: none;
+}
+.pc-aw {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ffc93c;
+  color: #2a1d00;
+  box-shadow: 0 0 0 2px rgba(18, 24, 34, 0.95), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.pc-aw + .pc-aw {
+  margin-right: -6px;
+}
+.pc-aw.army {
+  background: #ff8a5c;
+  color: #2b0d00;
+}
+
+/* Значки наград рядом с именем: имя сжимается с многоточием, значки всегда целиком */
+.pc-nrow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.pc-nrow .pc-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pc-nrow .pc-aw {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  box-shadow: none;
+}
+.pc-nrow .pc-aw + .pc-aw {
+  margin-right: 0;
+}
+/* Компактная полоса (5–6 игроков): значки в левом нижнем углу аватара */
+.pbar.compact .pc-awards {
+  right: auto;
+  left: -6px;
+  bottom: -6px;
+  flex-direction: row;
+}
+.pbar.compact .pc-aw + .pc-aw {
+  margin-right: 0;
+  margin-left: -5px;
+}
+.pc-nrow .pc-name { display: block; }
+
+/* Бот — значок на аватаре (в строке статистики не хватало места: обрезалось число карт) */
+.pc-bot {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #2a3342;
+  color: #dfe6f0;
+  box-shadow: 0 0 0 1.5px rgba(18, 24, 34, 0.95);
+}
+.pc-stats { gap: 2px; }
+.pc-stats .pc-hand { margin-left: 3px; }
+.pc-nrow .pc-aw + .pc-aw { margin-left: -6px; }
+.pc-nrow .pc-aw { box-shadow: 0 0 0 1.5px rgba(18, 24, 34, 0.95); }

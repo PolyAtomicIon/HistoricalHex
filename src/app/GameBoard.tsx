@@ -1,8 +1,9 @@
 // Карта партии: 2D (нарисованные тайлы, SVG — работает везде) или 3D (WebGL). Без WebGL и в лёгком режиме — 2D.
 
-import { Component, Suspense, lazy, useState } from 'react';
+import { Component, Suspense, lazy, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PlayerColor, PlayerId, PublicState } from '../engine';
+import { longestRoadPath } from '../engine';
 import { Board2D } from '../board2d/Board2D';
 import type { GameFx } from './useGameFx';
 import { useLite } from './lite';
@@ -97,6 +98,8 @@ export function GameBoard({
   ghosts?: { vertex?: string; edge?: string; kind: 'road' | 'settlement' | 'city'; color: PlayerColor; broken?: boolean }[];
 }) {
   const [gl] = useState(hasWebGL);
+  // «Самая длинная дорога»: её цепочка подсвечивается на карте
+  const longest = useMemo(() => (pub.longestRoad ? longestRoadPath(pub, pub.longestRoad) : []), [pub]);
   // Для 3D: постройка игрока ближе всего к центру его построек — туда летит камера
   const spotFocus = (() => {
     if (!spotlight) return undefined;
@@ -127,6 +130,7 @@ export function GameBoard({
       spotVertices={spotlight?.vertices}
       sail={fx.sail}
       me={me}
+      longest={longest}
     />
   );
   if (!gl || lite || mode === '2d') return svg;
@@ -154,6 +158,7 @@ export function GameBoard({
           viewStatic={boardStatic}
           raid={fx.raid}
           me={me}
+          longest={longest}
         />
       </Suspense>
     </Fallback>

@@ -13,6 +13,7 @@ export * from './board/generate';
 export * from './rules/placement';
 export {
   longestRoadLength,
+  longestRoadPath,
   publicVictoryPoints,
   hiddenVictoryPoints,
   victoryPoints,

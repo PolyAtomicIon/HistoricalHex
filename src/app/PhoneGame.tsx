@@ -38,6 +38,7 @@ import { ResIcon } from './ResIcon';
 import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
+import { awardsOf } from './awards';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
@@ -69,6 +70,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const meP = pub.players[me];
   const current = pub.order[pub.current];
   const myTurn = current === me && pub.phase !== 'finished';
+  // DEV: подставить награды, чтобы проверить значки и подсветку магистрали в крайних случаях
+  const [awardDbg, setAwardDbg] = useState<{ r?: string; a?: string } | null>(null);
+  if (import.meta.env.DEV) (window as unknown as { __awards: (r?: string, a?: string) => void }).__awards = (r, a) => setAwardDbg({ r, a });
+  const pubShown = awardDbg ? { ...pub, longestRoad: awardDbg.r, largestArmy: awardDbg.a } : pub;
   const fx = useGameFx(pub, pack, me);
   const { status: connStatus, vapid, pushOn } = useConn();
   // Один раз предложить уведомления «Твой ход» (через 20 с после входа в партию)
@@ -337,7 +342,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     <main className={`screen game ${myTurn ? 'my-turn' : ''} phase-${pub.phase}`} style={{ ['--me' as string]: PLAYER_HEX[meP.color] }}>
       <div className="stage" data-drawer-no-drag>
         <GameBoard
-          pub={pub}
+          pub={pubShown}
           era={pack.id}
           colors={colors}
           mode={mode}
@@ -356,8 +361,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       <header className="hud-top">
         <PlayersBar
-          pub={pub}
+          pub={pubShown}
           room={room}
+          pack={pack}
           deadline={deadline ? deadline - conn.getState().clockSkew : undefined}
           focused={focusPlayer?.id}
           onFocus={(id) => {
@@ -863,12 +869,15 @@ export function PlayersBar({
   deadline,
   onFocus,
   focused,
+  pack,
 }: {
   pub: PublicState;
   room: RoomView;
   deadline?: number;
   onFocus?: (id: PlayerId) => void;
   focused?: PlayerId;
+  /** Для подписей наград (названия эпохи). */
+  pack?: LorePack;
 }) {
   const current = pub.order[pub.current];
   const compact = pub.order.length > 4;
@@ -885,17 +894,37 @@ export function PlayersBar({
             className={`pcell ${turn ? 'turn' : ''} ${focused === id ? 'focused' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
             style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
             onClick={() => onFocus?.(id)}
-            aria-label={`${p.name}: ${p.points} очков. Показать постройки`}
+            aria-label={`${p.name}: ${p.points} очков${awardsOf(pub, id).map((a) => `, ${a === 'road' ? pack?.bonuses.longestRoad ?? 'самая длинная дорога' : pack?.bonuses.largestArmy ?? 'самая большая армия'}`).join('')}. Показать постройки`}
           >
             <span className="pc-ava">
               {turn && deadline && <TimerRing until={deadline} />}
               <span className="pc-face">{p.name.charAt(0).toUpperCase()}</span>
+              {bot && (
+                <span className="pc-bot" aria-label="бот">
+                  <Icon name="bot" size={9} />
+                </span>
+              )}
+              {compact && awardsOf(pub, id).length > 0 && (
+                <span className="pc-awards">
+                  {awardsOf(pub, id).map((a) => (
+                    <span key={a} className={`pc-aw ${a}`} title={a === 'road' ? pack?.bonuses.longestRoad : pack?.bonuses.largestArmy}>
+                      <Icon name={a === 'road' ? 'road' : 'army'} size={10} />
+                    </span>
+                  ))}
+                </span>
+              )}
             </span>
             {!compact && (
               <span className="pc-info">
-                <span className="pc-name">{id === room.me ? 'Ты' : p.name}</span>
+                <span className="pc-nrow">
+                  <span className="pc-name">{id === room.me ? 'Ты' : p.name}</span>
+                  {awardsOf(pub, id).map((a) => (
+                    <span key={a} className={`pc-aw ${a}`} title={a === 'road' ? pack?.bonuses.longestRoad : pack?.bonuses.largestArmy}>
+                      <Icon name={a === 'road' ? 'road' : 'army'} size={10} />
+                    </span>
+                  ))}
+                </span>
                 <span className="pc-stats">
-                  {bot && <Icon name="bot" size={11} />}
                   <Icon name="star" size={11} />
                   <b>{p.points}</b>
                   <Icon name="hand" size={11} className="pc-hand" />

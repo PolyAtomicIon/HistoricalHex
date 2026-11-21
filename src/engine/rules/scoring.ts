@@ -47,6 +47,46 @@ export function longestRoadLength(s: BoardView, pid: PlayerId): number {
 }
 
 /**
+ * Сама цепочка самой длинной дороги игрока (рёбра по порядку) — для подсветки на карте.
+ * Та же логика, что в longestRoadLength: чужая постройка рвёт путь, своя — нет.
+ * Длина результата всегда равна longestRoadLength(s, pid).
+ */
+export function longestRoadPath(s: BoardView, pid: PlayerId): EdgeId[] {
+  const topo = topologyFor(s.board.layout);
+  const adj = new Map<VertexId, EdgeId[]>();
+  for (const [e, owner] of Object.entries(s.roads)) {
+    if (owner !== pid) continue;
+    for (const v of topo.edges.get(e)!.vertices) {
+      const list = adj.get(v) ?? [];
+      list.push(e);
+      adj.set(v, list);
+    }
+  }
+  const blocked = (v: VertexId) => {
+    const b = s.buildings[v];
+    return !!b && b.owner !== pid;
+  };
+  const used = new Set<EdgeId>();
+  const path: EdgeId[] = [];
+  let best: EdgeId[] = [];
+  const dfs = (v: VertexId) => {
+    if (path.length > best.length) best = [...path];
+    if (path.length > 0 && blocked(v)) return;
+    for (const e of adj.get(v) ?? []) {
+      if (used.has(e)) continue;
+      used.add(e);
+      path.push(e);
+      const [a, b] = topo.edges.get(e)!.vertices;
+      dfs(a === v ? b : a);
+      path.pop();
+      used.delete(e);
+    }
+  };
+  for (const v of adj.keys()) dfs(v);
+  return best;
+}
+
+/**
  * Пересчёт владельца «Самой длинной дороги» после постройки дороги или поселения.
  * - Владелец сохраняет карту при ничьей.
  * - Если дорогу владельца разорвали и он больше не лидер: карта уходит единственному лидеру,

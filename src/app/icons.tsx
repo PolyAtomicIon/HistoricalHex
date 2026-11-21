@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Timer,
+  Swords,
   ArrowLeftRight,
   ArrowRight,
   ArrowUp,
@@ -71,7 +72,8 @@ export type IconName =
   | 'feather'
   | 'music'
   | 'bell'
-  | 'timer';
+  | 'timer'
+  | 'army';
 
 const L: Record<IconName, LucideIcon> = {
   menu: Menu,
@@ -106,6 +108,7 @@ const L: Record<IconName, LucideIcon> = {
   music: Music,
   bell: Bell,
   timer: Timer,
+  army: Swords,
 };
 
 export function Icon({ name, size = 22, className, style }: { name: IconName; size?: number; className?: string; style?: CSSProperties }) {

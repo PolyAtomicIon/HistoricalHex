@@ -43,6 +43,8 @@ export interface Board2DProps {
   colors: Record<PlayerId, PlayerColor>;
   /** Игрок-зритель: его постройки с кольцом «это твоё». */
   me?: PlayerId;
+  /** Рёбра «Самой длинной дороги» — подсветка магистрали. */
+  longest?: string[];
   highlight?: { vertices?: VertexId[]; edges?: EdgeId[]; hexes?: HexId[] };
   onVertex?: (v: VertexId) => void;
   onEdge?: (e: EdgeId) => void;
@@ -148,6 +150,7 @@ export function Board2D(props: Board2DProps) {
   }, [kRot, geo]);
 
   const recentSet = new Set(recent);
+  const longestSet = new Set(props.longest ?? []);
   const hl = {
     vertices: highlight?.vertices ?? [],
     edges: highlight?.edges ?? [],
@@ -488,10 +491,11 @@ export function Board2D(props: Board2DProps) {
               const color = colors[owner];
               if (!l || !color) return null;
               return (
-                <g key={eid} className={`road ${recentSet.has(eid) ? 'recent' : ''} ${props.spotlight ? (owner === props.spotlight ? 'lit' : 'dim') : ''}`}>
+                <g key={eid} className={`road ${recentSet.has(eid) ? 'recent' : ''} ${longestSet.has(eid) ? 'longest' : ''} ${props.spotlight ? (owner === props.spotlight ? 'lit' : 'dim') : ''}`}>
                   <line {...l} className="rd-halo" pathLength={1} />
                   <line {...l} className="rd-edge" stroke={PLAYER_STROKE[color]} pathLength={1} />
                   <line {...l} className="rd-body" stroke={PLAYER_HEX[color]} pathLength={1} />
+                  {longestSet.has(eid) && <line {...l} className="rd-lane" />}
                 </g>
               );
             })}
@@ -631,7 +635,14 @@ function Piece({ kind, color, shade }: { kind: 'settlement' | 'city'; color: Pla
       <path d={d} className="pc-halo" />
       <path d={d} fill={PLAYER_HEX[color]} stroke={PLAYER_STROKE[color]} strokeWidth={0.04} strokeLinejoin="round" />
       <path d={d} fill={`url(#${shade})`} />
-      {kind === 'city' && <rect x={-0.24} y={0.02} width={0.08} height={0.1} rx={0.015} className="pc-win" />}
+      {kind === 'city' && (
+        <>
+          <rect x={-0.26} y={0.02} width={0.07} height={0.09} rx={0.015} className="pc-win lit" />
+          <rect x={-0.16} y={0.02} width={0.07} height={0.09} rx={0.015} className="pc-win lit" />
+          <rect x={0.11} y={-0.12} width={0.06} height={0.08} rx={0.015} className="pc-win lit" />
+          <circle cx={0.06} cy={-0.39} r={0.045} className="pc-crown" />
+        </>
+      )}
       <rect x={kind === 'city' ? 0.02 : -0.04} y={0.03} width={0.08} height={0.14} rx={0.015} className="pc-door" />
     </g>
   );

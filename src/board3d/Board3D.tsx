@@ -37,6 +37,8 @@ export interface Board3DProps extends BoardProps {
   viewStatic?: boolean;
   /** Игрок-зритель: его постройки с ореолом и белым контуром. */
   me?: string;
+  /** Рёбра «Самой длинной дороги» — подсветка магистрали. */
+  longest?: string[];
   /** Обмен через гавань: кораблик этой гавани уходит в рейс. */
   sail?: { type: HarborType; key: number };
 }
@@ -546,7 +548,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Tokens tiles={tiles} numbers={numbers} hide={view.robberHex} />
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
       <Slots ctx={ctx} buildings={view.buildings} roads={view.roads} />
-      <Roads roads={view.roads} colors={colors} ctx={ctx} me={props.me} />
+      <Roads roads={view.roads} colors={colors} ctx={ctx} me={props.me} longest={props.longest} />
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} me={props.me} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
       <ViewShift on={!props.viewStatic} />

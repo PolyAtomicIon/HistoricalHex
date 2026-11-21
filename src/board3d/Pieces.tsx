@@ -10,6 +10,7 @@ import { box, merge, part } from './Terrain';
 import { hashStr, type World } from './world';
 import { useEnv } from './rig';
 import { Camp } from './Camp';
+import { puff } from './units';
 
 // ---------- геометрия ----------
 
@@ -49,7 +50,40 @@ const cityGeo = merge([
   ...[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([dx, dz]) => part(box(0.05, 0.05, 0.05), '#e2e2e2', [0.15 + dx * 0.06, 0.385, dz * 0.06])),
   part(new THREE.ConeGeometry(0.06, 0.14, 4), '#6a6a6a', [0.15, 0.43, 0], [0, Math.PI / 4, 0]),
   part(box(0.07, 0.1, 0.015), '#5a5a5a', [-0.05, 0.05, 0.135]), // ворота
+  part(box(0.045, 0.1, 0.045), '#5f5f5f', [-0.15, 0.27, -0.06]), // труба
 ]);
+// Золотые детали города (не красятся в цвет игрока): навершие шпиля и пояс-карниз
+const cityGoldGeo = merge([
+  part(new THREE.SphereGeometry(0.03, 10, 8), '#ffffff', [0.15, 0.515, 0]),
+  part(box(0.374, 0.02, 0.274), '#ffffff', [-0.05, 0.1, 0]),
+  part(box(0.174, 0.02, 0.174), '#ffffff', [0.15, 0.36, 0]),
+]);
+const goldMat = new THREE.MeshStandardMaterial({ color: '#ffc93c', metalness: 0.5, roughness: 0.35, emissive: '#7a5200', emissiveIntensity: 0.45 });
+/** Дымок из трубы города — город «живой», дом — нет. */
+const citySmokeMats = Array.from({ length: 3 }, () => new THREE.SpriteMaterial({ map: puff(), color: '#e4e1dc', transparent: true, depthWrite: false, opacity: 0 }));
+function CitySmoke() {
+  const refs = useRef<(THREE.Sprite | null)[]>([]);
+  const { reduced, lowPower } = useEnv();
+  const ph = useMemo(() => Math.random() * 3, []);
+  const mats = useMemo(() => citySmokeMats.map((m) => m.clone()), []);
+  useFrame(({ clock }) => {
+    refs.current.forEach((sp, i) => {
+      if (!sp) return;
+      const k = (((clock.elapsedTime + ph) / 3 + i / 3) % 1 + 1) % 1;
+      sp.position.set(-0.195 + k * 0.06, 0.43 + k * 0.42, -0.078);
+      sp.scale.setScalar(0.06 + k * 0.16);
+      (sp.material as THREE.SpriteMaterial).opacity = Math.sin(k * Math.PI) * 0.55;
+    });
+  });
+  if (reduced || lowPower) return null;
+  return (
+    <>
+      {mats.map((m, i) => (
+        <sprite key={i} ref={(el) => (refs.current[i] = el)} material={m} />
+      ))}
+    </>
+  );
+}
 // Окна города — отдельной тёплой подсветкой (не красятся в цвет игрока)
 const cityWindowsGeo = merge(
   [
@@ -69,6 +103,7 @@ const windowMat = new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: fa
 houseGeo.scale(1.4, 1.4, 1.4);
 cityGeo.scale(1.3, 1.3, 1.3);
 cityWindowsGeo.scale(1.3, 1.3, 1.3);
+cityGoldGeo.scale(1.3, 1.3, 1.3);
 
 // Толстый мультяшный контур: та же геометрия, чуть больше, тёмная, вывернута внутрь (BackSide)
 const hullCache = new Map<string, THREE.MeshBasicMaterial>();
@@ -276,7 +311,19 @@ export function edgeXform(ctx: PieceCtx, e: string) {
   return { x: (a[0] + b[0]) / 2, z: (a[1] + b[1]) / 2, ang: Math.atan2(-(b[1] - a[1]), b[0] - a[0]), y: edgeY(ctx, e) };
 }
 
-function Road({ id, color, ctx, mine }: { id: string; color: PlayerColor; ctx: PieceCtx; mine?: boolean }) {
+// Магистраль («Самая длинная дорога»): золотая кромка и светлая разметка по центру, разметка «бежит»
+const laneGeo = merge([-0.2, 0, 0.2].map((x) => part(box(0.1, 0.012, 0.034), '#ffffff', [x, 0.036, 0])));
+const laneMat = new THREE.MeshBasicMaterial({ color: '#fff1b8', toneMapped: false, transparent: true });
+const longHullMat = new THREE.MeshBasicMaterial({ color: '#ffc93c', side: THREE.BackSide, toneMapped: false });
+function LaneFx() {
+  const { reduced } = useEnv();
+  useFrame(({ clock }) => {
+    laneMat.opacity = reduced ? 1 : 0.65 + 0.35 * Math.abs(Math.sin(clock.elapsedTime * 2.4));
+  });
+  return null;
+}
+
+function Road({ id, color, ctx, mine, longest }: { id: string; color: PlayerColor; ctx: PieceCtx; mine?: boolean; longest?: boolean }) {
   const recent = ctx.recent.has(id);
   const g = usePop(recent);
   const xf = edgeXform(ctx, id);
@@ -284,7 +331,8 @@ function Road({ id, color, ctx, mine }: { id: string; color: PlayerColor; ctx: P
   return (
     <group position={[xf.x, xf.y + 0.032, xf.z]} rotation={[0, xf.ang, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
-        <mesh geometry={roadGeo} material={mine ? mineHullMat : hullMat(color)} scale={[1.04, 1.5, 1.35]} position={[0, 0.002, 0]} />
+        <mesh geometry={roadGeo} material={longest ? longHullMat : mine ? mineHullMat : hullMat(color)} scale={longest ? [1.06, 1.7, 1.7] : [1.04, 1.5, 1.35]} position={[0, 0.002, 0]} />
+        {longest && <mesh geometry={laneGeo} material={laneMat} renderOrder={4} />}
         <mesh geometry={roadGeo} material={roadMat(color)} castShadow receiveShadow />
       </group>
       {recent && <Puff color={PLAYER_HEX[color]} />}
@@ -292,12 +340,14 @@ function Road({ id, color, ctx, mine }: { id: string; color: PlayerColor; ctx: P
   );
 }
 
-export function Roads({ roads, colors, ctx, me }: { roads: Record<string, string>; colors: Record<string, PlayerColor>; ctx: PieceCtx; me?: string }) {
+export function Roads({ roads, colors, ctx, me, longest }: { roads: Record<string, string>; colors: Record<string, PlayerColor>; ctx: PieceCtx; me?: string; longest?: string[] }) {
+  const lset = new Set(longest ?? []);
   return (
     <>
+      {lset.size > 0 && <LaneFx />}
       {Object.entries(roads).map(([id, owner]) => {
         const c = colors[owner];
-        return c ? <Road key={`${id}:${ctx.recent.has(id)}`} id={id} color={c} ctx={ctx} mine={owner === me} /> : null;
+        return c ? <Road key={`${id}:${ctx.recent.has(id)}`} id={id} color={c} ctx={ctx} mine={owner === me} longest={lset.has(id)} /> : null;
       })}
     </>
   );
@@ -386,7 +436,13 @@ function Building({ id, kind, color, ctx, mine }: { id: string; kind: 'settlemen
         {mine && <MineHalo color={color} top={kind === 'city' ? 0.86 : 0.64} />}
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={mine ? mineHullMat : hullMat(color)} scale={mine ? [1.1, 1.07, 1.1] : [1.08, 1.06, 1.08]} position={[0, 0.004, 0]} />
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={pieceMat(color)} castShadow receiveShadow />
-        {kind === 'city' && <mesh geometry={cityWindowsGeo} material={windowMat} />}
+        {kind === 'city' && (
+          <>
+            <mesh geometry={cityWindowsGeo} material={windowMat} />
+            <mesh geometry={cityGoldGeo} material={goldMat} />
+            <CitySmoke />
+          </>
+        )}
       </group>
       {recent && <Puff color="#f4efe4" />}
     </group>

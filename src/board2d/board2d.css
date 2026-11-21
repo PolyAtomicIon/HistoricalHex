@@ -538,3 +538,34 @@ html.lite .b2d .rz-smoke { animation: none; opacity: 0.6; }
 @media (prefers-reduced-motion: reduce) {
   .b2d .mine-ring { animation: none; }
 }
+
+/* «Самая длинная дорога» — магистраль: золотой ореол и бегущая разметка по центру */
+.b2d .road.longest .rd-halo {
+  stroke: #ffc93c;
+  stroke-width: 29px;
+  filter: drop-shadow(0 0 5px rgba(255, 201, 60, 0.85));
+}
+.b2d .rd-lane {
+  stroke: #fff4c9;
+  stroke-width: 3.5px;
+  stroke-linecap: round;
+  stroke-dasharray: 9 9;
+  animation: b2d-lane 1.1s linear infinite;
+}
+@keyframes b2d-lane {
+  to { stroke-dashoffset: -18; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .b2d .rd-lane { animation: none; }
+}
+
+/* Город: тёплые окна и золотое навершие — сразу видно, что это не дом */
+.b2d .pc-win.lit {
+  fill: #ffd27a;
+  filter: drop-shadow(0 0 0.03px #ffb43c);
+}
+.b2d .pc-crown {
+  fill: #ffc93c;
+  stroke: #6b4a00;
+  stroke-width: 0.02;
+}
