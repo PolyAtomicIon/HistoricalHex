@@ -18,9 +18,9 @@ export function detectLowEnd(): boolean {
   if (ios !== null && ios < 16) return true;
   const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
   if (nav.connection?.saveData) return true;
-  if (nav.deviceMemory !== undefined && nav.deviceMemory <= 2) return true;
-  const isAndroid = /Android/i.test(navigator.userAgent);
-  if (isAndroid && (navigator.hardwareConcurrency ?? 8) <= 4) return true;
+  // Chrome округляет память вниз до степени двойки (3 ГБ → 2), поэтому слабым считаем только ≤1 ГБ.
+  // По числу ядер не судим: Samsung и другие Android часто отдают браузеру 4 ядра и на мощных телефонах.
+  if (nav.deviceMemory !== undefined && nav.deviceMemory <= 1) return true;
   return false;
 }
 

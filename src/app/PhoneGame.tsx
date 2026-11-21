@@ -36,7 +36,7 @@ import { IncomingTrade, TradeSheet } from './trade';
 import { HandMini, RES_COLOR, ResChips, ResourcePicker, ResourceStepper, TradeGrid, sum } from './widgets';
 import { ResIcon } from './ResIcon';
 import { threatInfo, useAttacking, useGameFx } from './useGameFx';
-import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
+import { GameBoard, chose3d, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
 import { incomeByNumber } from './income';
@@ -139,6 +139,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const [muted, setMuted] = useMuted();
   const [music, setMusic] = useMusicOn();
   const { pref: litePref, auto: liteAuto, lite: liteOn } = useLite();
+  // что реально на экране: в лёгком режиме 3D — только если игрок сам его выбрал
+  const shownMode = mode === '3d' && (!liteOn || chose3d()) ? '3d' : '2d';
   const { hi: gfxHi, pref: gfxPref, auto: gfxAuto } = useGfx();
   const [sheet, setSheet] = useState<SheetId>(null);
   // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
@@ -871,18 +873,19 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <Icon name="crown" />
             <span className="grow t">Игроки и очки</span>
           </button>
-          {!liteOn && (
+          {
             <>
               <div className="label">Вид карты</div>
               <div className="seg">
                 {(['2d', '3d'] as const).map((m) => (
-                  <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
+                  <button key={m} aria-pressed={shownMode === m} onClick={() => setMode(m)}>
                     {m === '2d' ? '2D — рисованная' : '3D — объёмная'}
                   </button>
                 ))}
               </div>
+              {liteOn && <p className="faint small">Включён лёгкий режим: 3D может подтормаживать на этом телефоне.</p>}
             </>
-          )}
+          }
           <div className="label">Вид предложения обмена</div>
           <div className="seg">
             {(['card', 'caravan', 'scales'] as TradeUi[]).map((v) => (
@@ -989,7 +992,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       <DiceOverlay roll={fx.roll} />
       <NewCard cards={priv.devCards} pack={pack} />
       <Threat t={threatInfo(fx, pub, pack, me)} />
-      <Raid event={fx.raid} skipBomber={mode === '3d' && !liteOn} />
+      <Raid event={fx.raid} skipBomber={shownMode === '3d'} />
       <Cinematic event={fx.cinematic} />
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
       <ReactionsLayer items={fx.reactions} />

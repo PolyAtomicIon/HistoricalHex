@@ -7,7 +7,7 @@ import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { namesFrom } from '../i18n/ru';
 import { Cinematic, DiceOverlay, Raid, ReactionsLayer, sfx, Threat, useMuted } from '../fx';
-import { GameBoard, MODE_LABEL, useBoardMode } from './GameBoard';
+import { GameBoard, MODE_LABEL, chose3d, useBoardMode } from './GameBoard';
 import { threatInfo, useGameFx } from './useGameFx';
 import { Fact, useRotatingFact } from './Facts';
 import { joinLink, Qr } from './Lobby';
@@ -279,7 +279,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
       </aside>
 
       <div className="tv-modes glass">
-        {!lite && (['2d', '3d'] as const).map((m) => (
+        {(['2d', '3d'] as const).map((m) => (
           <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
             {MODE_LABEL[m]}
           </button>
@@ -389,7 +389,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
       )}
       <DiceOverlay roll={fx.roll} big />
       <Threat t={threatInfo(fx, pub, pack)} tv />
-      <Raid event={fx.raid} skipBomber={mode === '3d' && !lite} />
+      <Raid event={fx.raid} skipBomber={mode === '3d' && (!lite || chose3d())} />
       <Cinematic event={fx.cinematic} tv />
       <ReactionsLayer items={fx.reactions} />
     </main>

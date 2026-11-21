@@ -23,6 +23,15 @@ function hasWebGL(): boolean {
   }
 }
 
+/** Игрок сам выбрал 3D в настройках (а не досталось по умолчанию). */
+export function chose3d(): boolean {
+  try {
+    return localStorage.getItem(MODE_KEY) === '3d';
+  } catch {
+    return false;
+  }
+}
+
 export function useBoardMode(fallback: BoardMode = '2d'): [BoardMode, (m: BoardMode) => void] {
   const [mode, setMode] = useState<BoardMode>(() => {
     try {
@@ -151,7 +160,8 @@ export function GameBoard({
       longest={longest}
     />
   );
-  if (!gl || lite || mode === '2d') return svg;
+  // лёгкий режим — 2D по умолчанию, но если игрок сам выбрал 3D, показываем 3D
+  if (!gl || mode === '2d' || (lite && !chose3d())) return svg;
   return (
     <Fallback fallback={svg}>
       <Suspense fallback={<div className="board-loading"><div className="spinner" /></div>}>
