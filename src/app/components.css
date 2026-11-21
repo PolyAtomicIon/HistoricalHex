@@ -1063,16 +1063,14 @@
 }
 .pav.turn .pav-ring {
   box-shadow:
-    0 0 0 2px #fff,
-    0 0 0 5px var(--pc),
+    0 0 0 3px #fff,
     0 0 22px var(--pc);
   animation: pav-pulse 1.6s ease-in-out infinite alternate;
 }
 @keyframes pav-pulse {
   to {
     box-shadow:
-      0 0 0 2px #fff,
-      0 0 0 5px var(--pc),
+      0 0 0 3px #fff,
       0 0 34px var(--pc);
   }
 }
