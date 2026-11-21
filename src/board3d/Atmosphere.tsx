@@ -1,5 +1,5 @@
-// Атмосфера большого экрана (ноутбук → телевизор): облака плывут над островом и бросают
-// мягкие тени, стаи птиц кружат, по морю бегут блики. На телефоне не рисуется (только hifi).
+// Атмосфера большого экрана (ноутбук → телевизор): облака плывут над островом,
+// стаи птиц кружат, по морю бегут блики. Теней от облаков нет — на воде они читались как грязные пятна. На телефоне не рисуется (только hifi).
 
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -27,12 +27,10 @@ const wingGeo = (() => {
 })();
 const birdMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
 const wingMat = new THREE.MeshStandardMaterial({ color: '#e4e8ec', roughness: 0.8, side: THREE.DoubleSide });
-const shadowGeo = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
 
 export function Atmosphere({ radius }: { radius: number }) {
   const { reduced } = useEnv();
   const clouds = useRef<(THREE.Sprite | null)[]>([]);
-  const shadows = useRef<(THREE.Mesh | null)[]>([]);
   const birds = useRef<(THREE.Group | null)[]>([]);
   const wingsL = useRef<(THREE.Mesh | null)[]>([]);
   const wingsR = useRef<(THREE.Mesh | null)[]>([]);
@@ -50,7 +48,6 @@ export function Atmosphere({ radius }: { radius: number }) {
     [R],
   );
   const cloudMats = useMemo(() => seeds.map(() => new THREE.SpriteMaterial({ map: puff(), color: '#ffffff', transparent: true, opacity: 0.32, depthWrite: false, fog: false })), [seeds]);
-  const shadowMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.09, depthWrite: false, depthTest: false }), []);
   const glintMats = useMemo(() => Array.from({ length: GLINTS }, () => new THREE.SpriteMaterial({ map: puff(), color: '#e8f6ff', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })), []);
   const glintPos = useMemo(
     () =>
@@ -73,11 +70,6 @@ export function Atmosphere({ radius }: { radius: number }) {
       if (sp) {
         sp.position.set(x, c.y, z);
         sp.scale.set(c.s * 1.6, c.s * 0.8, 1);
-      }
-      const sh = shadows.current[i];
-      if (sh) {
-        sh.position.set(x + 1.2, 0.7, z + 0.8);
-        sh.scale.set(c.s * 0.55, 1, c.s * 0.35);
       }
     });
     for (let f = 0; f < FLOCKS; f++) {
@@ -117,10 +109,7 @@ export function Atmosphere({ radius }: { radius: number }) {
   return (
     <group>
       {seeds.map((_, i) => (
-        <group key={i}>
-          <sprite ref={(el) => (clouds.current[i] = el)} material={cloudMats[i]} renderOrder={20} />
-          <mesh ref={(el) => (shadows.current[i] = el)} geometry={shadowGeo} material={shadowMat} renderOrder={2} />
-        </group>
+        <sprite key={i} ref={(el) => (clouds.current[i] = el)} material={cloudMats[i]} renderOrder={20} />
       ))}
       {Array.from({ length: FLOCKS * BIRDS }, (_, i) => (
         <group key={i} ref={(el) => (birds.current[i] = el)}>
