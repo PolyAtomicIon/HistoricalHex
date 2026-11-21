@@ -563,7 +563,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       />
 
       <Sea centers={centers} radius={world.radius} sunDir={sunDir} />
-      <Tiles tiles={tiles} clear={buildSpots} />
+      <Tiles tiles={tiles} clear={buildSpots} rich={props.hifi} />
       <Tokens tiles={tiles} numbers={numbers} hide={view.robberHex} />
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
       {/* в режиме выбора места свои маркеры уже рисуют доступные места — сетку прячем, чтобы не было двойных кругов */}

@@ -24,6 +24,8 @@ import { RandomOrgDice } from '../src/net/randomOrg';
 const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS ?? 1300);
 const BOT_REPLY_MS = Number(process.env.BOT_REPLY_MS ?? 900);
 const PACE_SCALE = Number(process.env.BOT_PACE_SCALE ?? 1);
+/** Сцена атаки в 3D идёт до ~7 с. */
+const ATTACK_SCENE_MS = 6800;
 
 /**
  * Сколько дать людям досмотреть последнее событие, прежде чем бот сделает следующий шаг.
@@ -110,6 +112,8 @@ export class Room {
   private botTimer?: ReturnType<typeof setTimeout>;
   /** Раньше этого момента бот не ходит: люди досматривают прошлое событие. */
   private paceUntil = 0;
+  /** До какого момента идёт сцена атаки: кубики (и людям, и автоброску) — только после неё. */
+  private attackUntil = 0;
   private queue: Promise<unknown> = Promise.resolve();
   private disposed = false;
 
@@ -338,7 +342,12 @@ export class Room {
   // ───────────────────────── ходы ─────────────────────────
 
   act(me: PlayerId, action: Action, dice?: [number, number]): Promise<ActionResult> {
-    return this.enqueue(() => {
+    return this.enqueue(async () => {
+      // Бросок во время сцены атаки — подождать её конца, чтобы кубики не летели поверх налёта
+      if (action?.type === 'rollDice') {
+        const wait = this.attackUntil - Date.now();
+        if (wait > 0) await new Promise((r) => setTimeout(r, Math.min(wait, ATTACK_SCENE_MS)));
+      }
       const state = this.state;
       if (!state) return { ok: false, error: 'Игра ещё не началась' };
       if (this.kicked.has(me)) return { ok: false, error: 'Ведущий убрал тебя из игры' };
@@ -465,6 +474,7 @@ export class Room {
     this.sendEvents(events);
     // бот ждёт, пока люди досмотрят событие (налёт, кубики…), — по одному действию за раз
     this.paceUntil = Math.max(this.paceUntil, now + paceAfter(events));
+    if (events.some((e) => e.type === 'robberMoved')) this.attackUntil = now + Math.round(ATTACK_SCENE_MS * PACE_SCALE);
     this.scheduleBots();
   }
 
@@ -546,7 +556,8 @@ export class Room {
       const pid = state.order[state.current];
       const since = this.waitingSince.get(pid);
       const knight = state.players[pid]?.devCards?.some((c) => c.type === 'knight' && c.boughtTurn !== state.turn);
-      if (!state.players[pid]?.bot && since !== undefined && now - since > (knight ? 8000 : 2500)) {
+      const from = since === undefined ? undefined : Math.max(since, this.attackUntil);
+      if (!state.players[pid]?.bot && from !== undefined && now - from > (knight ? 8000 : 2500)) {
         void this.enqueue(() => this.autoMove(pid, 'roll')).catch((e) => console.error('autoroll failed', this.pin, e));
         return;
       }

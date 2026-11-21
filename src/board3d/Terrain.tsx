@@ -241,7 +241,10 @@ export type PropKind =
   | 'peak'
   | 'rock'
   | 'dune'
-  | 'cactus';
+  | 'cactus'
+  | 'bush'
+  | 'stack'
+  | 'flower';
 
 let GEOS: Record<PropKind, THREE.BufferGeometry> | null = null;
 function geos(): Record<PropKind, THREE.BufferGeometry> {
@@ -302,6 +305,22 @@ function geos(): Record<PropKind, THREE.BufferGeometry> {
     peak: makePeak(),
     rock: part(ico(0.08, 0), '#7c8497', [0, 0.02, 0], [0.3, 0.5, 0], [1, 0.7, 1]),
     dune: part(ico(0.3, 1), '#e0c27c', [0, 0, 0], [0, 0, 0], [1, 0.26, 0.6]),
+    // детальная графика: мелкие кусты, стога сена, цветы — тонко и небольшими
+    bush: merge([
+      part(ico(0.055, 0), '#4c9a46', [0, 0.035, 0], [0.2, 0.3, 0], [1, 0.8, 1]),
+      part(ico(0.04, 0), '#62b354', [0.045, 0.03, 0.02], [0.5, 0.1, 0], [1, 0.8, 1]),
+      part(ico(0.035, 0), '#3d8a3f', [-0.04, 0.025, -0.015], [0, 0.6, 0.2], [1, 0.8, 1]),
+    ]),
+    stack: merge([
+      part(cyl(0.05, 0.065, 0.07, 8), '#d8b24a', [0, 0.035, 0]),
+      part(cone(0.055, 0.07, 8), '#e6c35a', [0, 0.105, 0]),
+    ]),
+    flower: merge([
+      part(ico(0.016, 0), '#f4f1ea', [0, 0.012, 0]),
+      part(ico(0.014, 0), '#f2b544', [0.03, 0.01, 0.012]),
+      part(ico(0.014, 0), '#e87a9a', [-0.022, 0.01, 0.024]),
+      part(ico(0.013, 0), '#f4f1ea', [0.008, 0.01, -0.03]),
+    ]),
     cactus: merge([
       part(cyl(0.032, 0.036, 0.22, 6), '#4f8b4b', [0, 0.11, 0]),
       part(cyl(0.022, 0.022, 0.08, 5), '#4f8b4b', [0.06, 0.13, 0], [0, 0, 0]),
@@ -353,7 +372,7 @@ function scatter(rng: Rng, n: number, rMin: number, rMax: number, minDist: numbe
   return out;
 }
 
-export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
+export function genProps(tiles: TileInfo[], rich = false): Record<PropKind, Inst[]> {
   const out: Record<PropKind, Inst[]> = {
     tree: [],
     oak: [],
@@ -367,6 +386,9 @@ export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
     rock: [],
     dune: [],
     cactus: [],
+    bush: [],
+    stack: [],
+    flower: [],
   };
   for (const t of tiles) {
     const rng = rngFor(t.id);
@@ -420,11 +442,44 @@ export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
         for (const [x, z] of scatter(rng, 2, 0.5, 0.72, 0.4)) add('cactus', x, z, 0.8 + rng() * 0.5);
         break;
     }
+    if (rich) {
+      // отдельный генератор, чтобы обычный режим не поменял раскладку
+      const r2 = rngFor(`${t.id}:rich`);
+      const add2 = (kind: PropKind, lx: number, lz: number, sc = 1) =>
+        out[kind].push({ x: t.x + lx, y: h, z: t.z + lz, ry: r2() * Math.PI * 2, s: sc, ph: r2() * 6.28, tint: 0.85 + r2() * 0.3 });
+      switch (t.terrain) {
+        case 'forest':
+          for (const [x, z] of scatter(r2, 6, 0.32, 0.5, 0.17)) {
+            const sc = 0.5 + r2() * 0.3;
+            if (r2() < 0.6) add2('tree', x, z, sc);
+            else add2('bush', x, z, 0.9 + r2() * 0.5);
+          }
+          break;
+        case 'pasture':
+          for (const [x, z] of scatter(r2, 3, 0.32, 0.5, 0.22)) add2('sheep', x, z, 0.85 + r2() * 0.25);
+          for (const [x, z] of scatter(r2, 6, 0.34, 0.78, 0.14)) add2(r2() < 0.5 ? 'flower' : 'bush', x, z, 0.9 + r2() * 0.5);
+          break;
+        case 'fields':
+          for (const [x, z] of scatter(r2, 2, 0.6, 0.76, 0.3)) add2('stack', x, z, 0.9 + r2() * 0.3);
+          for (const [x, z] of scatter(r2, 3, 0.66, 0.8, 0.2)) add2('flower', x, z);
+          break;
+        case 'hills':
+          for (const [x, z] of scatter(r2, 4, 0.34, 0.78, 0.18)) add2('bush', x, z, 0.7 + r2() * 0.4);
+          break;
+        case 'mountains':
+          for (const [x, z] of scatter(r2, 4, 0.34, 0.78, 0.16)) add2('rock', x, z, 0.5 + r2() * 0.5);
+          for (const [x, z] of scatter(r2, 2, 0.6, 0.8, 0.2)) add2('tree', x, z, 0.45 + r2() * 0.2);
+          break;
+        case 'desert':
+          for (const [x, z] of scatter(r2, 3, 0.34, 0.78, 0.2)) add2('rock', x, z, 0.4 + r2() * 0.4);
+          break;
+      }
+    }
   }
   return out;
 }
 
-const ANIM: Partial<Record<PropKind, 'sway' | 'bob' | 'wave'>> = { tree: 'sway', oak: 'sway', sheep: 'bob', wheat: 'wave' };
+const ANIM: Partial<Record<PropKind, 'sway' | 'bob' | 'wave'>> = { tree: 'sway', oak: 'sway', sheep: 'bob', wheat: 'wave', bush: 'sway' };
 
 let propMat: THREE.MeshStandardMaterial | null = null;
 const getPropMat = () =>
@@ -572,8 +627,8 @@ function clearAround(props: Record<PropKind, Inst[]>, spots: [number, number][])
   return out;
 }
 
-export default function Tiles({ tiles, clear }: { tiles: TileInfo[]; clear?: [number, number][] }) {
-  const raw = useMemo(() => genProps(tiles), [tiles]);
+export default function Tiles({ tiles, clear, rich }: { tiles: TileInfo[]; clear?: [number, number][]; rich?: boolean }) {
+  const raw = useMemo(() => genProps(tiles, rich), [tiles, rich]);
   const clearKey = (clear ?? []).map((c) => c.join(',')).join(';');
   const props = useMemo(() => clearAround(raw, clear ?? []), [raw, clearKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const byTerrain = useMemo(() => {

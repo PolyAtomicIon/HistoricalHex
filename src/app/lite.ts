@@ -65,3 +65,48 @@ export function useLite(): { lite: boolean; pref: LitePref; auto: boolean } {
   );
   return { lite, pref, auto };
 }
+
+// ─── Детальная графика: больше деталей на карте, облака и птицы, тени выше качеством ───
+// «Авто» — включена на ноутбуке/компьютере (большой экран + мышь), на телефоне выключена.
+
+export type GfxPref = 'auto' | 'hi' | 'normal';
+const GFX_KEY = 'hh.gfx';
+
+function readGfx(): GfxPref {
+  try {
+    const v = localStorage.getItem(GFX_KEY);
+    return v === 'hi' || v === 'normal' ? v : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+let gfx: GfxPref = readGfx();
+const gfxAuto =
+  typeof matchMedia !== 'undefined' && matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)').matches;
+const gfxSubs = new Set<() => void>();
+const isHiGfx = () => !isLite() && (gfx === 'auto' ? gfxAuto : gfx === 'hi');
+
+export function setGfxPref(p: GfxPref): void {
+  gfx = p;
+  try {
+    localStorage.setItem(GFX_KEY, p);
+  } catch {
+    /* ok */
+  }
+  gfxSubs.forEach((f) => f());
+}
+
+export function useGfx(): { hi: boolean; pref: GfxPref; auto: boolean } {
+  const hi = useSyncExternalStore(
+    (f) => {
+      gfxSubs.add(f);
+      subs.add(f);
+      return () => {
+        gfxSubs.delete(f);
+        subs.delete(f);
+      };
+    },
+    isHiGfx,
+  );
+  return { hi, pref: gfx, auto: gfxAuto };
+}

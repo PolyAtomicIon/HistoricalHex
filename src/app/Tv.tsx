@@ -6,9 +6,9 @@ import type { RoomView } from '../proto';
 import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { namesFrom } from '../i18n/ru';
-import { Cinematic, DiceOverlay, Raid, ReactionsLayer, sfx, useMuted } from '../fx';
+import { Cinematic, DiceOverlay, Raid, ReactionsLayer, sfx, Threat, useMuted } from '../fx';
 import { GameBoard, MODE_LABEL, useBoardMode } from './GameBoard';
-import { useGameFx } from './useGameFx';
+import { threatInfo, useGameFx } from './useGameFx';
 import { Fact, useRotatingFact } from './Facts';
 import { joinLink, Qr } from './Lobby';
 import { conn } from '../client/conn';
@@ -375,12 +375,13 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         </form>
       </Sheet>
 
-      {narr && (
+      {narr && !fx.threat && (
         <div key={narr.key} className="narration tv glass" style={{ ['--pc' as string]: narr.color ?? 'var(--accent)' }}>
           {narr.text}
         </div>
       )}
       <DiceOverlay roll={fx.roll} big />
+      <Threat t={threatInfo(fx, pub, pack)} tv />
       <Raid event={fx.raid} skipBomber={mode === '3d' && !lite} />
       <Cinematic event={fx.cinematic} tv />
       <ReactionsLayer items={fx.reactions} />

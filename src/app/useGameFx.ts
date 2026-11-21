@@ -6,7 +6,7 @@ import { RESOURCES } from '../engine';
 import type { LorePack } from '../lore';
 import { narrate } from '../lore';
 import { conn } from '../client/conn';
-import type { CinematicEvent, DiceRoll, Gain, RaidEvent, ReactionItem } from '../fx';
+import type { CinematicEvent, DiceRoll, Gain, RaidEvent, ReactionItem, ThreatInfo } from '../fx';
 import { haptic, rollDurationMs, sfx } from '../fx';
 import { PLAYER_HEX } from '../ui/theme';
 import { eraIcon } from './era';
@@ -66,6 +66,10 @@ export interface GameFx {
   log: LogEntry[];
   /** Важные события с объяснением — по одному, каждое висит, пока не нажали «Понятно». */
   notices: Notice[];
+  /** До какого момента (Date.now) идёт сцена атаки — до конца бросать кубики нельзя. */
+  attackUntil: number;
+  /** Кто сейчас выбирает цель атаки (фаза разбойника) — зловещее предупреждение всем. */
+  threat?: { player: PlayerId; key: number };
 }
 
 /**
@@ -83,6 +87,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     reactions: [],
     log: loadLog(),
     notices: [],
+    attackUntil: 0,
   });
   // журнал живёт и после перезагрузки страницы (по PIN комнаты)
   useEffect(() => {
@@ -148,7 +153,8 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       const era = eraOverride ?? packRef.current.id;
       const sprite = kind === 'robber' ? eraIcon(era, 'attack') : era === 'ww2' ? eraIcon(era, 'tank') : eraIcon(era, 'dev-knight');
       const hex = target ? pubRef.current?.board.hexes.find((h) => h.id === target) : undefined;
-      setFx((f) => ({ ...f, raid: { kind, era, sprite, target, key: k.current++ } }));
+      const len = attackShot(era, kind).hold ?? 4500;
+      setFx((f) => ({ ...f, raid: { kind, era, sprite, target, key: k.current++ }, attackUntil: Date.now() + len, threat: undefined }));
       // тряска — в момент удара, а не в начале
       // в 3D во ВОВ удар позже: звено заходит медленно (≈3.6 с), танки стреляют с 3.2 с
       let is3d = false;
@@ -343,5 +349,45 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     };
   }, [me]);
 
+  // Затишье перед ударом: кто-то выбирает цель (после семёрки или карты-воина)
+  const threatPid = pub?.phase === 'moveRobber' ? pub.order[pub.current] : undefined;
+  useEffect(() => {
+    if (!threatPid) {
+      setFx((f) => (f.threat ? { ...f, threat: undefined } : f));
+      return;
+    }
+    // после семёрки — сначала досмотреть кубики
+    const t = setTimeout(() => setFx((f) => ({ ...f, threat: { player: threatPid, key: k.current++ } })), 1600);
+    return () => clearTimeout(t);
+  }, [threatPid, pub?.turn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return fx;
+}
+
+/** Сцена «выбирает цель» для экрана: имя, цвет, чей удар. */
+export function threatInfo(fx: GameFx, pub: PublicState, pack: LorePack, me?: PlayerId): ThreatInfo | null {
+  if (!fx.threat || pub.phase !== 'moveRobber') return null;
+  const p = pub.players[fx.threat.player];
+  if (!p) return null;
+  return {
+    key: fx.threat.key,
+    name: p.name,
+    color: PLAYER_HEX[p.color],
+    mine: me === fx.threat.player,
+    attack: pack.robber.name,
+    img: eraIcon(pack.id, 'attack'),
+  };
+}
+
+/** Идёт ли сейчас сцена атаки (до fx.attackUntil); пока идёт — кубики не бросаем. */
+export function useAttacking(until: number): boolean {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const left = until - Date.now();
+    if (left <= 0) return;
+    setNow(Date.now());
+    const t = setTimeout(() => setNow(Date.now()), left + 50);
+    return () => clearTimeout(t);
+  }, [until]);
+  return until > now;
 }

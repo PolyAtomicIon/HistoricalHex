@@ -24,9 +24,9 @@ import type { LoreFact, LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { Icon, ArtIcon } from './icons';
 import { eraIcon } from './era';
-import { setLitePref, useLite } from './lite';
+import { setGfxPref, setLitePref, useGfx, useLite, type GfxPref } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, myPhaseText, phaseText } from '../i18n/ru';
-import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted, useMusicOn } from '../fx';
+import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, Threat, haptic, sfx, useMuted, useMusicOn } from '../fx';
 import { Sheet } from './Sheet';
 import { playerClusters } from './clusters';
 import { PlayerProfileCard } from './Profile';
@@ -35,7 +35,7 @@ import { TurnSettings } from './TurnSettings';
 import { IncomingTrade, TradeSheet } from './trade';
 import { HandMini, RES_COLOR, ResChips, ResourcePicker, ResourceStepper, TradeGrid, sum } from './widgets';
 import { ResIcon } from './ResIcon';
-import { useGameFx } from './useGameFx';
+import { threatInfo, useAttacking, useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
@@ -79,6 +79,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   if (import.meta.env.DEV) (window as unknown as { __awards: (r?: string, a?: string) => void }).__awards = (r, a) => setAwardDbg({ r, a });
   const pubShown = awardDbg ? { ...pub, longestRoad: awardDbg.r, largestArmy: awardDbg.a } : pub;
   const fx = useGameFx(pub, pack, me);
+  // пока идёт сцена атаки, кубики не бросаем — сначала досмотреть
+  const attacking = useAttacking(fx.attackUntil);
   // Сообщения сервера/игры — внутри колонки сверху, а не поверх полосы игроков
   const connNotice = useConn().notice;
   const [gameToast, setGameToast] = useState<{ text: string; key: number } | null>(null);
@@ -137,6 +139,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const [muted, setMuted] = useMuted();
   const [music, setMusic] = useMusicOn();
   const { pref: litePref, auto: liteAuto, lite: liteOn } = useLite();
+  const { hi: gfxHi, pref: gfxPref, auto: gfxAuto } = useGfx();
   const [sheet, setSheet] = useState<SheetId>(null);
   // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
   const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number; idx?: number } | null>(null);
@@ -245,11 +248,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       return;
     }
     if (room.settings.autoRoll) return; // бросает сервер
-    if (!autoRoll) return;
+    if (!autoRoll || attacking) return;
     // Есть карта, которую можно сыграть до броска (рыцарь) — не бросаем сами, ждём решения
     if (playable.some((c) => c.type === 'knight')) return;
     setCountdown(2);
-  }, [myTurn, pub.phase, pub.turn, physical, autoRoll]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [myTurn, pub.phase, pub.turn, physical, autoRoll, attacking]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
@@ -424,6 +427,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           spotlight={focusSpot}
           me={me}
           pin={planPin}
+          hifi={gfxHi}
         />
       </div>
 
@@ -658,6 +662,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           send={sendVoid}
           openSheet={setSheet}
           countdown={countdown}
+          attacking={attacking}
           cancelCountdown={() => setCountdown(null)}
           physical={physical}
           planCount={plan.length}
@@ -886,6 +891,14 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               </button>
             ))}
           </div>
+          <div className="label">Графика карты</div>
+          <div className="seg">
+            {(['auto', 'hi', 'normal'] as GfxPref[]).map((v) => (
+              <button key={v} aria-pressed={gfxPref === v} onClick={() => setGfxPref(v)}>
+                {v === 'auto' ? `Авто${gfxAuto ? ' · детальная' : ''}` : v === 'hi' ? 'Детальная' : 'Обычная'}
+              </button>
+            ))}
+          </div>
           <div className="label">Лёгкий режим (старые телефоны)</div>
           <div className="seg">
             {(['auto', 'on', 'off'] as const).map((v) => (
@@ -975,6 +988,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       <DiceOverlay roll={fx.roll} />
       <NewCard cards={priv.devCards} pack={pack} />
+      <Threat t={threatInfo(fx, pub, pack, me)} />
       <Raid event={fx.raid} skipBomber={mode === '3d' && !liteOn} />
       <Cinematic event={fx.cinematic} />
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
@@ -1459,12 +1473,13 @@ function Actions(props: {
   send: (a: Action) => Promise<void>;
   openSheet: (s: SheetId) => void;
   countdown: number | null;
+  attacking: boolean;
   cancelCountdown: () => void;
   physical: boolean;
   planCount: number;
   planBroken: number;
 }) {
-  const { pub, priv, me, myTurn, build, setBuild, busy, send, openSheet, countdown, cancelCountdown, physical } = props;
+  const { pub, priv, me, myTurn, build, setBuild, busy, send, openSheet, countdown, attacking, cancelCountdown, physical } = props;
   const meP = pub.players[me];
   const playable = priv.devCards.filter((c) => c.playable && c.type !== 'victoryPoint').length;
   const canPlayNow = myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed && playable > 0;
@@ -1513,8 +1528,8 @@ function Actions(props: {
               <Icon name="dice" /> Бросаю через {countdown}… <small>стоп</small>
             </button>
           ) : (
-            <button className="btn primary big grow2" disabled={busy} onClick={() => (physical ? openSheet('dice') : void send({ type: 'rollDice' }))}>
-              <Icon name="dice" /> {physical ? 'Ввести бросок' : 'Бросить кубики'}
+            <button className="btn primary big grow2" disabled={busy || attacking} onClick={() => (physical ? openSheet('dice') : void send({ type: 'rollDice' }))}>
+              <Icon name={attacking ? 'army' : 'dice'} /> {attacking ? 'Идёт атака…' : physical ? 'Ввести бросок' : 'Бросить кубики'}
             </button>
           )}
           {playable > 0 && cardsBtn}

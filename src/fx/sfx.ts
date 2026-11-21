@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 export type SfxName =
   | 'diceShake' | 'diceLand' | 'tick' | 'pop' | 'coin' | 'chime' | 'whoosh' | 'tudum'
   | 'attack' | 'fanfare' | 'victory' | 'error' | 'yourTurn' | 'react' | 'steal'
-  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank' | 'siren' | 'drama' | 'cannon' | 'fire' | 'slash';
+  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank' | 'siren' | 'drama' | 'omen' | 'cannon' | 'fire' | 'slash';
 
 export interface SfxOpts {
   /** 0..1.5 extra gain for this call */
@@ -170,6 +170,18 @@ const drum = (x: Ctx, at: number, f: number, gain = 0.6, len = 0.35) => {
 };
 
 const RECIPES: Record<SfxName, (x: Ctx, o: SfxOpts) => void> = {
+  omen: (x) => {
+    // Затишье перед ударом (~5 с): низкий гул, удары сердца, тихий диссонанс сверху
+    tone(x, { f: 41.2, dur: 5.2, type: 'sawtooth', gain: 0.14, attack: 1.2, lp: 180 });
+    tone(x, { f: 43.6, dur: 5, type: 'sawtooth', gain: 0.08, attack: 1.5, lp: 200 });
+    for (let i = 0; i < 4; i++) {
+      drum(x, 0.4 + i * 1.1, 48, 0.55, 0.3);
+      drum(x, 0.62 + i * 1.1, 44, 0.4, 0.3);
+    }
+    tone(x, { at: 1.2, f: 622.3, dur: 3.6, type: 'sine', gain: 0.018, attack: 1.8 });
+    tone(x, { at: 1.2, f: 659.3, dur: 3.6, type: 'sine', gain: 0.014, attack: 2 });
+    hiss(x, { at: 0.2, dur: 4.6, type: 'lowpass', f: 400, gain: 0.06, attack: 2 });
+  },
   drama: (x) => {
     // Тревожная тема налёта (~7 с): гул низов, дробь литавр, минорный кластер струнных, удар и плач меди
     tone(x, { f: 55, dur: 7, type: 'sawtooth', gain: 0.16, attack: 1.6, lp: 260 });

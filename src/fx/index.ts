@@ -14,3 +14,5 @@ export { Raid } from './Raid';
 export type { RaidEvent } from './Raid';
 export { boardLocator } from './util';
 export { playEraMusic, setMusicOn, useMusicOn } from './music';
+export { Threat } from './Threat';
+export type { ThreatInfo } from './Threat';
