@@ -266,7 +266,7 @@ export function findProfile(pid: string, persona?: string): Profile | undefined 
 }
 
 /** ИИ-лига: если у персонажей мало партий, они доигрывают в фоне (по партии за тик, не блокируя сервер). */
-export function runAiLeague(target = 120, eras = ['genghis', 'japan', 'ww2']): void {
+export function runAiLeague(target = 120, eras = ['genghis', 'japan', 'ww2', 'khanate', 'silk', 'saka']): void {
   for (const per of PERSONAS) personaProfile(per.id);
   let left = Math.max(0, Math.ceil((target * 4 - store.aiGames()) / 4));
   if (!left) return;

@@ -3,12 +3,15 @@
 import { GENGHIS_PACK } from './packs/genghis';
 import { JAPAN_PACK } from './packs/japan';
 import { WW2_PACK } from './packs/ww2';
+import { KHANATE_PACK } from './packs/khanate';
+import { SILK_PACK } from './packs/silk';
+import { SAKA_PACK } from './packs/saka';
 import type { LorePack, NarrationKey } from './types';
 
 export type { LoreFact, LorePack, NarrationKey } from './types';
-export { GENGHIS_PACK, JAPAN_PACK, WW2_PACK };
+export { GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK };
 
-export const LORE_PACKS: LorePack[] = [GENGHIS_PACK, JAPAN_PACK, WW2_PACK];
+export const LORE_PACKS: LorePack[] = [GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK];
 
 /** Пакет по id; если такого нет — первый в списке. */
 export function getLorePack(id?: string | null): LorePack {

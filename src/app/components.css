@@ -5682,3 +5682,14 @@ div.lb-seat.empty { cursor: default; }
 .pc-awb .pc-aw { width: 13px; height: 13px; }
 .pc-awb .pc-aw svg { width: 8px; height: 8px; }
 .pc-awb .pc-aw + .pc-aw { margin-left: -4px; }
+
+/* Эпохи на главной: название — максимум 2 строки, годы видны всегда */
+.hub-era > span:last-child { display: flex; flex-direction: column; -webkit-line-clamp: unset; overflow: visible; }
+.hub-era-t {
+  font: inherit;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}

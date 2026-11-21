@@ -37,6 +37,8 @@ export interface LorePack {
   id: string;
   /** Короткое название эпохи: «Эпоха Чингисхана». */
   title: string;
+  /** Короткое имя для маленьких карточек (если title длинный). */
+  short?: string;
   /** Подзаголовок одной строкой. */
   subtitle: string;
   years: string;

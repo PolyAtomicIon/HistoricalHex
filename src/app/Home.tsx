@@ -30,7 +30,6 @@ export function saveName(n: string): void {
 /** Эпохи, которые скоро появятся (обложка есть, играть пока нельзя). */
 const SOON = [
   { id: 'horde', title: 'Золотая Орда', years: 'XIV в.' },
-  { id: 'khanate', title: 'Казахское ханство', years: '1465' },
 ];
 
 export function Home({ initialPin }: { initialPin?: string }) {
@@ -135,7 +134,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
                 >
                   <img src={eraCover(e.id)} alt="" loading="lazy" />
                   <span>
-                    {e.title.replace(/^Эпоха /, '')}
+                    <b className="hub-era-t">{e.short ?? e.title.replace(/^Эпоха /, '')}</b>
                     <small>{e.years}</small>
                   </span>
                 </button>
@@ -149,7 +148,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
                     </i>
                   </span>
                   <span>
-                    {e.title}
+                    <b className="hub-era-t">{e.title}</b>
                     <small>скоро</small>
                   </span>
                 </div>
