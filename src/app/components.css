@@ -6149,3 +6149,6 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   animation: deal-in 360ms var(--spring) both;
 }
 .undo-chip:active { transform: scale(0.96); }
+
+/* Доход по числам в карточке игрока — переносом, без обрезки по краю */
+.focus-card .in-row { flex-wrap: wrap; overflow: visible; row-gap: 6px; }

@@ -448,9 +448,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </button>
       </header>
 
-      <button className="info-fab glass" onClick={() => setSheet('info')} aria-label="Сводка стола: рынок, числа, журнал">
-        <Icon name="stats" size={20} />
-      </button>
+      {!focusPlayer && (
+        <button className="info-fab glass" onClick={() => setSheet('info')} aria-label="Сводка стола: рынок, числа, журнал">
+          <Icon name="stats" size={20} />
+        </button>
+      )}
 
       {/* Верх экрана — одна колонка: статус, захват, уведомления. Ничего не накладывается. */}
       <div className="hud-stack">
@@ -1197,7 +1199,7 @@ function FocusCard({
       )}
       <button className="fc-open" onClick={onMore}>
       <span className="fc-ava">{p.name.charAt(0).toUpperCase()}</span>
-      <span className="fchip-main">
+      <span className="fc-main">
         <b>
           {id === me ? 'Ты' : p.name} · <Icon name="star" size={13} /> {p.points}
         </b>
