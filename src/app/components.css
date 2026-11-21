@@ -5693,3 +5693,149 @@ div.lb-seat.empty { cursor: default; }
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+
+/* ═══════════ Входящая сделка (вид по умолчанию) ═══════════
+   Стекло над доком. Радиусы: 28 (отступ 16) → плитки 20 → кнопки 16.
+   Ресурсы выпрыгивают по очереди; после «Принять» плитки меняются местами. */
+.deal {
+  position: absolute;
+  z-index: 8;
+  left: 12px;
+  right: 12px;
+  max-width: 480px;
+  margin: 0 auto;
+  bottom: calc(var(--safe-b) + var(--dock-h) + 12px);
+  padding: 16px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: deal-in 520ms var(--spring) both;
+}
+@keyframes deal-in {
+  from { opacity: 0; transform: translateY(28px) scale(0.96); }
+}
+.deal-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.deal-ava {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #0b1020;
+  font-weight: 900;
+  font-size: 16px;
+}
+.deal-who { display: flex; flex-direction: column; min-width: 0; }
+.deal-who b { font-size: 17px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deal-who small { font-size: 13px; color: var(--ink-2); }
+.deal-swap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+}
+.deal-tile {
+  min-height: 112px;
+  padding: 14px 8px 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 620ms var(--spring);
+}
+.deal-tile > span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.deal-tile.get > span { color: var(--good); }
+.deal-pile { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.deal-res {
+  position: relative;
+  display: inline-flex;
+  animation: deal-pop 460ms var(--spring) both;
+  animation-delay: calc(140ms + var(--i) * 80ms);
+}
+.deal-tile.get .deal-res { animation-delay: calc(260ms + var(--i) * 80ms); }
+.deal-res b {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(7, 11, 16, 0.86);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes deal-pop {
+  from { opacity: 0; transform: scale(0.4) translateY(8px); }
+}
+.deal-x {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-2);
+  align-self: center;
+  transition: transform 620ms var(--spring);
+}
+.deal.agreed .deal-tile.give { transform: translateX(calc(100% + 52px)); }
+.deal.agreed .deal-tile.get { transform: translateX(calc(-100% - 52px)); }
+.deal.agreed .deal-x { transform: rotate(180deg); }
+.deal-verdict { margin: 0; text-align: center; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ink-2); }
+.deal-verdict.good { color: var(--good); }
+.deal-verdict.warn { color: var(--accent); }
+.deal-verdict.bad { color: var(--bad); }
+.deal-btns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+.deal-btns .btn { min-height: 52px; border-radius: 16px; font-size: 16px; font-weight: 800; }
+.deal-btns .deal-yes { background: #f6f3ec; color: #0b1016; }
+.deal-btns .deal-yes:disabled { opacity: 0.4; }
+.deal-more {
+  grid-column: 1 / -1;
+  justify-self: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.deal-wait { display: flex; justify-content: center; gap: 6px; padding-bottom: 2px; }
+.deal-wait i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-2);
+  animation: deal-dot 1.2s ease-in-out infinite;
+}
+.deal-wait i:nth-child(2) { animation-delay: 0.2s; }
+.deal-wait i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes deal-dot {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+@media (max-width: 374px) {
+  .deal { left: 8px; right: 8px; padding: 14px; gap: 12px; }
+  .deal-tile { min-height: 96px; }
+  .deal-swap { gap: 6px; }
+  .deal.agreed .deal-tile.give { transform: translateX(calc(100% + 48px)); }
+  .deal.agreed .deal-tile.get { transform: translateX(calc(-100% - 48px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deal, .deal-res, .deal-wait i { animation: none; }
+  .deal-tile, .deal-x { transition: none; }
+}

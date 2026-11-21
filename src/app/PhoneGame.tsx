@@ -40,7 +40,7 @@ import { GameBoard, chose3d, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
 import { awardsOf } from './awards';
 import { incomeByNumber } from './income';
-import { TRADE_UI_LABEL, TradeCard, TradeCaravan, TradeScales, setTradeUi, useTradeUi } from './TradeOffer';
+import { TRADE_UI_LABEL, TradeCard, TradeCaravan, setTradeUi, useTradeUi } from './TradeOffer';
 import type { TradeUi } from './TradeOffer';
 import type { LogEntry } from './gameLog';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
@@ -645,7 +645,6 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       )}
 
       {showOffer && tradeUi === 'card' && <TradeCard {...offerProps} />}
-      {showOffer && tradeUi === 'scales' && <TradeScales {...offerProps} />}
 
       <section ref={dockRef} className="dock glass strong">
         <Hand hand={priv.resources} />
@@ -888,7 +887,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           }
           <div className="label">Вид предложения обмена</div>
           <div className="seg">
-            {(['card', 'caravan', 'scales'] as TradeUi[]).map((v) => (
+            {(['card', 'caravan'] as TradeUi[]).map((v) => (
               <button key={v} aria-pressed={tradeUi === v} onClick={() => setTradeUi(v)}>
                 {TRADE_UI_LABEL[v]}
               </button>
