@@ -504,14 +504,18 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <Icon name="crown" />
             <span className="grow t">Игроки и очки</span>
           </button>
-          <div className="label">Вид карты</div>
-          <div className="seg">
-            {(['2d', '3d'] as const).map((m) => (
-              <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
-                {MODE_LABEL[m]}
-              </button>
-            ))}
-          </div>
+          {!liteOn && (
+            <>
+              <div className="label">Вид карты</div>
+              <div className="seg">
+                {(['2d', '3d'] as const).map((m) => (
+                  <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
+                    {m === '2d' ? '2D — рисованная' : '3D — объёмная'}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <div className="label">Лёгкий режим (старые телефоны)</div>
           <div className="seg">
             {(['auto', 'on', 'off'] as const).map((v) => (
