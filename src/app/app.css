@@ -819,26 +819,15 @@ button.item {
 .center-col > :first-child { margin-top: auto; }
 .center-col > :last-child { margin-bottom: auto; }
 
-/* Установленное приложение (iOS): экраны до самого низа, под полоску «домой» (см. fitStandalone в pwa.tsx) */
-html.pwa .screen {
-  bottom: calc(-1 * var(--pwa-gap, 0px));
+/* Установленное приложение (iOS 26): окно страницы короче экрана на высоту статус-бара, и полоса
+   под «полоской домой» заливается фоном корня. Обход WebKit — корень выше на safe-area-top;
+   фон корня — тот же почти чёрный, что у низа экранов, чтобы полосы не было видно. */
+html.pwa {
+  min-height: calc(100% + env(safe-area-inset-top, 0px));
+  overflow: hidden; /* корень выше окна — но страницу целиком не прокручиваем */
 }
 html.pwa,
 html.pwa body {
   overscroll-behavior: none;
-}
-html,
-body {
-  background: var(--bg);
-}
-/* в установленном приложении нижний отступ — не меньше «полоски домой», которую мы закрыли экраном */
-html.pwa {
-  --safe-b: max(env(safe-area-inset-bottom, 0px), var(--pwa-gap, 0px));
-}
-/* шторки тоже до самого низа: опускаем на разницу и добавляем её в нижний отступ */
-html.pwa .sheet {
-  margin-bottom: calc(-1 * var(--pwa-gap, 0px));
-}
-html.pwa .sheet-backdrop {
-  bottom: calc(-1 * var(--pwa-gap, 0px));
+  background: #070b10;
 }

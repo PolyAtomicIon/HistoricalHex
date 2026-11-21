@@ -12,29 +12,9 @@ const subs = new Set<() => void>();
 const standalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-/**
- * Установленное приложение на iOS: fixed-слои и 100% высоты кончаются над полоской «домой»,
- * а под ней остаётся пустая полоса фона. Меряем, где на деле низ fixed-слоя, и сколько
- * до края экрана, — и растягиваем экраны на эту разницу (--pwa-gap). Где разницы нет
- * (браузер, Android), --pwa-gap = 0 и ничего не меняется.
- */
+/** Установленное приложение: класс html.pwa — для стилей (см. app.css). */
 function fitStandalone(): void {
-  const html = document.documentElement;
-  html.classList.add('pwa');
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;height:1px;pointer-events:none;visibility:hidden';
-  const measure = () => {
-    if (!probe.isConnected) document.body.appendChild(probe);
-    const portrait = window.innerHeight >= window.innerWidth;
-    const full = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
-    const gap = Math.round(full - probe.getBoundingClientRect().bottom);
-    // разумные пределы: только «полоска домой» (до ~60px), а не клавиатура и не разворот
-    html.style.setProperty('--pwa-gap', gap > 0 && gap <= 60 ? `${gap}px` : '0px');
-  };
-  measure();
-  window.addEventListener('resize', measure);
-  window.addEventListener('orientationchange', () => setTimeout(measure, 300));
-  setTimeout(measure, 600);
+  document.documentElement.classList.add('pwa');
 }
 
 export function registerPwa(): void {
