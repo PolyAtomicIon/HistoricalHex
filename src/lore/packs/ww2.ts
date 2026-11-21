@@ -381,7 +381,7 @@ export const WW2_PACK: LorePack = {
       source: Z_WB,
     },
   ],
-  victory: 'Первым план выполнил {player}. Помним главное: победу приближали все — и те, кто воевал, и те, кто трудился в тылу.',
+  victory: 'План выполнен первым: {player}. Помним главное: победу приближали все — и те, кто воевал, и те, кто трудился в тылу.',
   sources: [
     KZ9,
     'Zaman: data/events-kz.json, data/events-kz-b.json',

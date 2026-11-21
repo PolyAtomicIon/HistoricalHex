@@ -246,6 +246,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const hints = goalHints(pub, priv, me);
   const fact = useRotatingFact(pack, 16000);
   const showFact = !myTurn && pub.phase !== 'finished' && pub.phase !== 'discard' && !planPick && !pub.trade;
+  const readyCard =
+    myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed
+      ? priv.devCards.find((c) => c.playable && c.type !== 'victoryPoint')?.type
+      : undefined;
   const planReady = myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status === 'ready';
 
   return (
@@ -334,7 +338,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
-      {myTurn && pub.phase === 'main' && !build && !planPick && !selected && hints[0] && (
+      {readyCard && !build && !planPick && !selected ? (
+        <button key="rc" className="board-hint glass turn-hint card-hint" onClick={() => setSheet('dev')}>
+          <ArtIcon src={eraIcon(pack.id, `dev-${readyCard}`)} size={26} /> Можно сыграть: {pack.devCards[readyCard].name} ›
+        </button>
+      ) : myTurn && pub.phase === 'main' && !build && !planPick && !selected && hints[0] && (
         <div key={hints[0]} className="board-hint glass turn-hint">
           <Icon name="bulb" size={18} /> {hints[0]}
         </div>

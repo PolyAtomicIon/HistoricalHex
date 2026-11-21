@@ -2451,3 +2451,9 @@ a.btn {
 html.lite .game.my-turn.phase-roll::after {
   animation: none;
 }
+.card-hint {
+  cursor: pointer;
+  color: inherit;
+  border: 1px solid var(--glass-border);
+  background: rgba(var(--accent-rgb), 0.22);
+}
