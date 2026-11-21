@@ -1,33 +1,31 @@
 // Обмен: свой (с игроками и банком) и входящие предложения от активного игрока.
+// Своя рука всегда видна сверху; условия — иконками, а не словами.
 
 import { useState } from 'react';
 import type { Action, PrivateView, PublicState, Resource, ResourceMap } from '../engine';
 import { RESOURCES, emptyResources, hasResources } from '../engine';
-import { RESOURCE_NAME, namesFrom, resourcesText } from '../i18n/ru';
-import { RESOURCE_ICON } from '../ui/theme';
-import { RESOURCE_BG, ResourcePicker, ResourceStepper, sum } from './widgets';
+import { RESOURCE_NAME, namesFrom } from '../i18n/ru';
+import { HandMini, ResChips, ResourcePicker, TradeGrid, sum } from './widgets';
 import { ResIcon } from './ResIcon';
 import { incomingTradeHint } from './planner';
+import { Icon } from './icons';
 
 type Send = (a: Action) => Promise<void>;
 
 export function TradeSheet({ pub, priv, me, send, busy }: { pub: PublicState; priv: PrivateView; me: string; send: Send; busy: boolean }) {
-  const [tab, setTab] = useState<'players' | 'bank'>('players');
+  const [tab, setTab] = useState<'players' | 'bank'>(pub.trade ? 'players' : 'players');
   return (
-    <div className="trade-sheet">
-      <div className="tabs">
-        <button className={tab === 'players' ? 'on' : ''} onClick={() => setTab('players')}>
+    <div className="trade-sheet stack">
+      <HandMini hand={priv.resources} />
+      <div className="seg">
+        <button aria-pressed={tab === 'players'} onClick={() => setTab('players')}>
           С игроками
         </button>
-        <button className={tab === 'bank' ? 'on' : ''} onClick={() => setTab('bank')}>
+        <button aria-pressed={tab === 'bank'} onClick={() => setTab('bank')}>
           С банком
         </button>
       </div>
-      {tab === 'players' ? (
-        <PlayersTrade pub={pub} priv={priv} me={me} send={send} busy={busy} />
-      ) : (
-        <BankTrade pub={pub} priv={priv} send={send} busy={busy} />
-      )}
+      {tab === 'players' ? <PlayersTrade pub={pub} priv={priv} me={me} send={send} busy={busy} /> : <BankTrade pub={pub} priv={priv} send={send} busy={busy} />}
     </div>
   );
 }
@@ -42,28 +40,38 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
   if (trade && !editing) {
     const others = pub.order.filter((id) => id !== me);
     return (
-      <div className="trade-active">
-        <p className="terms">
-          Ты отдаёшь <b>{resourcesText(trade.give)}</b>, хочешь <b>{resourcesText(trade.want)}</b>
-        </p>
-        <ul className="responses">
+      <div className="stack">
+        <div className="terms-card">
+          <div className="tc-side">
+            <span className="tc-l">Отдаёшь</span>
+            <ResChips value={trade.give} />
+          </div>
+          <Icon name="trade" size={20} className="tc-arrow" />
+          <div className="tc-side">
+            <span className="tc-l">Получаешь</span>
+            <ResChips value={trade.want} />
+          </div>
+        </div>
+        <ul className="list responses">
           {others.map((id) => {
             const r = trade.responses?.[id];
             const terms = r?.kind === 'counter' ? r : trade;
             const canDo = (r?.kind === 'accept' || r?.kind === 'counter') && hasResources(priv.resources, terms.give);
             return (
-              <li key={id}>
-                <span className="who">{name(id)}</span>
-                <span className="what">
-                  {!r && 'думает…'}
-                  {r?.kind === 'accept' && 'согласен'}
-                  {r?.kind === 'decline' && 'отказ'}
-                  {r?.kind === 'counter' && (
-                    <>
-                      встречное: хочет {resourcesText(r.give)} за {resourcesText(r.want)}
-                    </>
-                  )}
-                </span>
+              <li key={id} className={`item resp ${r?.kind ?? 'wait'}`}>
+                <div className="grow">
+                  <div className="t">{name(id)}</div>
+                  <div className="s">
+                    {!r && <span className="thinking">думает…</span>}
+                    {r?.kind === 'accept' && 'согласен'}
+                    {r?.kind === 'decline' && 'отказ'}
+                    {r?.kind === 'counter' && (
+                      <span className="counter-line">
+                        встречное: ты <ResChips value={r.give} /> → <ResChips value={r.want} />
+                      </span>
+                    )}
+                  </div>
+                </div>
                 {canDo && (
                   <button className="btn primary" disabled={busy} onClick={() => send({ type: 'confirmTrade', tradeId: trade.id, with: id })}>
                     Обменяться
@@ -75,7 +83,7 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
         </ul>
         <div className="row">
           <button
-            className="btn"
+            className="btn grow"
             onClick={() => {
               setGive({ ...trade.give });
               setWant({ ...trade.want });
@@ -84,21 +92,26 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
           >
             Изменить
           </button>
-          <button className="btn ghost" disabled={busy} onClick={() => send({ type: 'cancelTrade' })}>
-            Отменить предложение
+          <button className="btn ghost grow" disabled={busy} onClick={() => send({ type: 'cancelTrade' })}>
+            Отменить
           </button>
         </div>
       </div>
     );
   }
 
-  const valid = sum(give) > 0 && sum(want) > 0 && !RESOURCES.some((r) => give[r] > 0 && want[r] > 0);
+  const valid = sum(give) > 0 && sum(want) > 0;
   return (
-    <div className="trade-builder">
-      <h4>Отдаю</h4>
-      <ResourceStepper value={give} onChange={setGive} max={priv.resources} />
-      <h4>Хочу получить</h4>
-      <ResourceStepper value={want} onChange={setWant} />
+    <div className="stack">
+      <TradeGrid
+        give={give}
+        want={want}
+        hand={priv.resources}
+        onChange={(g, w) => {
+          setGive(g);
+          setWant(w);
+        }}
+      />
       <button
         className="btn primary big wide"
         disabled={!valid || busy}
@@ -109,50 +122,48 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
       >
         Предложить всем
       </button>
-      {!valid && (sum(give) > 0 || sum(want) > 0) && (
-        <p className="muted small">Нужно и отдать, и получить; один ресурс не может быть с обеих сторон.</p>
-      )}
+      {!valid && <p className="faint small center">Выбери, что отдаёшь и что хочешь получить</p>}
     </div>
   );
 }
 
 function BankTrade({ pub, priv, send, busy }: { pub: PublicState; priv: PrivateView; send: Send; busy: boolean }) {
   const [give, setGive] = useState<Resource | null>(null);
+  const [receive, setReceive] = useState<Resource | null>(null);
   const ratio = (r: Resource) => priv.tradeRatios?.[r] ?? 4;
+  const can = give && receive && give !== receive && priv.resources[give] >= ratio(give) && pub.bank[receive] > 0;
   return (
-    <div className="bank-trade">
-      <h4>Что отдаёшь</h4>
-      <div className="res-picker">
-        {RESOURCES.map((r) => (
-          <button
-            key={r}
-            className={give === r ? 'on' : ''}
-            style={{ background: RESOURCE_BG[r] }}
-            disabled={priv.resources[r] < ratio(r)}
-            onClick={() => setGive(r)}
-          >
-            <ResIcon r={r} className="pick-icon" />
-            <small>
-              {ratio(r)}:1 · у тебя {priv.resources[r]}
-            </small>
-          </button>
-        ))}
-      </div>
-      {give && (
-        <>
-          <h4>
-            Что получаешь за {ratio(give)} {RESOURCE_ICON[give]}
-          </h4>
-          <ResourcePicker
-            disabled={(r) => r === give || pub.bank[r] <= 0 || busy}
-            onPick={async (receive) => {
-              await send({ type: 'bankTrade', give, receive });
-              setGive(null);
-            }}
-          />
-        </>
-      )}
-      <p className="muted small">Курс 4:1, у гаваней 3:1 или 2:1 — гавань работает, если у неё стоит твоё поселение или город.</p>
+    <div className="stack">
+      <div className="label">Отдаю банку</div>
+      <ResourcePicker
+        selected={give}
+        sub={(r) => `${ratio(r)}:1`}
+        disabled={(r) => priv.resources[r] < ratio(r)}
+        onPick={(r) => {
+          setGive(r);
+          if (receive === r) setReceive(null);
+        }}
+      />
+      <div className="label">Получаю</div>
+      <ResourcePicker selected={receive} disabled={(r) => r === give || pub.bank[r] <= 0} onPick={setReceive} />
+      <button
+        className="btn primary big wide"
+        disabled={!can || busy}
+        onClick={async () => {
+          await send({ type: 'bankTrade', give: give!, receive: receive! });
+          setReceive(null);
+          if (give && priv.resources[give] - ratio(give) < ratio(give)) setGive(null);
+        }}
+      >
+        {give && receive ? (
+          <>
+            {ratio(give)} <ResIcon r={give} size={24} /> → 1 <ResIcon r={receive} size={24} />
+          </>
+        ) : (
+          'Обменять'
+        )}
+      </button>
+      <p className="faint small">Курс 4:1. Гавань даёт 3:1 или 2:1, если у неё стоит твоё поселение или город.</p>
     </div>
   );
 }
@@ -164,33 +175,39 @@ export function IncomingTrade({ pub, priv, me, send, busy }: { pub: PublicState;
   const mine = trade.responses?.[me];
   const [counter, setCounter] = useState(false);
   // С точки зрения отвечающего: «отдаю» = то, что хочет активный; «получаю» = то, что он отдаёт
-  const [myGive, setMyGive] = useState<ResourceMap>({ ...trade.want });
+  const [myGive, setMyGive] = useState<ResourceMap>(() => clampTo({ ...trade.want }, priv.resources));
   const [myGet, setMyGet] = useState<ResourceMap>({ ...trade.give });
   const canAccept = hasResources(priv.resources, trade.want);
   const hint = incomingTradeHint(trade.want, trade.give, priv.resources);
 
   if (counter) {
-    const valid = sum(myGive) > 0 && sum(myGet) > 0 && !RESOURCES.some((r) => myGive[r] > 0 && myGet[r] > 0);
+    const valid = sum(myGive) > 0 && sum(myGet) > 0;
     return (
-      <div className="card incoming">
-        <h3>Встречное предложение для {from}</h3>
-        <h4>Ты отдаёшь</h4>
-        <ResourceStepper value={myGive} onChange={setMyGive} max={priv.resources} />
-        <h4>Ты получаешь</h4>
-        <ResourceStepper value={myGet} onChange={setMyGet} />
+      <div className="stack">
+        <HandMini hand={priv.resources} />
+        <TradeGrid
+          give={myGive}
+          want={myGet}
+          hand={priv.resources}
+          wantLabel="Получаю"
+          onChange={(g, w) => {
+            setMyGive(g);
+            setMyGet(w);
+          }}
+        />
         <div className="row">
+          <button className="btn ghost grow" onClick={() => setCounter(false)}>
+            Назад
+          </button>
           <button
-            className="btn primary"
+            className="btn primary grow"
             disabled={!valid || busy}
             onClick={async () => {
               await send({ type: 'respondTrade', tradeId: trade.id, kind: 'counter', give: myGet, want: myGive });
               setCounter(false);
             }}
           >
-            Отправить
-          </button>
-          <button className="btn ghost" onClick={() => setCounter(false)}>
-            Назад
+            Предложить {from}
           </button>
         </div>
       </div>
@@ -198,34 +215,42 @@ export function IncomingTrade({ pub, priv, me, send, busy }: { pub: PublicState;
   }
 
   return (
-    <div className="card incoming">
-      <h3>{from} предлагает обмен</h3>
-      <div className={`hint-card ${hint.canAccept ? 'good' : ''}`}>{hint.text}</div>
-      <p className="terms">
-        Ты отдаёшь <b>{resourcesText(trade.want)}</b>
-        <br />
-        Ты получаешь <b>{resourcesText(trade.give)}</b>
-      </p>
-      {mine && (
-        <p className="muted">
-          Твой ответ: {mine.kind === 'accept' ? 'согласен' : mine.kind === 'decline' ? 'отказ' : 'встречное предложение'}
-        </p>
-      )}
+    <div className="stack">
+      <HandMini hand={priv.resources} />
+      <div className="terms-card">
+        <div className="tc-side">
+          <span className="tc-l">Ты отдаёшь</span>
+          <ResChips value={trade.want} />
+        </div>
+        <Icon name="trade" size={20} className="tc-arrow" />
+        <div className="tc-side">
+          <span className="tc-l">Ты получаешь</span>
+          <ResChips value={trade.give} />
+        </div>
+      </div>
+      <div className={`hint-card ${hint.canAccept ? 'good' : ''}`}>
+        <Icon name="bulb" size={18} /> {hint.text}
+      </div>
+      {mine && <p className="faint small center">Твой ответ: {mine.kind === 'accept' ? 'согласен' : mine.kind === 'decline' ? 'отказ' : 'встречное'}</p>}
       <div className="row">
-        <button
-          className="btn primary"
-          disabled={!canAccept || busy}
-          onClick={() => send({ type: 'respondTrade', tradeId: trade.id, kind: 'accept' })}
-        >
-          Согласен
-        </button>
-        <button className="btn" disabled={busy} onClick={() => send({ type: 'respondTrade', tradeId: trade.id, kind: 'decline' })}>
+        <button className="btn grow" disabled={busy} onClick={() => send({ type: 'respondTrade', tradeId: trade.id, kind: 'decline' })}>
           Отказ
         </button>
-        <button className="btn ghost" onClick={() => setCounter(true)}>
+        <button className="btn grow" onClick={() => setCounter(true)}>
           Встречное
+        </button>
+        <button className="btn primary grow" disabled={!canAccept || busy} onClick={() => send({ type: 'respondTrade', tradeId: trade.id, kind: 'accept' })}>
+          Согласен
         </button>
       </div>
     </div>
   );
 }
+
+function clampTo(m: ResourceMap, hand: ResourceMap): ResourceMap {
+  const out = { ...m };
+  for (const r of RESOURCES) out[r] = Math.min(out[r], hand[r]);
+  return out;
+}
+
+export { RESOURCE_NAME };

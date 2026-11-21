@@ -1,17 +1,17 @@
-// Карта партии: WebGL (2D / 2.5D / 3D) с запасным SVG, если WebGL недоступен.
+// Карта партии: 2D (нарисованные тайлы, SVG — работает везде) или 3D (WebGL). Без WebGL и в лёгком режиме — 2D.
 
 import { Component, Suspense, lazy, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PlayerColor, PlayerId, PublicState } from '../engine';
-import type { BoardMode } from '../board3d/Board3D';
-import { Board } from '../board/Board';
+import { Board2D } from '../board2d/Board2D';
 import type { GameFx } from './useGameFx';
 import { useLite } from './lite';
 
 const Board3D = lazy(() => import('../board3d/Board3D'));
 
 const MODE_KEY = 'hh.boardMode';
-export const MODE_LABEL: Record<BoardMode, string> = { '2d': '2D', '25d': '2.5D', '3d': '3D' };
+export type BoardMode = '2d' | '3d';
+export const MODE_LABEL: Record<BoardMode, string> = { '2d': '2D', '3d': '3D' };
 
 function hasWebGL(): boolean {
   try {
@@ -22,11 +22,11 @@ function hasWebGL(): boolean {
   }
 }
 
-export function useBoardMode(fallback: BoardMode = '25d'): [BoardMode, (m: BoardMode) => void] {
+export function useBoardMode(fallback: BoardMode = '2d'): [BoardMode, (m: BoardMode) => void] {
   const [mode, setMode] = useState<BoardMode>(() => {
     try {
       const v = localStorage.getItem(MODE_KEY) as BoardMode | null;
-      return v === '2d' || v === '25d' || v === '3d' ? v : fallback;
+      return v === '2d' || v === '3d' ? v : fallback;
     } catch {
       return fallback;
     }
@@ -62,9 +62,11 @@ const lowPower = (() => {
 
 export function GameBoard({
   pub,
+  era,
   colors,
   mode,
   palette,
+  boardStatic,
   highlight,
   onVertex,
   onEdge,
@@ -74,6 +76,9 @@ export function GameBoard({
   ghosts,
 }: {
   pub: PublicState;
+  era: string;
+  /** Без жестов (ТВ). */
+  boardStatic?: boolean;
   colors: Record<PlayerId, PlayerColor>;
   mode: BoardMode;
   palette: { sea: string; seaDeep: string; accent: string; light: string };
@@ -88,11 +93,24 @@ export function GameBoard({
   const [gl] = useState(hasWebGL);
   const { lite } = useLite();
   const svg = (
-    <div className="svg-board">
-      <Board view={pub} colors={colors} highlight={highlight} onVertex={onVertex} onEdge={onEdge} onHex={onHex} selected={selected} recent={fx.recent} flash={fx.flash} />
-    </div>
+    <Board2D
+      view={pub}
+      era={era}
+      colors={colors}
+      highlight={highlight}
+      onVertex={onVertex}
+      onEdge={onEdge}
+      onHex={onHex}
+      selected={selected}
+      recent={fx.recent}
+      flash={fx.flash}
+      focus={fx.focus}
+      ghosts={ghosts}
+      shake={fx.shake}
+      static={boardStatic}
+    />
   );
-  if (!gl || lite) return svg;
+  if (!gl || lite || mode === '2d') return svg;
   return (
     <Fallback fallback={svg}>
       <Suspense fallback={<div className="board-loading"><div className="spinner" /></div>}>
@@ -106,7 +124,7 @@ export function GameBoard({
           selected={selected}
           recent={fx.recent}
           flash={fx.flash}
-          mode={mode}
+          mode="3d"
           palette={palette}
           focus={fx.focus}
           ghosts={ghosts}

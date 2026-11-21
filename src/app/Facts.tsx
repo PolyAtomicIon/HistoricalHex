@@ -56,12 +56,16 @@ export function FactsList({ pack }: { pack: LorePack }) {
   );
 }
 
-export function Fact({ f }: { f: LoreFact }) {
+export function Fact({ f, big }: { f: LoreFact; big?: boolean }) {
   return (
-    <div className="fact-card">
-      {f.year && <span className="yr">{f.year}</span>}
-      {f.kz && <span className="kz-tag">KZ</span>}
-      {f.text}
+    <div className={`fact-card ${big ? 'big' : ''}`}>
+      {(f.year || f.kz) && (
+        <div className="fc-head">
+          {f.year && <span className="yr">{f.year}</span>}
+          {f.kz && <span className="kz-tag">Казахстан</span>}
+        </div>
+      )}
+      <p className="fc-text">{f.text}</p>
       <span className="src">{f.source}</span>
     </div>
   );

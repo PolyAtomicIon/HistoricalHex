@@ -6,7 +6,7 @@ import type { RoomView } from '../proto';
 import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { eventText, namesFrom, phaseText } from '../i18n/ru';
-import { Cinematic, DiceOverlay, ReactionsLayer, sfx, useMuted } from '../fx';
+import { Cinematic, DiceOverlay, Raid, ReactionsLayer, sfx, useMuted } from '../fx';
 import { GameBoard, MODE_LABEL, useBoardMode } from './GameBoard';
 import { useGameFx } from './useGameFx';
 import { Fact, useRotatingFact } from './Facts';
@@ -39,7 +39,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === '1') setMode('2d');
-      if (e.key === '2') setMode('25d');
+      
       if (e.key === '3') setMode('3d');
       if (e.key === 'm') setMuted(!muted);
     };
@@ -58,7 +58,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
   return (
     <main className="screen tv">
       <div className="stage">
-        <GameBoard pub={pub} colors={colors} mode={mode} palette={pack.palette} fx={fx} />
+        <GameBoard pub={pub} era={pack.id} boardStatic colors={colors} mode={mode} palette={pack.palette} fx={fx} />
       </div>
 
       <aside className="tv-left">
@@ -121,7 +121,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
       </aside>
 
       <div className="tv-modes glass">
-        {!lite && (['2d', '25d', '3d'] as const).map((m) => (
+        {!lite && (['2d', '3d'] as const).map((m) => (
           <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
             {MODE_LABEL[m]}
           </button>
@@ -199,6 +199,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         </div>
       )}
       <DiceOverlay roll={fx.roll} big />
+      <Raid event={fx.raid} />
       <Cinematic event={fx.cinematic} tv />
       <ReactionsLayer items={fx.reactions} />
     </main>

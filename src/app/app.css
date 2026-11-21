@@ -271,6 +271,7 @@ textarea {
   gap: 18px;
   padding: calc(var(--safe-t) + 24px) 16px calc(var(--safe-b) + 24px);
   overflow-y: auto;
+  overflow-x: hidden;
   height: 100%;
 }
 .panel {

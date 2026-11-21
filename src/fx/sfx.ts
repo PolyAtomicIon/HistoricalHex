@@ -3,7 +3,8 @@ import { useSyncExternalStore } from 'react';
 
 export type SfxName =
   | 'diceShake' | 'diceLand' | 'tick' | 'pop' | 'coin' | 'chime' | 'whoosh' | 'tudum'
-  | 'attack' | 'fanfare' | 'victory' | 'error' | 'yourTurn' | 'react' | 'steal';
+  | 'attack' | 'fanfare' | 'victory' | 'error' | 'yourTurn' | 'react' | 'steal'
+  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank';
 
 export interface SfxOpts {
   /** 0..1.5 extra gain for this call */
@@ -168,6 +169,46 @@ const drum = (x: Ctx, at: number, f: number, gain = 0.6, len = 0.35) => {
 };
 
 const RECIPES: Record<SfxName, (x: Ctx, o: SfxOpts) => void> = {
+  gallop: (x) => {
+    // топот: тройки ударов, нарастает и уходит
+    for (let i = 0; i < 7; i++) {
+      const env = Math.sin((i / 6) * Math.PI) * 0.8 + 0.2;
+      const at = i * 0.21;
+      knock(x, at, 170, 0.5 * env);
+      knock(x, at + 0.06, 150, 0.4 * env);
+      knock(x, at + 0.11, 190, 0.45 * env);
+    }
+  },
+  arrows: (x) => {
+    for (let i = 0; i < 6; i++) {
+      hiss(x, { at: i * 0.06, dur: 0.35, type: 'highpass', f: 2500, to: 6000, q: 2, gain: 0.12, attack: 0.02 });
+    }
+    for (let i = 0; i < 5; i++) knock(x, 0.45 + i * 0.05 + Math.random() * 0.03, 700 + Math.random() * 300, 0.25);
+  },
+  plane: (x) => {
+    tone(x, { f: 70, to: 95, dur: 1.8, type: 'sawtooth', gain: 0.16, attack: 0.5, lp: 420 });
+    tone(x, { f: 72, to: 92, dur: 1.8, type: 'sawtooth', gain: 0.12, attack: 0.5, lp: 380, detune: 14 });
+    hiss(x, { dur: 1.8, type: 'lowpass', f: 300, to: 900, gain: 0.18, attack: 0.6 });
+  },
+  bomb: (x) => {
+    tone(x, { f: 1400, to: 300, dur: 0.6, gain: 0.05, attack: 0.05 });
+    drum(x, 0.6, 60, 1, 1.2);
+    tone(x, { at: 0.6, f: 38, to: 24, dur: 1.4, gain: 0.9, attack: 0.01 });
+    hiss(x, { at: 0.6, dur: 1.1, type: 'lowpass', f: 1200, to: 90, gain: 0.55 });
+  },
+  shuriken: (x) => {
+    for (let i = 0; i < 3; i++) {
+      tone(x, { at: i * 0.12, f: 3200, to: 1800, dur: 0.22, type: 'triangle', gain: 0.06 });
+      hiss(x, { at: i * 0.12, dur: 0.2, type: 'bandpass', f: 5000, to: 3000, q: 6, gain: 0.12 });
+    }
+    knock(x, 0.5, 1200, 0.3);
+  },
+  tank: (x) => {
+    tone(x, { f: 45, to: 55, dur: 1.6, type: 'sawtooth', gain: 0.2, attack: 0.3, lp: 220 });
+    for (let i = 0; i < 10; i++) knock(x, i * 0.14, 300 + (i % 2) * 60, 0.12);
+    drum(x, 1.1, 90, 1, 0.6);
+    hiss(x, { at: 1.1, dur: 0.5, type: 'lowpass', f: 2000, to: 200, gain: 0.5 });
+  },
   diceShake: (x) => {
     let t = 0;
     for (let i = 0; i < 16; i++) {

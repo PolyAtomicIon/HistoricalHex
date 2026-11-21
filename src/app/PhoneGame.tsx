@@ -25,10 +25,10 @@ import { Icon, ArtIcon } from './icons';
 import { eraIcon } from './era';
 import { setLitePref, useLite } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, myPhaseText, phaseText, resourcesText } from '../i18n/ru';
-import { Cinematic, DiceOverlay, GainToast, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
+import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
 import { Sheet } from './Sheet';
 import { IncomingTrade, TradeSheet } from './trade';
-import { ResourcePicker, ResourceStepper, sum } from './widgets';
+import { HandMini, RES_COLOR, ResourcePicker, ResourceStepper, sum } from './widgets';
 import { ResIcon } from './ResIcon';
 import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
@@ -37,7 +37,7 @@ import { STEP_ICON, STEP_LABEL, checkPlan, goalHints, loadPlan, newStepId, saveP
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
-type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react';
+type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact';
 type PlanPick = null | 'road' | 'settlement' | 'city';
 
 interface Targets {
@@ -242,13 +242,15 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const deadline = room.deadlines[current];
   const hints = goalHints(pub, priv, me);
   const fact = useRotatingFact(pack, 16000);
-  const showFact = !myTurn && pub.phase !== 'finished' && pub.phase !== 'discard' && !planPick;
+  const showFact = !myTurn && pub.phase !== 'finished' && pub.phase !== 'discard' && !planPick && !pub.trade;
+  const planReady = myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status === 'ready';
 
   return (
     <main className={`screen game ${myTurn ? 'my-turn' : ''}`} style={{ ['--me' as string]: PLAYER_HEX[meP.color] }}>
       <div className="stage" data-drawer-no-drag>
         <GameBoard
           pub={pub}
+          era={pack.id}
           colors={colors}
           mode={mode}
           palette={pack.palette}
@@ -263,44 +265,23 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       </div>
 
       <header className="hud-top">
-        <PlayersStrip pub={pub} room={room} />
+        <PlayersBar pub={pub} room={room} onOpen={() => setSheet('players')} deadline={deadline ? deadline - conn.getState().clockSkew : undefined} />
         <button className="fab glass" onClick={() => setSheet('menu')} aria-label="Меню">
           <Icon name="menu" />
         </button>
       </header>
 
-      <div className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
-                {status}
-        {deadline && <Countdown until={deadline - conn.getState().clockSkew} />}
-      </div>
+      {fx.narration ? (
+        <div key={`n${fx.narration.key}`} className="status-pill glass narr" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }} aria-live="polite">
+          {fx.narration.text}
+        </div>
+      ) : (
+        <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
+          {status}
+        </div>
+      )}
 
-      <nav className="fab-col">
-        <button className={`fab glass ${broken ? 'alert' : ''}`} onClick={() => setSheet('plan')} aria-label="План хода">
-          <Icon name="plan" />{plan.length > 0 && <span className="badge">{broken || plan.length}</span>}
-        </button>
-        <button className="fab glass" onClick={() => setSheet('dev')} aria-label="Карты развития">
-          <Icon name="cards" />{priv.devCards.length > 0 && <span className="badge">{priv.devCards.length}</span>}
-        </button>
-        <button className="fab glass" onClick={() => setSheet('lore')} aria-label="История эпохи">
-          <Icon name="book" />
-        </button>
-        <button className="fab glass" onClick={() => setSheet('react')} aria-label="Реакции">
-          <Icon name="smile" />
-        </button>
-        {!liteOn && (
-        <button
-          className="fab glass"
-          onClick={() => {
-            const next = mode === '2d' ? '25d' : mode === '25d' ? '3d' : '2d';
-            setMode(next);
-            sfx.play('whoosh');
-          }}
-          aria-label="Вид карты"
-        >
-          <small className="mode-l">{MODE_LABEL[mode]}</small>
-        </button>
-        )}
-      </nav>
+      {myTurn && <TurnBanner key={`tb${pub.turn}`} color={PLAYER_HEX[meP.color]} />}
 
       {(planPick || (targets && !selected)) && (
         <div className="board-hint glass">
@@ -356,8 +337,19 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       )}
 
       {showFact && (
-        <button key={fact.text} className="wait-fact glass" onClick={() => setSheet('lore')}>
-          <Fact f={fact} />
+        <button key={fact.text} className="fact-teaser glass" onClick={() => setSheet('fact')}>
+          <Icon name="book" size={18} />
+          <span className="ft-text">
+            {fact.year && <b>{fact.year} · </b>}
+            {fact.text}
+          </span>
+          <span className="ft-more">Читать</span>
+        </button>
+      )}
+
+      {planReady && !build && !selected && !planPick && (
+        <button className="plan-run glass" disabled={busy} onClick={() => void runPlan()}>
+          <Icon name="play" size={18} /> Выполнить план · {checked.filter((c) => c.status === 'ready').length} из {checked.length}
         </button>
       )}
 
@@ -380,8 +372,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           countdown={countdown}
           cancelCountdown={() => setCountdown(null)}
           physical={physical}
-          planReady={myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status === 'ready'}
-          runPlan={runPlan}
+          planCount={plan.length}
+          planBroken={broken}
         />
       </section>
 
@@ -403,6 +395,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           priv={priv}
           pack={pack}
           canPlay={myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed}
+          played={myTurn && !!pub.devCardPlayed}
           busy={busy}
           onPlay={(t) => {
             if (t === 'yearOfPlenty') return setSheet('plenty');
@@ -469,6 +462,19 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
+      <Sheet open={sheet === 'players'} onClose={() => setSheet(null)} title="Игроки" description={`До победы — ${room.settings.vpToWin} очков`}>
+        <PlayersSheet pub={pub} room={room} pack={pack} />
+      </Sheet>
+
+      <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
+        <div className="stack">
+          <Fact f={fact} big />
+          <button className="btn wide" onClick={() => setSheet('lore')}>
+            <Icon name="book" /> Все факты и словарь эпохи
+          </button>
+        </div>
+      </Sheet>
+
       <Sheet open={sheet === 'lore'} onClose={() => setSheet(null)} title={pack.title} description={`${pack.years} · ${pack.region}`}>
         <FactsList pack={pack} />
       </Sheet>
@@ -487,7 +493,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         <div className="stack">
           <div className="label">Вид карты</div>
           <div className="seg">
-            {(['2d', '25d', '3d'] as const).map((m) => (
+            {(['2d', '3d'] as const).map((m) => (
               <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
                 {MODE_LABEL[m]}
               </button>
@@ -556,14 +562,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       </Sheet>
 
       <DiceOverlay roll={fx.roll} />
+      <Raid event={fx.raid} />
       <Cinematic event={fx.cinematic} />
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
       <ReactionsLayer items={fx.reactions} />
-      {fx.narration && (
-        <div key={fx.narration.key} className="narration glass" style={{ ['--pc' as string]: fx.narration.color ?? 'var(--accent)' }}>
-          {fx.narration.text}
-        </div>
-      )}
       {pub.phase === 'finished' && <Finished pub={pub} me={me} pack={pack} />}
     </main>
   );
@@ -571,24 +573,80 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
 // ───────────────────────── части ─────────────────────────
 
-export function PlayersStrip({ pub, room }: { pub: PublicState; room: RoomView }) {
+/** Игроки сверху: аватары с цветом, очками и таймером у того, кто ходит. Тап — подробности. */
+export function PlayersBar({ pub, room, onOpen, deadline }: { pub: PublicState; room: RoomView; onOpen?: () => void; deadline?: number }) {
   const current = pub.order[pub.current];
   return (
-    <div className="players-strip glass">
+    <button className="players-bar glass" onClick={onOpen} aria-label="Игроки">
+      {pub.order.map((id) => {
+        const p = pub.players[id];
+        const turn = id === current && pub.phase !== 'finished';
+        return (
+          <span
+            key={id}
+            className={`pav ${turn ? 'turn' : ''} ${id === room.me ? 'me' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
+            style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
+          >
+            <span className="pav-ring">
+              {turn && deadline && <TimerRing until={deadline} />}
+              <span className="pav-face">{p.bot || p.away || p.kicked ? <Icon name="bot" size={17} /> : p.name.charAt(0).toUpperCase()}</span>
+            </span>
+            <span className="pav-vp">{p.points}</span>
+          </span>
+        );
+      })}
+    </button>
+  );
+}
+
+function TimerRing({ until }: { until: number }) {
+  const [now, setNow] = useState(Date.now());
+  const [total] = useState(() => Math.max(1, until - Date.now()));
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
+  const k = Math.max(0, Math.min(1, (until - now) / total));
+  const C = 2 * Math.PI * 21;
+  return (
+    <svg className="pav-timer" viewBox="0 0 46 46" aria-hidden>
+      <circle cx="23" cy="23" r="21" strokeDasharray={`${C * k} ${C}`} />
+    </svg>
+  );
+}
+
+/** Подробно об игроках — шторка по тапу на аватары. */
+function PlayersSheet({ pub, room, pack }: { pub: PublicState; room: RoomView; pack: LorePack }) {
+  const current = pub.order[pub.current];
+  return (
+    <div className="list">
       {pub.order.map((id) => {
         const p = pub.players[id];
         return (
-          <div
-            key={id}
-            className={`pchip ${id === current ? 'turn' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
-            style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
-          >
-            <span className="dot" style={{ background: PLAYER_HEX[p.color] }}>
-              {p.bot ? <Icon name="bot" size={16} /> : p.name.charAt(0).toUpperCase()}
-            </span>
-            <span className="pname">{p.name}</span>
-            <span className="vp"><Icon name="star" size={13} />{p.points}</span>
-            <span className="faint cnt"><Icon name="hand" size={13} />{p.resourceCount}</span>
+          <div key={id} className={`item pl-row ${id === current ? 'turn' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}>
+            <span className="pl-face">{p.bot || p.away || p.kicked ? <Icon name="bot" size={20} /> : p.name.charAt(0).toUpperCase()}</span>
+            <div className="grow">
+              <div className="t">
+                {p.name}
+                {id === room.me && <span className="faint"> · ты</span>}
+                {!room.online[id] && !p.bot && <span className="faint"> · не в сети</span>}
+              </div>
+              <div className="pl-stats">
+                <span><Icon name="hand" size={14} /> {p.resourceCount}</span>
+                <span><Icon name="cards" size={14} /> {p.devCardCount}</span>
+                <span><Icon name="road" size={14} /> {p.roadLength}</span>
+                <span><ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={16} /> {p.knightsPlayed}</span>
+              </div>
+              {(pub.longestRoad === id || pub.largestArmy === id) && (
+                <div className="pl-bonus">
+                  {pub.longestRoad === id && <span className="bonus">{pack.bonuses.longestRoad} +2</span>}
+                  {pub.largestArmy === id && <span className="bonus">{pack.bonuses.largestArmy} +2</span>}
+                </div>
+              )}
+            </div>
+            <b className="pl-vp">
+              <Icon name="star" size={16} /> {p.points}
+            </b>
           </div>
         );
       })}
@@ -596,14 +654,20 @@ export function PlayersStrip({ pub, room }: { pub: PublicState; room: RoomView }
   );
 }
 
-function Countdown({ until }: { until: number }) {
-  const [now, setNow] = useState(Date.now());
+/** «Твой ход»: короткая вспышка цвета игрока по краям экрана и плашка. */
+function TurnBanner({ color }: { color: string }) {
+  const [on, setOn] = useState(true);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const t = setTimeout(() => setOn(false), 1700);
+    return () => clearTimeout(t);
   }, []);
-  const s = Math.max(0, Math.round((until - now) / 1000));
-  return <span className="faint"> · бот через {s} с</span>;
+  if (!on) return null;
+  return (
+    <div className="turn-banner" style={{ ['--me' as string]: color }} aria-hidden>
+      <div className="tb-edge" />
+      <div className="tb-plate display">Твой ход</div>
+    </div>
+  );
 }
 
 function Hand({ hand }: { hand: ResourceMap }) {
@@ -619,7 +683,7 @@ function Hand({ hand }: { hand: ResourceMap }) {
     <div className="hand">
       {RESOURCES.map((r) => (
         <div key={`${r}-${bump[r] ?? 0}`} className={`rcard ${hand[r] ? '' : 'zero'} ${bump[r] ? 'bump' : ''}`} style={{ ['--rc' as string]: RES_COLOR[r] }}>
-          <ResIcon r={r} className="e" />
+          <ResIcon r={r} className="e" size={30} />
           <span className="n">{hand[r]}</span>
           <span className="lbl">{RESOURCE_NAME[r]}</span>
         </div>
@@ -628,13 +692,19 @@ function Hand({ hand }: { hand: ResourceMap }) {
   );
 }
 
-const RES_COLOR: Record<Resource, string> = {
-  brick: '#c8643c',
-  wood: '#3f8c4a',
-  sheep: '#9fd06a',
-  wheat: '#e8c14d',
-  ore: '#8d98ad',
-};
+/** Цена постройки иконками. */
+function Cost({ cost }: { cost: ResourceMap }) {
+  return (
+    <span className="cost">
+      {RESOURCES.filter((r) => cost[r] > 0).map((r) => (
+        <span key={r} className="cost-i">
+          <ResIcon r={r} size={15} />
+          {cost[r] > 1 && <small>{cost[r]}</small>}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function Actions(props: {
   pub: PublicState;
@@ -649,22 +719,40 @@ function Actions(props: {
   countdown: number | null;
   cancelCountdown: () => void;
   physical: boolean;
-  planReady: boolean;
-  runPlan: () => void;
+  planCount: number;
+  planBroken: number;
 }) {
   const { pub, priv, me, myTurn, build, setBuild, busy, send, openSheet, countdown, cancelCountdown, physical } = props;
   const meP = pub.players[me];
-  const playable = priv.devCards.filter((c) => c.playable).length;
+  const playable = priv.devCards.filter((c) => c.playable && c.type !== 'victoryPoint').length;
+  const canPlayNow = myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed && playable > 0;
+  const cardsBtn = (
+    <button className={`btn ${canPlayNow ? 'glow' : ''}`} onClick={() => openSheet('dev')}>
+      <Icon name="cards" /> Карты
+      {priv.devCards.length > 0 && <span className={`cnt ${canPlayNow ? 'hot' : ''}`}>{priv.devCards.length}</span>}
+    </button>
+  );
+  const planBtn = (
+    <button className="btn" onClick={() => openSheet('plan')}>
+      <Icon name="plan" /> План
+      {props.planCount > 0 && <span className={`cnt ${props.planBroken ? 'bad' : ''}`}>{props.planBroken || props.planCount}</span>}
+    </button>
+  );
+  const smile = (
+    <button className="btn icon-only" onClick={() => openSheet('react')} aria-label="Реакция">
+      <Icon name="smile" />
+    </button>
+  );
 
   if (!myTurn || pub.phase === 'discard') {
     return (
       <div className="actions">
-        <button className="btn" onClick={() => openSheet('plan')}>
-          <Icon name="plan" /> Планировать
+        {planBtn}
+        <button className={`btn ${pub.trade ? 'glow' : ''}`} onClick={() => openSheet(pub.trade ? 'incoming' : 'trade')}>
+          <Icon name="trade" /> {pub.trade ? 'Предложение' : 'Обмен'}
         </button>
-        <button className="btn" onClick={() => openSheet(pub.trade ? 'incoming' : 'trade')}>
-          <Icon name="trade" /> {pub.trade ? 'Обмен идёт' : 'Обмен'}
-        </button>
+        {cardsBtn}
+        {smile}
       </div>
     );
   }
@@ -678,19 +766,15 @@ function Actions(props: {
       return (
         <div className="actions">
           {countdown !== null ? (
-            <button className="btn primary big" onClick={cancelCountdown}>
+            <button className="btn primary big grow2" onClick={cancelCountdown}>
               <Icon name="dice" /> Бросаю через {countdown}… <small>стоп</small>
             </button>
           ) : (
-            <button className="btn primary big" disabled={busy} onClick={() => (physical ? openSheet('dice') : void send({ type: 'rollDice' }))}>
-              <Icon name="dice" /> {physical ? 'Ввести бросок' : 'Бросить'}
+            <button className="btn primary big grow2" disabled={busy} onClick={() => (physical ? openSheet('dice') : void send({ type: 'rollDice' }))}>
+              <Icon name="dice" /> {physical ? 'Ввести бросок' : 'Бросить кубики'}
             </button>
           )}
-          {playable > 0 && (
-            <button className="btn" onClick={() => openSheet('dev')}>
-              <Icon name="cards" /> Карта ({playable})
-            </button>
-          )}
+          {playable > 0 && cardsBtn}
         </div>
       );
     case 'main': {
@@ -702,35 +786,30 @@ function Actions(props: {
       const t = (b: BuildMode) => setBuild(build === b ? null : b);
       return (
         <>
-          <div className="actions">
+          <div className="actions builds">
             <button className={`act ${build === 'road' ? 'on' : ''}`} disabled={!road && build !== 'road'} onClick={() => t('road')}>
-              <Icon name="road" className="i" />
-              {cap(shortName('road'))}
+              <span className="act-top"><Icon name="road" className="i" size={18} /> Дорога</span>
+              <Cost cost={COSTS.road} />
             </button>
             <button className={`act ${build === 'settlement' ? 'on' : ''}`} disabled={!settl && build !== 'settlement'} onClick={() => t('settlement')}>
-              <Icon name="house" className="i" />
-              {cap(shortName('settlement'))}
+              <span className="act-top"><Icon name="house" className="i" size={18} /> Поселение</span>
+              <Cost cost={COSTS.settlement} />
             </button>
             <button className={`act ${build === 'city' ? 'on' : ''}`} disabled={!city && build !== 'city'} onClick={() => t('city')}>
-              <Icon name="castle" className="i" />
-              {cap(shortName('city'))}
+              <span className="act-top"><Icon name="castle" className="i" size={18} /> Город</span>
+              <Cost cost={COSTS.city} />
             </button>
             <button className="act" disabled={!dev || busy} onClick={() => void send({ type: 'buyDevCard' })}>
-              <Icon name="cards" className="i" />
-              Карта
+              <span className="act-top"><Icon name="cards" className="i" size={18} /> Карта</span>
+              <Cost cost={COSTS.devCard} />
             </button>
           </div>
           <div className="actions">
-            {props.planReady ? (
-              <button className="btn primary" disabled={busy} onClick={props.runPlan}>
-                <Icon name="play" /> Выполнить план
-              </button>
-            ) : (
-              <button className="btn" onClick={() => openSheet('trade')}>
-                <Icon name="trade" /> Обмен{pub.trade ? ' · идёт' : ''}
-              </button>
-            )}
-            <button className="btn" disabled={busy} onClick={() => void send({ type: 'endTurn' })}>
+            <button className="btn" onClick={() => openSheet('trade')}>
+              <Icon name="trade" /> Обмен{pub.trade ? ' ·' : ''}
+            </button>
+            {cardsBtn}
+            <button className="btn primary" disabled={busy} onClick={() => void send({ type: 'endTurn' })}>
               Конец хода <Icon name="next" />
             </button>
           </div>
@@ -810,46 +889,71 @@ function computeTargets(pub: PublicState, me: PlayerId, myTurn: boolean, mode: B
   }
 }
 
+const DEV_RULE: Record<DevCardType, string> = {
+  knight: 'Переставь разбойника и забери карту у соседа. Три сыгранные — бонус +2 очка.',
+  roadBuilding: 'Две дороги бесплатно.',
+  yearOfPlenty: 'Возьми из банка любые два ресурса.',
+  monopoly: 'Назови ресурс — все отдают тебе его целиком.',
+  victoryPoint: 'Тайное +1 очко. Играть не нужно — считается само.',
+};
+const DEV_ORDER: DevCardType[] = ['knight', 'roadBuilding', 'yearOfPlenty', 'monopoly', 'victoryPoint'];
+
 function DevCards({
   priv,
   pack,
   canPlay,
+  played,
   busy,
   onPlay,
 }: {
   priv: PrivateView;
   pack: LorePack;
   canPlay: boolean;
+  played: boolean;
   busy: boolean;
   onPlay: (t: DevCardType) => void;
 }) {
-  if (!priv.devCards.length) return <p className="muted">Карт пока нет. Купить: {resourcesText(COSTS.devCard)}</p>;
+  if (!priv.devCards.length)
+    return (
+      <div className="stack center">
+        <p className="muted">Карт пока нет.</p>
+        <p className="faint small row" style={{ justifyContent: 'center' }}>
+          Купить в свой ход: <Cost cost={COSTS.devCard} />
+        </p>
+      </div>
+    );
+  const groups = DEV_ORDER.map((t) => {
+    const cards = priv.devCards.filter((c) => c.type === t);
+    return { t, n: cards.length, ready: cards.some((c) => c.playable) };
+  }).filter((g) => g.n > 0);
   return (
     <div className="list">
-      {priv.devCards.map((c, i) => {
-        const info = pack.devCards[c.type];
-        const usable = c.type !== 'victoryPoint' && c.playable && canPlay;
+      {played && <p className="faint small center">В этот ход карта уже сыграна — следующая в следующий ход.</p>}
+      {groups.map(({ t, n, ready }) => {
+        const info = pack.devCards[t];
+        const usable = t !== 'victoryPoint' && ready && canPlay;
         return (
-          <div key={i} className="item devcard">
-            <ArtIcon src={eraIcon(pack.id, `dev-${c.type}`)} size={52} className="dev-ic" fallback={<Icon name="cards" size={32} />} />
-            <div className="grow">
-              <div className="t">{info.name}</div>
-              <div className="s">{info.flavor}</div>
+          <div key={t} className={`devcard ${usable ? 'ready' : ''}`}>
+            <ArtIcon src={eraIcon(pack.id, `dev-${t}`)} size={64} className="dev-ic" fallback={<Icon name="cards" size={32} />} />
+            <div className="dc-body">
+              <div className="dc-title">
+                <b>{info.name}</b>
+                {n > 1 && <span className="dc-n">×{n}</span>}
+              </div>
+              <div className="dc-rule">{DEV_RULE[t]}</div>
+              <div className="dc-flavor">{info.flavor}</div>
+              {t !== 'victoryPoint' && (
+                <button className="btn primary dc-btn" disabled={!usable || busy} onClick={() => onPlay(t)}>
+                  {ready ? (canPlay ? 'Сыграть' : 'Сыграть можно в свой ход') : 'Куплена в этот ход — со следующего'}
+                </button>
+              )}
             </div>
-            {c.type === 'victoryPoint' ? (
-              <span className="faint small">+1 очко</span>
-            ) : (
-              <button className="btn primary" disabled={!usable || busy} onClick={() => onPlay(c.type)}>
-                {c.playable ? 'Сыграть' : 'со след. хода'}
-              </button>
-            )}
           </div>
         );
       })}
     </div>
   );
 }
-
 
 function Plenty({ busy, onDone }: { busy: boolean; onDone: (r: [Resource, Resource]) => void }) {
   const [picked, setPicked] = useState<Resource[]>([]);

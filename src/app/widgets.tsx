@@ -1,123 +1,176 @@
-// Мелкие детали экрана игрока: карточки ресурсов, «степперы», модальные окна, отправка действий.
+// Мелкие детали экрана игрока: рука, чипы ресурсов, сетка «отдаю/хочу», выбор ресурса.
 
-import type { ReactNode } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Action, Resource, ResourceMap } from '../engine';
+import type { Resource, ResourceMap } from '../engine';
 import { RESOURCES, totalResources } from '../engine';
 import { RESOURCE_NAME } from '../i18n/ru';
-import { TERRAIN_FILL } from '../ui/theme';
 import { ResIcon } from './ResIcon';
+import { sfx } from '../fx';
 
-export const RESOURCE_BG: Record<Resource, string> = {
-  brick: TERRAIN_FILL.hills,
-  wood: TERRAIN_FILL.forest,
-  sheep: TERRAIN_FILL.pasture,
-  wheat: TERRAIN_FILL.fields,
-  ore: TERRAIN_FILL.mountains,
+export const RES_COLOR: Record<Resource, string> = {
+  brick: '#c8643c',
+  wood: '#3f8c4a',
+  sheep: '#9fd06a',
+  wheat: '#e8c14d',
+  ore: '#8d98ad',
 };
 
-/** Сколько каждого ресурса только что пришло — для «+1» на карточках. */
-function useGains(hand: ResourceMap) {
-  const prev = useRef(hand);
-  const [gains, setGains] = useState<{ key: number; delta: Partial<Record<Resource, number>> }>();
-  useEffect(() => {
-    const delta: Partial<Record<Resource, number>> = {};
-    for (const r of RESOURCES) if (hand[r] > prev.current[r]) delta[r] = hand[r] - prev.current[r];
-    prev.current = hand;
-    if (!Object.keys(delta).length) return;
-    const key = Date.now();
-    setGains({ key, delta });
-    const id = setTimeout(() => setGains((g) => (g?.key === key ? undefined : g)), 1400);
-    return () => clearTimeout(id);
-  }, [hand]);
-  return gains;
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Ресурсы иконками: [иконка]×2 [иконка]×1. */
+export function ResChips({ value, empty = '—' }: { value: Partial<ResourceMap>; empty?: string }) {
+  const items = RESOURCES.filter((r) => (value[r] ?? 0) > 0);
+  if (!items.length) return <span className="faint">{empty}</span>;
+  return (
+    <span className="res-chips">
+      {items.map((r) => (
+        <span key={r} className="res-chip" title={RESOURCE_NAME[r]}>
+          <ResIcon r={r} size={26} />
+          <b>×{value[r]}</b>
+        </span>
+      ))}
+    </span>
+  );
 }
 
-export function ResourceCards({ hand, onTap, dim }: { hand: ResourceMap; onTap?: (r: Resource) => void; dim?: boolean }) {
-  const gains = useGains(hand);
+/** Своя рука одной строкой — видна внутри шторок (обмен, сброс, план). */
+export function HandMini({ hand, label = 'У тебя' }: { hand: ResourceMap; label?: string }) {
   return (
-    <div className={`res-cards ${dim ? 'dim' : ''}`}>
+    <div className="hand-mini">
+      <span className="hm-label">{label}</span>
       {RESOURCES.map((r) => (
-        <button
-          key={gains?.delta[r] ? `${r}-${gains.key}` : r}
-          type="button"
-          className={`res-card ${hand[r] === 0 ? 'zero' : ''} ${gains?.delta[r] ? 'bump' : ''}`}
-          style={{ background: RESOURCE_BG[r] }}
-          onClick={onTap ? () => onTap(r) : undefined}
-          disabled={!onTap}
-        >
-          <ResIcon r={r} className="res-icon" />
-          <span className="res-count">{hand[r]}</span>
-          <span className="res-name">{RESOURCE_NAME[r]}</span>
-          {gains?.delta[r] ? <span className="res-plus">+{gains.delta[r]}</span> : null}
-        </button>
+        <span key={r} className={`hm-item ${hand[r] ? '' : 'zero'}`} title={RESOURCE_NAME[r]}>
+          <ResIcon r={r} size={24} />
+          <b>{hand[r]}</b>
+        </span>
       ))}
     </div>
   );
 }
 
-/** Выбор количества каждого ресурса (+/−). max — ограничение сверху для каждого. */
-export function ResourceStepper({
-  value,
-  onChange,
-  max,
-}: {
-  value: ResourceMap;
-  onChange: (m: ResourceMap) => void;
-  max?: Partial<ResourceMap>;
-}) {
-  const set = (r: Resource, n: number) => onChange({ ...value, [r]: Math.max(0, Math.min(max?.[r] ?? 99, n)) });
+function Step({ n, onChange, max, tone }: { n: number; onChange: (n: number) => void; max: number; tone: 'give' | 'want' }) {
   return (
-    <div className="stepper">
+    <div className={`step ${tone} ${n > 0 ? 'on' : ''}`}>
+      <button
+        type="button"
+        aria-label="Меньше"
+        disabled={n <= 0}
+        onClick={() => {
+          sfx.play('tick');
+          onChange(n - 1);
+        }}
+      >
+        −
+      </button>
+      <span className="step-n">{n}</span>
+      <button
+        type="button"
+        aria-label="Больше"
+        disabled={n >= max}
+        onClick={() => {
+          sfx.play('tick');
+          onChange(n + 1);
+        }}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Сетка обмена: по строке на ресурс — иконка, название, сколько есть, «отдаю» и «хочу».
+ * Если в одной колонке ставишь ресурс, в другой он сбрасывается (нельзя отдавать и просить одно и то же).
+ */
+export function TradeGrid({
+  give,
+  want,
+  onChange,
+  hand,
+  giveLabel = 'Отдаю',
+  wantLabel = 'Хочу',
+}: {
+  give: ResourceMap;
+  want: ResourceMap;
+  onChange: (give: ResourceMap, want: ResourceMap) => void;
+  hand: ResourceMap;
+  giveLabel?: string;
+  wantLabel?: string;
+}) {
+  return (
+    <div className="trade-grid">
+      <div className="tg-head">
+        <span />
+        <span>{giveLabel}</span>
+        <span>{wantLabel}</span>
+      </div>
       {RESOURCES.map((r) => (
-        <div key={r} className="step-col" style={{ borderColor: RESOURCE_BG[r] }}>
-          <button type="button" onClick={() => set(r, value[r] + 1)} disabled={value[r] >= (max?.[r] ?? 99)}>
-            +
-          </button>
-          <ResIcon r={r} className="step-icon" />
-          <span className="step-n">{value[r]}</span>
-          <button type="button" onClick={() => set(r, value[r] - 1)} disabled={value[r] <= 0}>
-            −
-          </button>
+        <div key={r} className="tg-row" style={{ ['--rc' as string]: RES_COLOR[r] }}>
+          <div className="tg-res">
+            <ResIcon r={r} size={34} />
+            <div className="tg-txt">
+              <b>{cap(RESOURCE_NAME[r])}</b>
+              <small className={hand[r] ? '' : 'none'}>есть {hand[r]}</small>
+            </div>
+          </div>
+          <Step tone="give" n={give[r]} max={hand[r]} onChange={(n) => onChange({ ...give, [r]: n }, n > 0 ? { ...want, [r]: 0 } : want)} />
+          <Step tone="want" n={want[r]} max={19} onChange={(n) => onChange(n > 0 ? { ...give, [r]: 0 } : give, { ...want, [r]: n })} />
         </div>
       ))}
     </div>
   );
 }
 
-export function ResourcePicker({ onPick, disabled }: { onPick: (r: Resource) => void; disabled?: (r: Resource) => boolean }) {
+/** Количество каждого ресурса одним столбцом (сброс на 7, планы). */
+export function ResourceStepper({ value, onChange, max }: { value: ResourceMap; onChange: (m: ResourceMap) => void; max?: Partial<ResourceMap> }) {
+  return (
+    <div className="trade-grid single">
+      {RESOURCES.map((r) => (
+        <div key={r} className="tg-row" style={{ ['--rc' as string]: RES_COLOR[r] }}>
+          <div className="tg-res">
+            <ResIcon r={r} size={34} />
+            <div className="tg-txt">
+              <b>{cap(RESOURCE_NAME[r])}</b>
+              {max && <small className={max[r] ? '' : 'none'}>есть {max[r] ?? 0}</small>}
+            </div>
+          </div>
+          <Step tone="give" n={value[r]} max={max?.[r] ?? 19} onChange={(n) => onChange({ ...value, [r]: n })} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Выбор одного ресурса плиткой. sub — подпись под названием (например, «4:1 · есть 5»). */
+export function ResourcePicker({
+  onPick,
+  disabled,
+  selected,
+  sub,
+}: {
+  onPick: (r: Resource) => void;
+  disabled?: (r: Resource) => boolean;
+  selected?: Resource | null;
+  sub?: (r: Resource) => string;
+}) {
   return (
     <div className="res-picker">
       {RESOURCES.map((r) => (
         <button
           key={r}
           type="button"
-          style={{ background: RESOURCE_BG[r] }}
-          onClick={() => onPick(r)}
+          className={selected === r ? 'on' : ''}
+          style={{ ['--rc' as string]: RES_COLOR[r] }}
+          onClick={() => {
+            sfx.play('tick');
+            onPick(r);
+          }}
           disabled={disabled?.(r)}
         >
-          <ResIcon r={r} className="pick-icon" />
-          <small>{RESOURCE_NAME[r]}</small>
+          <ResIcon r={r} size={38} />
+          <small>{cap(RESOURCE_NAME[r])}</small>
+          {sub && <small className="faint">{sub(r)}</small>}
         </button>
       ))}
-    </div>
-  );
-}
-
-export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose?: () => void }) {
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="card modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h3>{title}</h3>
-          {onClose && (
-            <button className="btn ghost icon" onClick={onClose} aria-label="Закрыть">
-              ×
-            </button>
-          )}
-        </div>
-        {children}
-      </div>
     </div>
   );
 }

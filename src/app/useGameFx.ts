@@ -6,7 +6,7 @@ import { RESOURCES } from '../engine';
 import type { LorePack } from '../lore';
 import { narrate } from '../lore';
 import { conn } from '../client/conn';
-import type { CinematicEvent, DiceRoll, Gain, ReactionItem } from '../fx';
+import type { CinematicEvent, DiceRoll, Gain, RaidEvent, ReactionItem } from '../fx';
 import { haptic, rollDurationMs, sfx } from '../fx';
 import { PLAYER_HEX } from '../ui/theme';
 import { eraIcon } from './era';
@@ -21,6 +21,7 @@ export interface Narration {
 export interface GameFx {
   roll: DiceRoll | null;
   cinematic: CinematicEvent | null;
+  raid: RaidEvent | null;
   gains: { list: Gain[]; key: number };
   narration: Narration | null;
   focus?: { hex?: string; vertex?: string; edge?: string; key: number };
@@ -37,6 +38,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
   const [fx, setFx] = useState<GameFx>({
     roll: null,
     cinematic: null,
+    raid: null,
     gains: { list: [], key: 0 },
     narration: null,
     recent: [],
@@ -62,6 +64,12 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       setFx((f) => ({ ...f, narration: { text, key: k.current++, color: color(who) } }));
     };
     const cine = (e: Omit<CinematicEvent, 'key'>) => setFx((f) => ({ ...f, cinematic: { ...e, key: k.current++ } }));
+    const raid = (kind: 'robber' | 'knight') => {
+      const era = packRef.current.id;
+      const sprite = kind === 'robber' ? eraIcon(era, 'attack') : era === 'ww2' ? eraIcon(era, 'tank') : eraIcon(era, 'dev-knight');
+      setFx((f) => ({ ...f, raid: { kind, era, sprite, key: k.current++ }, shake: f.shake + 1 }));
+    };
+    if (import.meta.env.DEV) (window as unknown as { __raid: typeof raid }).__raid = raid;
 
     const offEvents = conn.onEvents((events: GameEvent[], source) => {
       const p = packRef.current;
@@ -114,6 +122,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
           }
           case 'robberMoved':
             setFx((f) => ({ ...f, focus: { hex: e.hex, key: k.current++ } }));
+            raid('robber');
             say(narrate(p, 'robberMoved', { player: name(e.player) }), e.player);
             break;
           case 'stole':
@@ -128,7 +137,8 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
           case 'devCardPlayed': {
             const card = p.devCards[e.card];
             if (e.card === 'knight') {
-              cine({ kind: 'knight', title: card.name, subtitle: narrate(p, 'knight', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
+              raid('knight');
+              say(`${card.name}: ${narrate(p, 'knight', { player: name(e.player) })}`, e.player);
             } else if (e.card === 'roadBuilding') {
               cine({ kind: 'roadBuilding', title: card.name, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
             }

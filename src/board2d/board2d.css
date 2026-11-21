@@ -1,0 +1,385 @@
+/* 2D-карта: тайлы эпохи, жетоны, фишки с контуром, жесты. */
+
+.b2d {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background: radial-gradient(120% 90% at 50% 42%, var(--sea, #1e6f8f) 0%, var(--sea-deep, #072433) 78%);
+}
+
+/* Живое море: две медленно плывущие сетки бликов */
+.b2d-sea {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M0 30 Q15 22 30 30 T60 30 T90 30 T120 30' fill='none' stroke='white' stroke-opacity='.16' stroke-width='2'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='90'%3E%3Cpath d='M0 45 Q22 36 45 45 T90 45 T135 45 T180 45' fill='none' stroke='white' stroke-opacity='.10' stroke-width='3'/%3E%3C/svg%3E");
+  background-size: 120px 60px, 180px 90px;
+  animation: b2d-sea 26s linear infinite;
+}
+@keyframes b2d-sea {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 240px 60px, -180px 90px; }
+}
+
+.b2d-inner {
+  position: absolute;
+  inset: 0;
+  padding: var(--board-pad, 76px 6px calc(var(--dock-h, 180px) + 10px));
+  transform-origin: 0 0;
+  box-sizing: border-box;
+}
+.b2d-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.b2d-svg.shake {
+  animation: b2d-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+@keyframes b2d-shake {
+  10%, 90% { transform: translate(-2px, 1px); }
+  20%, 80% { transform: translate(4px, -2px); }
+  30%, 50%, 70% { transform: translate(-6px, 2px); }
+  40%, 60% { transform: translate(6px, -1px); }
+}
+
+.b2d text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.b2d image {
+  pointer-events: none;
+}
+
+/* Берег */
+.b2d-coast .foam {
+  fill: rgba(255, 255, 255, 0.16);
+  animation: b2d-foam 5s ease-in-out infinite alternate;
+}
+@keyframes b2d-foam {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+.b2d-coast .sand {
+  fill: #e6d3a3;
+  stroke: #cdb07a;
+  stroke-width: 2;
+}
+
+/* Тайлы */
+.b2d .tile-edge {
+  fill: none;
+  stroke: rgba(40, 28, 12, 0.55);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.b2d .tile-dim {
+  fill: rgba(8, 10, 22, 0.5);
+}
+.b2d .tile-flash {
+  fill: #fff6cc;
+  opacity: 0;
+  animation: b2d-flash 1.1s ease-out;
+}
+@keyframes b2d-flash {
+  0% { opacity: 0; }
+  18% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+/* Жетоны */
+.b2d .tk-shadow {
+  fill: rgba(0, 0, 0, 0.35);
+}
+.b2d .tk-face {
+  stroke: #6e5128;
+  stroke-width: 3;
+}
+.b2d .tk-num {
+  font-family: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  fill: #2b2118;
+}
+.b2d .tk-pip {
+  fill: #2b2118;
+}
+.b2d .token.red .tk-num,
+.b2d .token.red .tk-pip {
+  fill: #c2271d;
+}
+.b2d .token.off {
+  opacity: 0.55;
+}
+
+/* Доход */
+.b2d .gain-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: b2d-gain 1.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+}
+@keyframes b2d-gain {
+  0% { transform: translateY(20px) scale(0.2); opacity: 0; }
+  25% { transform: translateY(-10px) scale(1.15); opacity: 1; }
+  70% { transform: translateY(-26px) scale(1); opacity: 1; }
+  100% { transform: translateY(-60px) scale(0.85); opacity: 0; }
+}
+
+/* Гавани */
+.b2d .pier {
+  stroke: #9b7444;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+.b2d .hb-shadow {
+  fill: rgba(0, 0, 0, 0.3);
+}
+.b2d .hb-face {
+  fill: #fff8e8;
+  stroke: #6e5128;
+  stroke-width: 3;
+}
+.b2d .hb-any {
+  font-family: 'Unbounded', system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  fill: #2b2118;
+}
+.b2d .hb-ratio {
+  font-family: 'Manrope', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  fill: #2b2118;
+}
+
+/* Дороги: светлый ореол + тёмная кромка + цвет игрока */
+.b2d .road line {
+  stroke-linecap: round;
+}
+.b2d .rd-halo {
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 25px;
+}
+.b2d .rd-edge {
+  stroke-width: 19px;
+}
+.b2d .rd-body {
+  stroke-width: 12px;
+}
+.b2d .road.recent line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: b2d-draw 0.55s cubic-bezier(0.3, 0.8, 0.3, 1) forwards;
+}
+@keyframes b2d-draw {
+  to { stroke-dashoffset: 0; }
+}
+.b2d .rd-ghost {
+  stroke-width: 12px;
+  stroke-linecap: round;
+  stroke-dasharray: 10 10;
+  opacity: 0.8;
+  fill: none;
+}
+.b2d .rd-ghost.broken,
+.b2d .ghost.broken path {
+  stroke: #ff453a !important;
+}
+
+/* Постройки */
+.b2d .pc-halo {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 0.1;
+  stroke-linejoin: round;
+}
+.b2d .pc-shadow {
+  fill: rgba(0, 0, 0, 0.4);
+}
+.b2d .pc-door,
+.b2d .pc-win {
+  fill: rgba(0, 0, 0, 0.35);
+}
+.b2d .piece.recent {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: b2d-drop 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes b2d-drop {
+  0% { transform: translateY(-60px) scale(1.25); opacity: 0; }
+  55% { transform: translateY(4px) scale(0.92, 1.08); opacity: 1; }
+  100% { transform: none; }
+}
+.b2d .ghost path {
+  fill: rgba(255, 255, 255, 0.25);
+  stroke-width: 0.035;
+  stroke-dasharray: 0.06 0.05;
+}
+.b2d .ghost {
+  opacity: 0.85;
+}
+
+/* Разбойник */
+.b2d-robber {
+  transition: transform 0.75s cubic-bezier(0.5, 0, 0.2, 1);
+}
+.b2d .rb-shadow {
+  fill: rgba(0, 0, 0, 0.45);
+}
+.b2d .rb-land {
+  animation: b2d-land 0.7s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+@keyframes b2d-land {
+  from { transform: translateY(-40px) scale(1.3); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.b2d .rb-bob {
+  animation: b2d-bob 2.6s ease-in-out infinite alternate;
+}
+@keyframes b2d-bob {
+  from { transform: translateY(0); }
+  to { transform: translateY(-5px); }
+}
+
+/* Место события */
+.b2d-ping circle {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: b2d-ping 1.3s ease-out forwards;
+}
+.b2d-ping .d2 {
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+@keyframes b2d-ping {
+  from { transform: scale(0.4); opacity: 1; }
+  to { transform: scale(2.4); opacity: 0; }
+}
+
+/* Цели: большие невидимые зоны нажатия + видимые пульсирующие кольца */
+.b2d .hit {
+  fill: transparent;
+  stroke: transparent;
+  cursor: pointer;
+}
+.b2d .edge-target .hit {
+  stroke-width: 34px;
+  stroke-linecap: round;
+}
+.b2d .edge-target .vis {
+  stroke: #fff;
+  stroke-width: 9px;
+  stroke-linecap: round;
+  stroke-dasharray: 4 14;
+  pointer-events: none;
+  animation: b2d-pulse-o 1.2s ease-in-out infinite alternate;
+}
+.b2d .edge-target.selected .vis {
+  stroke: var(--me, #ffd60a);
+  stroke-dasharray: none;
+  stroke-width: 14px;
+  animation: none;
+}
+.b2d .vertex-target .vis {
+  fill: rgba(255, 255, 255, 0.35);
+  stroke: #fff;
+  stroke-width: 5px;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: b2d-pulse 1.1s ease-in-out infinite alternate;
+}
+.b2d .vertex-target.selected .vis {
+  fill: var(--me, #ffd60a);
+  stroke: #fff;
+  animation: none;
+  transform: scale(1.35);
+}
+.b2d .hex-target {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: #fff;
+  stroke-width: 5px;
+  stroke-dasharray: 14 10;
+  cursor: pointer;
+  animation: b2d-pulse-o 1.2s ease-in-out infinite alternate;
+}
+.b2d .hex-target.selected {
+  fill: rgba(255, 69, 58, 0.25);
+  stroke: #ff453a;
+  stroke-dasharray: none;
+  animation: none;
+}
+@keyframes b2d-pulse {
+  from { transform: scale(0.85); }
+  to { transform: scale(1.15); }
+}
+@keyframes b2d-pulse-o {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+/* Пока выбираешь место — карта чуть темнее, цели ярче */
+.b2d.picking .b2d-tiles {
+  filter: saturate(0.85) brightness(0.88);
+}
+
+.b2d-reset {
+  position: absolute;
+  right: 12px;
+  bottom: calc(var(--dock-h, 180px) + 14px);
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--text, #fff);
+  border: 0;
+  z-index: 3;
+}
+
+/* Лёгкий режим: без бесконечных анимаций и фильтров */
+html.lite .b2d-sea,
+html.lite .b2d-coast .foam {
+  animation: none;
+}
+html.lite .b2d.picking .b2d-tiles {
+  filter: none;
+}
+html.lite .b2d .rb-bob,
+html.lite .b2d .vertex-target .vis,
+html.lite .b2d .edge-target .vis,
+html.lite .b2d .hex-target {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .b2d *,
+  .b2d-sea {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.b2d .rb-ring {
+  fill: rgba(120, 10, 10, 0.28);
+  stroke: #ff453a;
+  stroke-width: 4;
+  stroke-dasharray: 10 8;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: b2d-spin 14s linear infinite;
+}
+@keyframes b2d-spin {
+  to { transform: rotate(360deg); }
+}
+html.lite .b2d .rb-ring { animation: none; }
