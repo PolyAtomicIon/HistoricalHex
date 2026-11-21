@@ -604,7 +604,9 @@ export function Robber({ target, hexH, sprite, era }: { target: [number, number]
   const { rig, reduced } = useEnv();
   const g = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
-  const cur = useRef<{ from: [number, number]; to: [number, number]; t0: number | null; at: [number, number] } | null>(null);
+  const cur = useRef<{ from: [number, number]; to: [number, number]; t0: number | null; at: [number, number]; fresh?: boolean } | null>(null);
+  // Лагерь появился не при загрузке, а после первого удара — вырасти после налёта, а не мгновенно
+  const mounted = useRef(false);
   // Спрайт эпохи (лучники / ниндзя / бомбардировщики) — если загрузился; иначе фигурка
   const [spriteMat, setSpriteMat] = useState<THREE.SpriteMaterial | null>(null);
   useEffect(() => {
@@ -624,9 +626,11 @@ export function Robber({ target, hexH, sprite, era }: { target: [number, number]
   }, [sprite]);
 
   useEffect(() => {
+    const first = !mounted.current;
+    mounted.current = true;
     if (!target) return;
     const c = cur.current;
-    if (!c) cur.current = { from: target, to: target, t0: -99, at: target };
+    if (!c) cur.current = first ? { from: target, to: target, t0: -99, at: target } : { from: target, to: target, t0: null, at: target, fresh: true };
     else if (c.to[0] !== target[0] || c.to[1] !== target[1]) cur.current = { from: c.at, to: target, t0: null, at: c.at };
   }, [target]);
 
@@ -651,7 +655,7 @@ export function Robber({ target, hexH, sprite, era }: { target: [number, number]
       const el = c.t0 === -99 ? 99 : clock.elapsedTime - c.t0;
       if (el < D) {
         o.position.set(c.from[0], hexH, c.from[1]);
-        body.current.scale.setScalar(Math.max(0.001, 1 - Math.max(0, el - (D - 0.3)) / 0.3));
+        body.current.scale.setScalar(c.fresh ? 0.001 : Math.max(0.001, 1 - Math.max(0, el - (D - 0.3)) / 0.3));
       } else {
         const g = Math.min(1, (el - D) / 0.55);
         const k = g < 1 ? 1 - Math.pow(1 - g, 3) + Math.sin(g * Math.PI) * 0.12 : 1;

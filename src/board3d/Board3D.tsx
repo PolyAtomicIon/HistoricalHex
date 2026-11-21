@@ -515,6 +515,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
     return p ? [p[0], p[1]] : null;
   }, [world, view.robberHex]);
   const robberH = HEIGHT[tileMap.get(view.robberHex)?.terrain ?? 'desert'];
+  // На старте захватчики стоят на пустыне (дохода там нет) — лагерь и красную зону не рисуем, пока не было удара
+  const idleRobber = (tileMap.get(view.robberHex)?.terrain ?? 'desert') === 'desert';
   // ВОВ: налёт — звено бомбардировщиков над картой; рыцарь — танковая колонна бьёт по лагерю
   const [raid3d, setRaid3d] = useState<Raid3DEvent | null>(null);
   const [tanks3d, setTanks3d] = useState<Tanks3DEvent | null>(null);
@@ -595,7 +597,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       {war3d && <Warriors3D key={war3d.key} ev={war3d} />}
       <Locator world={world} tileMap={tileMap} />
       <RaidZone
-        target={robberPos}
+        target={idleRobber ? null : robberPos}
         hexH={robberH}
         era={era}
         num={view.board.hexes.find((h) => h.id === view.robberHex)?.number}
@@ -604,7 +606,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
           return t && t !== 'desert' ? TERRAIN_RESOURCE[t] : undefined;
         })()}
       />
-      <Robber target={robberPos} hexH={robberH} era={era} />
+      <Robber target={idleRobber ? null : robberPos} hexH={robberH} era={era} />
       {flash && <Flashes tiles={tileMap} ids={flash.hexes} k={flash.key} />}
 
       {[...hl.hexes].map((id) => {

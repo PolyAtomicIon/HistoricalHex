@@ -91,6 +91,8 @@ export function Board2D(props: Board2DProps) {
   const ship = useImages([shipSrc]).has(shipSrc);
   // На захваченном гексе — лагерь эпохи (шатёр); самолёты/всадники только в анимации налёта
   const robbedHex = view.board.hexes.find((h) => h.id === view.robberHex);
+  // На старте захватчики стоят на пустыне (дохода там нет) — лагерь и «захват» не рисуем, пока не было удара
+  const idleRobber = !robbedHex || robbedHex.terrain === 'desert';
   const robberSrc = unit.has(eraIcon(era, 'camp')) ? eraIcon(era, 'camp') : unit.has(eraIcon(era, 'robber-unit')) ? eraIcon(era, 'robber-unit') : eraIcon(era, 'robber');
 
   const geo = useMemo(() => {
@@ -343,7 +345,7 @@ export function Board2D(props: Board2DProps) {
             {view.board.hexes.map((h, i) => {
               const c = geo.hexPos.get(h.id)!;
               const mirror = (i * 7) % 3 === 1;
-              const robbed = h.id === view.robberHex;
+              const robbed = h.id === view.robberHex && !idleRobber;
               return (
                 <g key={h.id} transform={`translate(${c.x} ${c.y})`} className={`tile t-${h.terrain} ${robbed ? 'robbed' : ''} ${h.id === atk ? 'atk' : ''}`}>
                   <g clipPath={`url(#${id('hex')})`}>
@@ -384,7 +386,7 @@ export function Board2D(props: Board2DProps) {
               const c = geo.hexPos.get(h.id)!;
               const red = h.number === 6 || h.number === 8;
               const pips = 6 - Math.abs(7 - h.number);
-              const robbed = h.id === view.robberHex;
+              const robbed = h.id === view.robberHex && !idleRobber;
               return (
                 <g key={h.id} transform={`translate(${c.x} ${c.y})`} className={`token ${red ? 'red' : ''} ${robbed ? 'off' : ''}`}>
                   <Up>
@@ -441,7 +443,7 @@ export function Board2D(props: Board2DProps) {
           {/* Разбойник эпохи */}
           {(() => {
             const c = geo.hexPos.get(view.robberHex);
-            if (!c) return null;
+            if (!c || idleRobber) return null;
             return (
               <g className="b2d-robber" style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
                 <Up>
@@ -469,7 +471,7 @@ export function Board2D(props: Board2DProps) {
           {/* Захваченный гекс: дым / пожар / пыль — видно сразу, что он не приносит доход */}
           {(() => {
             const c = geo.hexPos.get(view.robberHex);
-            if (!c) return null;
+            if (!c || idleRobber) return null;
             return (
               <g key={`rz${view.robberHex}`} className={`raid-zone era-${era}`} transform={`translate(${c.x} ${c.y})`} aria-hidden>
                 {era === 'ww2' && (
