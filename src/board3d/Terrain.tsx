@@ -251,6 +251,13 @@ export interface Inst {
 
 type Rng = () => number;
 
+/** Углы гекса (вершины, где стоят постройки) — пропсы туда не ставим, чтобы не закрывать фишки. */
+const CORNERS: [number, number][] = Array.from({ length: 6 }, (_, k) => {
+  const a = Math.PI / 6 + (k * Math.PI) / 3;
+  return [Math.cos(a), Math.sin(a)];
+});
+const nearCorner = (p: [number, number], d = 0.46) => CORNERS.some((c) => Math.hypot(c[0] - p[0], c[1] - p[1]) < d);
+
 function scatter(rng: Rng, n: number, rMin: number, rMax: number, minDist: number, taken: [number, number][] = []): [number, number][] {
   const out: [number, number][] = [];
   for (let k = 0; k < n; k++) {
@@ -258,8 +265,8 @@ function scatter(rng: Rng, n: number, rMin: number, rMax: number, minDist: numbe
       const a = rng() * Math.PI * 2;
       const r = Math.sqrt(rMin * rMin + rng() * (rMax * rMax - rMin * rMin));
       const p: [number, number] = [Math.cos(a) * r, Math.sin(a) * r];
-      const clear = [...out, ...taken].every((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) >= minDist);
-      if (clear || tries === 39) {
+      const clear = !nearCorner(p) && [...out, ...taken].every((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) >= minDist);
+      if (clear) {
         out.push(p);
         break;
       }
@@ -292,7 +299,7 @@ export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
         for (const [x, z] of scatter(rng, 9, 0.42, 0.74, 0.21)) add('tree', x, z, 0.75 + rng() * 0.55);
         break;
       case 'hills': {
-        const ka = rng() * 6.28;
+        const ka = Math.floor(rng() * 6) * (Math.PI / 3);
         const kp: [number, number] = [Math.cos(ka) * 0.56, Math.sin(ka) * 0.56];
         add('kiln', kp[0], kp[1], 1, undefined, ka + Math.PI / 2);
         for (const [x, z] of scatter(rng, 4, 0.42, 0.72, 0.36, [kp])) add('mound', x, z, 0.8 + rng() * 0.6, 0.7 + rng() * 0.6);
@@ -313,10 +320,11 @@ export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
         break;
       }
       case 'mountains': {
-        const a0 = rng() * 6.28;
+        // Пики — к серединам сторон, не к углам (там постройки)
+        const a0 = Math.floor(rng() * 2) * (Math.PI / 3);
         for (let i = 0; i < 3; i++) {
-          const a = a0 + (i * Math.PI * 2) / 3 + (rng() - 0.5) * 0.4;
-          const r = 0.45 + rng() * 0.12;
+          const a = a0 + (i * Math.PI * 2) / 3;
+          const r = 0.44 + rng() * 0.06;
           add('peak', Math.cos(a) * r, Math.sin(a) * r, 0.75 + rng() * 0.55);
         }
         for (const [x, z] of scatter(rng, 3, 0.5, 0.74, 0.25)) add('rock', x, z, 0.8 + rng() * 0.8);

@@ -27,6 +27,8 @@ export interface Board3DProps extends BoardProps {
   lowPower?: boolean;
   /** Эпоха — для разбойника и эффекта захваченного гекса. */
   era?: string;
+  /** ТВ: без сдвига кадра под док. */
+  viewStatic?: boolean;
   /** Обмен через гавань: кораблик этой гавани уходит в рейс. */
   sail?: { type: HarborType; key: number };
 }
@@ -378,6 +380,25 @@ function useReducedMotion(): boolean {
   return r;
 }
 
+/** Сдвиг кадра вверх: снизу экрана док, сверху игроки — центр острова должен быть в свободной области. */
+function ViewShift({ on }: { on: boolean }) {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    if (!on) return;
+    const css = getComputedStyle(document.documentElement);
+    const dock = parseFloat(css.getPropertyValue('--dock-h')) || 180;
+    const shift = Math.max(0, (dock + 24 - 120) / 2);
+    const cam = camera as THREE.PerspectiveCamera;
+    cam.setViewOffset(size.width, size.height, 0, shift, size.width, size.height);
+    cam.updateProjectionMatrix();
+    return () => {
+      cam.clearViewOffset();
+      cam.updateProjectionMatrix();
+    };
+  }, [camera, size, on]);
+  return null;
+}
+
 function Scene(props: Board3DProps & { rig: Rig }) {
   const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era, sail } = props;
   const palette = props.palette ?? DEFAULT_PALETTE;
@@ -465,6 +486,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       <Roads roads={view.roads} colors={colors} ctx={ctx} />
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />
       <Ghosts ghosts={ghosts} ctx={ctx} />
+      <ViewShift on={!props.viewStatic} />
       <RaidZone target={robberPos} hexH={robberH} era={era} />
       <Robber target={robberPos} hexH={robberH} sprite={era ? `${import.meta.env.BASE_URL}eras/${era}/camp.webp` : undefined} />
       {flash && <Flashes tiles={tileMap} ids={flash.hexes} k={flash.key} />}

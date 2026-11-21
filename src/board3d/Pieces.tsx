@@ -12,7 +12,7 @@ import { useEnv } from './rig';
 
 // ---------- геометрия ----------
 
-const roadGeo = new RoundedBoxGeometry(0.76, 0.12, 0.2, 2, 0.04);
+const roadGeo = new RoundedBoxGeometry(0.76, 0.15, 0.24, 2, 0.05);
 
 function prism(w: number, h: number, d: number): THREE.BufferGeometry {
   const s = new THREE.Shape();
@@ -45,8 +45,30 @@ const cityGeo = merge([
 ]);
 
 // Фишки крупнее (критика: 10 px на телефоне не видно)
-houseGeo.scale(1.45, 1.45, 1.45);
-cityGeo.scale(1.35, 1.35, 1.35);
+houseGeo.scale(1.9, 1.9, 1.9);
+cityGeo.scale(1.7, 1.7, 1.7);
+
+// Толстый мультяшный контур: та же геометрия, чуть больше, тёмная, вывернута внутрь (BackSide)
+const hullCache = new Map<string, THREE.MeshBasicMaterial>();
+function hullMat(color: PlayerColor): THREE.MeshBasicMaterial {
+  let m = hullCache.get(color);
+  if (!m) {
+    m = new THREE.MeshBasicMaterial({ color: color === 'white' ? '#1d1d1d' : PLAYER_STROKE[color], side: THREE.BackSide });
+    hullCache.set(color, m);
+  }
+  return m;
+}
+// Площадка цвета игрока под постройкой — видно, чьё, даже когда дом закрыт деревом
+const padGeo = new THREE.CylinderGeometry(0.3, 0.33, 0.045, 24);
+const padCache = new Map<string, THREE.MeshStandardMaterial>();
+function padMat(color: PlayerColor): THREE.MeshStandardMaterial {
+  let m = padCache.get(color);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], emissive: PLAYER_HEX[color], emissiveIntensity: 0.25, roughness: 0.6 });
+    padCache.set(color, m);
+  }
+  return m;
+}
 
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
 function pieceMat(color: PlayerColor): THREE.MeshStandardMaterial {
@@ -189,8 +211,8 @@ function Road({ id, color, ctx }: { id: string; color: PlayerColor; ctx: PieceCt
   return (
     <group position={[xf.x, xf.y + 0.045, xf.z]} rotation={[0, xf.ang, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
+        <mesh geometry={roadGeo} material={hullMat(color)} scale={[1.05, 1.45, 1.4]} />
         <mesh geometry={roadGeo} material={roadMat(color)} castShadow receiveShadow />
-        <lineSegments geometry={outlineGeo('road')} material={strokeMat(color)} />
       </group>
       {recent && <Puff color={PLAYER_HEX[color]} />}
     </group>
@@ -220,8 +242,9 @@ function Building({ id, kind, color, ctx }: { id: string; kind: 'settlement' | '
   return (
     <group position={[p[0], y + 0.02, p[1]]} rotation={[0, yaw, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
+        <mesh geometry={padGeo} material={padMat(color)} position={[0, 0.01, 0]} receiveShadow />
+        <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={hullMat(color)} scale={[1.13, 1.08, 1.13]} position={[0, -0.015, 0]} />
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={pieceMat(color)} castShadow receiveShadow />
-        <lineSegments geometry={outlineGeo(kind)} material={strokeMat(color)} />
       </group>
       {recent && <Puff color="#f4efe4" />}
     </group>

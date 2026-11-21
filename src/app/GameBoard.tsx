@@ -133,6 +133,7 @@ export function GameBoard({
           lowPower={lowPower}
           era={era}
           sail={fx.sail}
+          viewStatic={boardStatic}
         />
       </Suspense>
     </Fallback>
