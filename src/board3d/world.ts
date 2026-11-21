@@ -12,12 +12,12 @@ export const SQ3_2 = Math.sqrt(3) / 2;
 
 /** Высота верхней грани плитки над уровнем моря. */
 export const HEIGHT: Record<Terrain, number> = {
-  forest: 0.22,
-  hills: 0.3,
-  pasture: 0.2,
-  fields: 0.17,
-  mountains: 0.34,
-  desert: 0.15,
+  forest: 0.27,
+  hills: 0.33,
+  pasture: 0.23,
+  fields: 0.2,
+  mountains: 0.4,
+  desert: 0.17,
 };
 
 export interface World {

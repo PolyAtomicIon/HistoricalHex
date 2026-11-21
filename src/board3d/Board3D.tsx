@@ -95,7 +95,7 @@ function CameraRig({
   rig: Rig;
   reduced: boolean;
 }) {
-  const { camera, gl, size } = useThree();
+  const { camera, gl, size, scene } = useThree();
   const goal = useRef<Goal>({ az: 0.3, pol: 0.88, zoom: 1, panX: 0, panZ: 0, ...PRESET[mode] });
   const cur = useRef<Goal | null>(null);
   const orbit = useRef({ az: 0.3, pol: 0.88 });
@@ -359,6 +359,13 @@ function CameraRig({
     pc.far = dist + 70;
     pc.updateProjectionMatrix();
 
+    // Дымка глубины: дальний край острова чуть уходит в цвет моря (дёшево, без постобработки)
+    const fog = scene.fog as THREE.Fog | null;
+    if (fog) {
+      fog.near = dist - world.radius * 0.4;
+      fog.far = dist + world.radius * 5.5;
+    }
+
     rig.az = c.az;
     rig.pol = c.pol;
     rig.tilt = c.pol * c.tiltK;
@@ -459,8 +466,9 @@ function Scene(props: Board3DProps & { rig: Rig }) {
   const env = useMemo<Env>(() => ({ palette, reduced, lowPower, rig }), [palette, reduced, lowPower, rig]);
 
   const centers = useMemo(() => [...world.hex.values()], [world]);
-  const sunDir = useMemo(() => new THREE.Vector3(-0.42, 0.78, 0.46).normalize(), []);
-  const R = world.radius + 2;
+  const sunDir = useMemo(() => new THREE.Vector3(-0.5, 0.66, 0.52).normalize(), []);
+  const fogColor = useMemo(() => new THREE.Color(palette.seaDeep).lerp(new THREE.Color(palette.sea), 0.45), [palette.sea, palette.seaDeep]);
+  const R = world.radius + 1.4;
 
   const hl = {
     vertices: new Set(highlight?.vertices ?? []),
@@ -483,13 +491,16 @@ function Scene(props: Board3DProps & { rig: Rig }) {
     <EnvCtx.Provider value={env}>
       <CameraRig mode={mode} world={world} focus={focus} shake={shake} rig={rig} reduced={reduced} />
 
-      <hemisphereLight args={['#dff0ff', '#6d5a3c', 1.15]} />
+      <fog attach="fog" args={[fogColor, 10, 400]} />
+      {/* небо/земля + тёплый ключ пониже (длинные тени = объём) + холодный контровой с обратной стороны */}
+      <hemisphereLight args={['#d6e9ff', '#7a5c3c', 0.85]} />
+      <directionalLight position={[-sunDir.x * 20, 9, -sunDir.z * 20]} intensity={0.75} color="#9cc2ff" />
       <directionalLight
         position={[sunDir.x * 22, sunDir.y * 22, sunDir.z * 22]}
-        intensity={2.5}
+        intensity={2.75}
         color={palette.light}
         castShadow={!lowPower}
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-R}
         shadow-camera-right={R}
         shadow-camera-top={R}

@@ -47,26 +47,94 @@ function hexShape(r: number): THREE.Shape {
   return s;
 }
 
-const tileGeoCache = new Map<Terrain, THREE.ExtrudeGeometry>();
-function tileGeo(t: Terrain): THREE.ExtrudeGeometry {
+/** Кольцо из 6 углов гекса радиуса r на высоте y. */
+function hexRing(r: number, y: number): THREE.Vector3[] {
+  return Array.from({ length: 6 }, (_, i) => {
+    const a = Math.PI / 6 + (i * Math.PI) / 3;
+    return new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r);
+  });
+}
+
+/** Сборщик «слоёного» гекса: крышка + пояса стенок, цвет в вершинах (даёт фаску, срез почвы и затемнение у воды). */
+class HexBuilder {
+  pos: number[] = [];
+  col: number[] = [];
+  private v(p: THREE.Vector3, c: THREE.Color) {
+    this.pos.push(p.x, p.y, p.z);
+    this.col.push(c.r, c.g, c.b);
+  }
+  cap(ring: THREE.Vector3[], cRing: THREE.Color, cCenter: THREE.Color) {
+    const c = new THREE.Vector3(0, ring[0].y, 0);
+    for (let i = 0; i < 6; i++) {
+      this.v(c, cCenter);
+      this.v(ring[(i + 1) % 6], cRing);
+      this.v(ring[i], cRing);
+    }
+  }
+  band(top: THREE.Vector3[], bot: THREE.Vector3[], cTop: THREE.Color, cBot: THREE.Color) {
+    for (let i = 0; i < 6; i++) {
+      const j = (i + 1) % 6;
+      this.v(top[i], cTop);
+      this.v(top[j], cTop);
+      this.v(bot[i], cBot);
+      this.v(top[j], cTop);
+      this.v(bot[j], cBot);
+      this.v(bot[i], cBot);
+    }
+  }
+  build(): THREE.BufferGeometry {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
+    g.computeVertexNormals();
+    return g;
+  }
+}
+
+const TILE_R = 0.972;
+const TILE_CHAMFER = 0.05;
+
+const tileGeoCache = new Map<Terrain, THREE.BufferGeometry>();
+function tileGeo(t: Terrain): THREE.BufferGeometry {
   let g = tileGeoCache.get(t);
   if (!g) {
     const h = HEIGHT[t];
-    const bt = 0.035;
-    const depth = h + 0.5;
-    g = new THREE.ExtrudeGeometry(hexShape(0.945), {
-      depth,
-      bevelEnabled: true,
-      bevelThickness: bt,
-      bevelSize: 0.04,
-      bevelSegments: 1,
-      steps: 1,
-    });
-    g.rotateX(-Math.PI / 2);
-    g.translate(0, h - depth - bt, 0);
+    const top = new THREE.Color(TOP[t]);
+    const side = new THREE.Color(SIDE[t]);
+    const c = (base: THREE.Color, k: number) => base.clone().multiplyScalar(k);
+    const b = new HexBuilder();
+    const rTop = TILE_R - TILE_CHAMFER;
+    // крышка: к краям чуть темнее — мягкая «виньетка» объёма
+    b.cap(hexRing(rTop, h), c(top, 0.93), c(top, 1.05));
+    // фаска: ловит свет, читается как скруглённая кромка
+    b.band(hexRing(rTop, h), hexRing(TILE_R, h - TILE_CHAMFER), c(top, 1.08), c(top, 0.9));
+    // дёрн: тёмная кромка цвета верха
+    const turf = h - TILE_CHAMFER - 0.055;
+    b.band(hexRing(TILE_R, h - TILE_CHAMFER), hexRing(TILE_R, turf), c(top, 0.74), c(top, 0.6));
+    // срез почвы: темнеет к воде (ощущение AO)
+    b.band(hexRing(TILE_R, turf), hexRing(TILE_R, 0.02), c(side, 1.0), c(side, 0.5));
+    b.band(hexRing(TILE_R, 0.02), hexRing(TILE_R, -0.5), c(side, 0.5), c(side, 0.3));
+    g = b.build();
     tileGeoCache.set(t, g);
   }
   return g;
+}
+
+/** Пляж-цоколь под плиткой: светлый песок у кромки, уходит под воду тёмным камнем. */
+let skirtGeoCache: THREE.BufferGeometry | null = null;
+function skirtGeo(): THREE.BufferGeometry {
+  if (skirtGeoCache) return skirtGeoCache;
+  const b = new HexBuilder();
+  const dark = new THREE.Color('#2e241b');
+  const sand = new THREE.Color('#e3cf9d');
+  const wet = new THREE.Color('#b59c68');
+  const rock = new THREE.Color('#3b3a3d');
+  b.cap(hexRing(0.985, 0.05), dark, dark);
+  b.band(hexRing(0.985, 0.05), hexRing(1.07, 0.04), dark, sand);
+  b.band(hexRing(1.07, 0.04), hexRing(1.2, -0.04), sand, wet);
+  b.band(hexRing(1.2, -0.04), hexRing(1.3, -0.5), wet, rock);
+  skirtGeoCache = b.build();
+  return skirtGeoCache;
 }
 
 /** Плоский гекс (для подсветок) в плоскости XZ, нормаль вверх. */
@@ -121,46 +189,49 @@ function jitterHash(x: number, y: number, z: number): number {
   return s - Math.floor(s);
 }
 
-function makePeak(): THREE.BufferGeometry {
-  const H = 0.7;
-  const cone = new THREE.ConeGeometry(0.3, H, 5, 3, false);
+/** Один гранёный конус-скала: неровные грани, снег выше snowY, к подножию темнее. */
+function rockCone(r: number, H: number, ox: number, oz: number, seed: number, snowY: number): THREE.BufferGeometry {
+  const cone = new THREE.ConeGeometry(r, H, 6, 3, false);
   cone.translate(0, H / 2, 0);
   const pos = cone.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i);
     const z = pos.getZ(i);
-    const k = (y / H) < 0.99 ? 1 : 0;
-    const hx = jitterHash(Math.round(x * 100), Math.round(y * 100), Math.round(z * 100));
-    const hz = jitterHash(Math.round(z * 100) + 5, Math.round(y * 100), Math.round(x * 100));
-    const hy = jitterHash(Math.round(y * 100) + 9, Math.round(x * 100), Math.round(z * 100));
-    pos.setXYZ(i, x + (hx - 0.5) * 0.12 * k, y > 0.01 ? y + (hy - 0.5) * 0.1 * k : y, z + (hz - 0.5) * 0.12 * k);
+    const k = y / H < 0.99 ? 1 : 0;
+    const hx = jitterHash(Math.round(x * 100) + seed, Math.round(y * 100), Math.round(z * 100));
+    const hz = jitterHash(Math.round(z * 100) + 5 + seed, Math.round(y * 100), Math.round(x * 100));
+    const hy = jitterHash(Math.round(y * 100) + 9 + seed, Math.round(x * 100), Math.round(z * 100));
+    pos.setXYZ(i, x + (hx - 0.5) * 0.4 * r * k + ox, y > 0.01 ? y + (hy - 0.5) * 0.1 * k : y, z + (hz - 0.5) * 0.4 * r * k + oz);
   }
   const g = cone.toNonIndexed();
   g.deleteAttribute('uv');
+  g.deleteAttribute('normal');
   const p = g.attributes.position;
   const col = new Float32Array(p.count * 3);
-  const rock = new THREE.Color();
-  const snow = new THREE.Color('#f4f8ff');
+  const c = new THREE.Color();
   for (let t = 0; t < p.count; t += 3) {
-    const cy = (p.getY(t) + p.getY(t + 1) + p.getY(t + 2)) / 3 / H;
+    const cy = (p.getY(t) + p.getY(t + 1) + p.getY(t + 2)) / 3;
     const cx = (p.getX(t) + p.getX(t + 1) + p.getX(t + 2)) / 3;
     const cz = (p.getZ(t) + p.getZ(t + 1) + p.getZ(t + 2)) / 3;
-    const shade = 0.78 + jitterHash(Math.round(cx * 100), Math.round(cz * 100), 3) * 0.3;
-    if (cy > 0.58) snow.toArray(col, t * 3), snow.toArray(col, t * 3 + 3), snow.toArray(col, t * 3 + 6);
-    else {
-      rock.set('#7a8396').multiplyScalar(shade);
-      rock.toArray(col, t * 3);
-      rock.toArray(col, t * 3 + 3);
-      rock.toArray(col, t * 3 + 6);
-    }
+    const j = jitterHash(Math.round(cx * 100) + seed, Math.round(cz * 100), 3);
+    if (cy > snowY + (j - 0.5) * 0.08) c.set('#f6f9ff').multiplyScalar(0.94 + j * 0.06);
+    else c.set('#7f8799').multiplyScalar((0.72 + j * 0.3) * (0.78 + 0.5 * Math.min(1, cy / 0.45)));
+    for (let k = 0; k < 3; k++) c.toArray(col, (t + k) * 3);
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
   return g;
+}
+
+/** Горный массив: главный пик со снежной шапкой + плечо пониже. */
+function makePeak(): THREE.BufferGeometry {
+  return merge([rockCone(0.27, 0.86, 0, 0, 0, 0.5), rockCone(0.19, 0.5, 0.15, 0.1, 17, 0.5), rockCone(0.13, 0.3, -0.16, 0.1, 41, 0.5)]);
 }
 
 export type PropKind =
   | 'tree'
+  | 'oak'
   | 'mound'
   | 'kiln'
   | 'bump'
@@ -203,10 +274,17 @@ function geos(): Record<PropKind, THREE.BufferGeometry> {
 
   const g: Record<PropKind, THREE.BufferGeometry> = {
     tree: merge([
-      part(cyl(0.025, 0.035, 0.1, 5), '#6b4a2b', [0, 0.05, 0]),
-      part(cone(0.14, 0.24, 6), '#2f7a3a', [0, 0.2, 0]),
-      part(cone(0.1, 0.2, 6), '#3d9347', [0, 0.34, 0]),
-      part(cone(0.06, 0.14, 6), '#58ad55', [0, 0.46, 0]),
+      part(cyl(0.025, 0.04, 0.12, 5), '#6b4a2b', [0, 0.06, 0]),
+      part(cone(0.16, 0.24, 7), '#2a6f37', [0, 0.21, 0]),
+      part(cone(0.125, 0.22, 7), '#34853f', [0, 0.35, 0], [0, 0.4, 0]),
+      part(cone(0.09, 0.2, 7), '#44994a', [0, 0.48, 0], [0, 0.8, 0]),
+      part(cone(0.05, 0.14, 6), '#5fb45a', [0, 0.61, 0]),
+    ]),
+    oak: merge([
+      part(cyl(0.03, 0.045, 0.2, 5), '#6b4a2b', [0, 0.1, 0]),
+      part(ico(0.16, 0), '#3f8f43', [0, 0.3, 0], [0.3, 0.2, 0], [1, 0.85, 1]),
+      part(ico(0.11, 0), '#57a84f', [0.09, 0.4, 0.04], [0.1, 0.9, 0.4]),
+      part(ico(0.1, 0), '#33803d', [-0.1, 0.25, -0.05], [0.7, 0.1, 0.2]),
     ]),
     mound: part(ico(0.2, 0), '#b8532e', [0, 0.0, 0], [0, 0.4, 0], [1, 0.6, 1]),
     kiln: merge([
@@ -278,6 +356,7 @@ function scatter(rng: Rng, n: number, rMin: number, rMax: number, minDist: numbe
 export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
   const out: Record<PropKind, Inst[]> = {
     tree: [],
+    oak: [],
     mound: [],
     kiln: [],
     bump: [],
@@ -296,7 +375,13 @@ export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
       out[kind].push({ x: t.x + lx, y: h, z: t.z + lz, ry, s, sy, ph: rng() * 6.28, tint: 0.85 + rng() * 0.3 });
     switch (t.terrain) {
       case 'forest':
-        for (const [x, z] of scatter(rng, 9, 0.42, 0.74, 0.21)) add('tree', x, z, 0.75 + rng() * 0.55);
+        for (const [x, z] of scatter(rng, 10, 0.5, 0.78, 0.2)) {
+          if (rng() < 0.3) add('oak', x, z, 0.8 + rng() * 0.4);
+          else {
+            const sc = 0.62 + rng() * 0.4;
+            add('tree', x, z, sc, sc * (0.9 + rng() * 0.4));
+          }
+        }
         break;
       case 'hills': {
         const ka = Math.floor(rng() * 6) * (Math.PI / 3);
@@ -324,8 +409,8 @@ export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
         const a0 = Math.floor(rng() * 2) * (Math.PI / 3);
         for (let i = 0; i < 3; i++) {
           const a = a0 + (i * Math.PI * 2) / 3;
-          const r = 0.44 + rng() * 0.06;
-          add('peak', Math.cos(a) * r, Math.sin(a) * r, 0.75 + rng() * 0.55);
+          const r = 0.5 + rng() * 0.05;
+          add('peak', Math.cos(a) * r, Math.sin(a) * r, 0.85 + rng() * 0.3, 0.8 + rng() * 0.35);
         }
         for (const [x, z] of scatter(rng, 3, 0.5, 0.74, 0.25)) add('rock', x, z, 0.8 + rng() * 0.8);
         break;
@@ -339,7 +424,7 @@ export function genProps(tiles: TileInfo[]): Record<PropKind, Inst[]> {
   return out;
 }
 
-const ANIM: Partial<Record<PropKind, 'sway' | 'bob' | 'wave'>> = { tree: 'sway', sheep: 'bob', wheat: 'wave' };
+const ANIM: Partial<Record<PropKind, 'sway' | 'bob' | 'wave'>> = { tree: 'sway', oak: 'sway', sheep: 'bob', wheat: 'wave' };
 
 let propMat: THREE.MeshStandardMaterial | null = null;
 const getPropMat = () =>
@@ -417,14 +502,8 @@ const TERRAINS: Terrain[] = ['forest', 'hills', 'pasture', 'fields', 'mountains'
 
 function TileGroup({ terrain, tiles }: { terrain: Terrain; tiles: TileInfo[] }) {
   const ref = useRef<THREE.InstancedMesh>(null);
-  const mats = useMemo(
-    () => [
-      new THREE.MeshStandardMaterial({ color: TOP[terrain], flatShading: true, roughness: 0.9 }),
-      new THREE.MeshStandardMaterial({ color: SIDE[terrain], flatShading: true, roughness: 1 }),
-    ],
-    [terrain],
-  );
-  useEffect(() => () => mats.forEach((m) => m.dispose()), [mats]);
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92 }), []);
+  useEffect(() => () => mat.dispose(), [mat]);
   useLayoutEffect(() => {
     const m = ref.current;
     if (!m) return;
@@ -439,11 +518,30 @@ function TileGroup({ terrain, tiles }: { terrain: Terrain; tiles: TileInfo[] }) 
     });
     m.instanceMatrix.needsUpdate = true;
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
-  }, [tiles]);
+  }, [tiles, terrain]);
   if (tiles.length === 0) return null;
   return (
-    <instancedMesh key={tiles.length} ref={ref} args={[tileGeo(terrain), mats as unknown as THREE.Material, tiles.length]} castShadow receiveShadow frustumCulled={false} />
+    <instancedMesh key={tiles.length} ref={ref} args={[tileGeo(terrain), mat, tiles.length]} castShadow receiveShadow frustumCulled={false} />
   );
+}
+
+let skirtMat: THREE.MeshStandardMaterial | null = null;
+function Skirt({ tiles }: { tiles: TileInfo[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const m = ref.current;
+    if (!m) return;
+    const o = new THREE.Object3D();
+    tiles.forEach((t, i) => {
+      o.position.set(t.x, 0, t.z);
+      o.updateMatrix();
+      m.setMatrixAt(i, o.matrix);
+    });
+    m.instanceMatrix.needsUpdate = true;
+  }, [tiles]);
+  if (tiles.length === 0) return null;
+  skirtMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });
+  return <instancedMesh key={tiles.length} ref={ref} args={[skirtGeo(), skirtMat, tiles.length]} receiveShadow frustumCulled={false} />;
 }
 
 export default function Tiles({ tiles }: { tiles: TileInfo[] }) {
@@ -455,6 +553,7 @@ export default function Tiles({ tiles }: { tiles: TileInfo[] }) {
   }, [tiles]);
   return (
     <group>
+      <Skirt tiles={tiles} />
       {TERRAINS.map((t) => (
         <TileGroup key={t} terrain={t} tiles={byTerrain[t]} />
       ))}

@@ -38,34 +38,103 @@ function canvasTexture(key: string, size: number, draw: (g: CanvasRenderingConte
   return t;
 }
 
-const FONT = '"Georgia","Times New Roman",serif';
+// Шрифты приложения (Google Fonts в index.html): цифры — Unbounded, подписи — Manrope.
+const NUM_FONT = '"Unbounded","Manrope",system-ui,sans-serif';
+const TXT_FONT = '"Manrope",system-ui,sans-serif';
+
+/** Перерисовка канвас-текстур, когда догрузятся веб-шрифты (иначе на канвасе останется запасной шрифт). */
+const redraws = new Set<() => void>();
+let fontsHooked = false;
+function hookFonts() {
+  if (fontsHooked || typeof document === 'undefined' || !document.fonts) return;
+  fontsHooked = true;
+  const again = () => redraws.forEach((f) => f());
+  const fs = document.fonts;
+  Promise.all([fs.load('800 64px "Unbounded"', '0123456789'), fs.load('800 64px "Manrope"', '0123456789:')]).then(again, again);
+  fs.ready.then(again, () => undefined);
+}
 
 function tokenTexture(n: number): THREE.CanvasTexture {
-  return canvasTexture(`tok${n}`, 256, (g, s) => {
+  const key = `tok${n}`;
+  const hit = texCache.get(key);
+  if (hit) return hit;
+  const s = 320;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d')!;
+  const paint = () => {
     const red = n === 6 || n === 8;
-    const grd = g.createRadialGradient(s / 2, s / 2, s * 0.1, s / 2, s / 2, s / 2);
-    grd.addColorStop(0, '#fbf1d9');
-    grd.addColorStop(1, '#eed9ae');
+    const ink = red ? '#c9271c' : '#1d2230';
+    g.clearRect(0, 0, s, s);
+    g.shadowColor = 'transparent';
+    // слоновая кость: свет сверху-слева, к краю теплее
+    const grd = g.createRadialGradient(s * 0.42, s * 0.36, s * 0.05, s / 2, s / 2, s / 2);
+    grd.addColorStop(0, '#fffdf6');
+    grd.addColorStop(0.7, '#f7ecd4');
+    grd.addColorStop(1, '#e9d6ad');
     g.fillStyle = grd;
     g.beginPath();
     g.arc(s / 2, s / 2, s / 2 - 2, 0, Math.PI * 2);
     g.fill();
-    g.strokeStyle = red ? '#c0392b' : '#b49a68';
-    g.lineWidth = s * 0.03;
+    // тонкая гравированная линия у края
+    g.strokeStyle = 'rgba(122, 92, 44, 0.42)';
+    g.lineWidth = s * 0.011;
     g.beginPath();
-    g.arc(s / 2, s / 2, s / 2 - s * 0.06, 0, Math.PI * 2);
+    g.arc(s / 2, s / 2, s * 0.435, 0, Math.PI * 2);
     g.stroke();
-    g.fillStyle = red ? '#c0281f' : '#2a2018';
-    g.font = `bold ${n >= 10 ? s * 0.4 : s * 0.46}px ${FONT}`;
+    // цифра: Unbounded 800, лёгкий «тиснёный» блик снизу
+    const str = String(n);
+    let px = s * (n >= 10 ? 0.36 : 0.45);
+    g.font = `800 ${px}px ${NUM_FONT}`;
+    (g as unknown as { letterSpacing?: string }).letterSpacing = n >= 10 ? `${-s * 0.014}px` : '0px';
+    const w = g.measureText(str).width;
+    const maxW = s * 0.64;
+    if (w > maxW) {
+      px *= maxW / w;
+      g.font = `800 ${px}px ${NUM_FONT}`;
+    }
     g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(String(n), s / 2, s * 0.46);
+    g.textBaseline = 'alphabetic';
+    const m = g.measureText(str);
+    const asc = m.actualBoundingBoxAscent || px * 0.72;
+    const desc = m.actualBoundingBoxDescent || 0;
+    g.shadowColor = 'rgba(255,255,255,0.85)';
+    g.shadowOffsetY = s * 0.008;
+    g.shadowBlur = 0;
+    g.fillStyle = ink;
+    g.fillText(str, s / 2, s * 0.45 + (asc - desc) / 2);
+    g.shadowColor = 'transparent';
+    g.shadowOffsetY = 0;
+    // точки вероятности
     const pips = 6 - Math.abs(7 - n);
     for (let i = 0; i < pips; i++) {
       g.beginPath();
-      g.arc(s / 2 + (i - (pips - 1) / 2) * s * 0.07, s * 0.74, s * 0.021, 0, Math.PI * 2);
+      g.arc(s / 2 + (i - (pips - 1) / 2) * s * 0.072, s * 0.77, s * 0.023, 0, Math.PI * 2);
       g.fill();
     }
+  };
+  paint();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  texCache.set(key, t);
+  redraws.add(() => {
+    paint();
+    t.needsUpdate = true;
+  });
+  hookFonts();
+  return t;
+}
+
+/** Мягкая тень-пятно под парящим жетоном. */
+function blobTexture(): THREE.CanvasTexture {
+  return canvasTexture('blob', 64, (g, s) => {
+    const grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    grd.addColorStop(0, 'rgba(10,14,24,0.55)');
+    grd.addColorStop(0.55, 'rgba(10,14,24,0.28)');
+    grd.addColorStop(1, 'rgba(10,14,24,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, s, s);
   });
 }
 
@@ -95,9 +164,12 @@ function harborTexture(type: HarborType, era?: string): THREE.CanvasTexture {
     g.fillStyle = '#2b2118';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = `bold ${s * 0.25}px ${FONT}`;
+    g.font = `800 ${s * 0.23}px ${TXT_FONT}`;
     g.fillText(type === 'any' ? '3:1' : '2:1', s / 2, s * 0.76);
   };
+  let icon: HTMLImageElement | null = null;
+  let iconFailed = false;
+  const paint = () => {
   base();
   if (type === 'any') {
     g.strokeStyle = '#2b2118';
@@ -109,22 +181,34 @@ function harborTexture(type: HarborType, era?: string): THREE.CanvasTexture {
     g.beginPath(); g.moveTo(cx - s * 0.08, top + s * 0.12); g.lineTo(cx + s * 0.08, top + s * 0.12); g.stroke();
     g.beginPath(); g.arc(cx, bot - s * 0.1, s * 0.12, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
   }
+  if (icon) g.drawImage(icon, s * 0.24, s * 0.08, s * 0.52, s * 0.52);
+  else if (iconFailed) {
+    g.fillStyle = HARBOR_COLOR[type] ?? '#888';
+    g.beginPath();
+    g.arc(s / 2, s * 0.36, s * 0.14, 0, Math.PI * 2);
+    g.fill();
+  }
+  };
+  paint();
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
   texCache.set(key, t);
+  redraws.add(() => {
+    paint();
+    t.needsUpdate = true;
+  });
+  hookFonts();
   if (type !== 'any' && era) {
     const img = new Image();
     img.onload = () => {
-      base();
-      g.drawImage(img, s * 0.24, s * 0.08, s * 0.52, s * 0.52);
+      icon = img;
+      paint();
       t.needsUpdate = true;
     };
     img.onerror = () => {
-      g.fillStyle = HARBOR_COLOR[type] ?? '#888';
-      g.beginPath();
-      g.arc(s / 2, s * 0.36, s * 0.14, 0, Math.PI * 2);
-      g.fill();
+      iconFailed = true;
+      paint();
       t.needsUpdate = true;
     };
     img.src = `${import.meta.env.BASE_URL}eras/${era}/res-${type}.webp`;
@@ -135,24 +219,49 @@ function harborTexture(type: HarborType, era?: string): THREE.CanvasTexture {
 
 // ---------- жетоны ----------
 
-const discGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.06, 28);
+const TOKEN_R = 0.29;
+/** Насколько жетон парит над плиткой: выше пропсов своей местности. */
+const TOKEN_LIFT: Record<string, number> = { forest: 0.5, mountains: 0.6, hills: 0.42, pasture: 0.37, fields: 0.39, desert: 0.37 };
+// Латунный ободок: верх уже низа — скошенная грань ловит блик
+const discGeo = new THREE.CylinderGeometry(TOKEN_R - 0.018, TOKEN_R, 0.055, 40);
+const tokFaceGeo = (() => {
+  const g = new THREE.CircleGeometry(TOKEN_R - 0.036, 40);
+  g.rotateX(-Math.PI / 2);
+  return g;
+})();
+/** Диск значка гавани. */
 const faceGeo = (() => {
   const g = new THREE.CircleGeometry(0.285, 28);
   g.rotateX(-Math.PI / 2);
   return g;
 })();
-const discMat = new THREE.MeshStandardMaterial({ color: '#e2cc9c', roughness: 0.6 });
+const discMat = new THREE.MeshStandardMaterial({ color: '#e6bd66', roughness: 0.3, metalness: 0.35, emissive: '#6b4a12', emissiveIntensity: 0.3 });
+const pinGeo = new THREE.CylinderGeometry(0.02, 0.028, 1, 6);
+pinGeo.translate(0, 0.5, 0);
+const pinMat = new THREE.MeshStandardMaterial({ color: '#4a3826', roughness: 0.7 });
+const blobGeo = (() => {
+  const g = new THREE.PlaneGeometry(1, 1);
+  g.rotateX(-Math.PI / 2);
+  return g;
+})();
+let blobMat: THREE.MeshBasicMaterial | null = null;
+const getBlobMat = () =>
+  (blobMat ??= new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, toneMapped: false, fog: false }));
 
 function Token({ tile, number }: { tile: TileInfo; number: number }) {
   const g = useRef<THREE.Group>(null);
-  useBillboard(g, HEIGHT[tile.terrain] + 0.05, 0.3);
+  const h = HEIGHT[tile.terrain];
+  const lift = TOKEN_LIFT[tile.terrain] ?? 0.45;
+  useBillboard(g, h + lift, TOKEN_R);
   const tex = useMemo(() => tokenTexture(number), [number]);
   return (
     <group position={[tile.x, 0, tile.z]}>
+      <mesh geometry={blobGeo} material={getBlobMat()} position={[0, h + 0.014, 0]} scale={0.78} renderOrder={1} />
+      <mesh geometry={pinGeo} material={pinMat} position={[0, h, 0]} scale={[1, lift + 0.04, 1]} />
       <group ref={g}>
         <mesh geometry={discGeo} material={discMat} castShadow />
-        <mesh geometry={faceGeo} position={[0, 0.032, 0]}>
-          <meshStandardMaterial map={tex} roughness={0.55} transparent alphaTest={0.4} />
+        <mesh geometry={tokFaceGeo} position={[0, 0.029, 0]}>
+          <meshStandardMaterial map={tex} roughness={0.5} emissive="#ffffff" emissiveMap={tex} emissiveIntensity={0.16} />
         </mesh>
       </group>
     </group>
