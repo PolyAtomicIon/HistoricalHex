@@ -249,7 +249,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const planReady = myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status === 'ready';
 
   return (
-    <main className={`screen game ${myTurn ? 'my-turn' : ''}`} style={{ ['--me' as string]: PLAYER_HEX[meP.color] }}>
+    <main className={`screen game ${myTurn ? 'my-turn' : ''} phase-${pub.phase}`} style={{ ['--me' as string]: PLAYER_HEX[meP.color] }}>
       <div className="stage" data-drawer-no-drag>
         <GameBoard
           pub={pub}
