@@ -24,16 +24,16 @@ import { PLAYER_HEX } from '../ui/theme';
 import { Icon, ArtIcon } from './icons';
 import { eraIcon } from './era';
 import { setLitePref, useLite } from './lite';
-import { DEV_CARD_NAME, RESOURCE_NAME, myPhaseText, phaseText, resourcesText } from '../i18n/ru';
+import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, myPhaseText, phaseText } from '../i18n/ru';
 import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, haptic, sfx, useMuted } from '../fx';
 import { Sheet } from './Sheet';
 import { IncomingTrade, TradeSheet } from './trade';
-import { HandMini, RES_COLOR, ResourcePicker, ResourceStepper, sum } from './widgets';
+import { HandMini, RES_COLOR, ResChips, ResourcePicker, ResourceStepper, TradeGrid, sum } from './widgets';
 import { ResIcon } from './ResIcon';
 import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
-import { STEP_ICON, STEP_LABEL, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction, stepText } from './planner';
+import { STEP_ICON, STEP_LABEL, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
@@ -136,7 +136,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       return;
     }
     if (!autoRoll) return;
-    setCountdown(playable.length ? 4 : 2);
+    // Есть карта, которую можно сыграть до броска (рыцарь) — не бросаем сами, ждём решения
+    if (playable.some((c) => c.type === 'knight')) return;
+    setCountdown(2);
   }, [myTurn, pub.phase, pub.turn, physical, autoRoll]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (countdown === null) return;
@@ -426,7 +428,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} карт`} description={`${pack.robber.name}: у кого больше 7 карт — теряет половину`}>
+      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} карт`} description="Выпало 7: у кого больше 7 карт — сбрасывает половину">
         <Discard priv={priv} busy={busy} send={sendVoid} />
       </Sheet>
 
@@ -805,10 +807,17 @@ function Actions(props: {
             </button>
           </div>
           <div className="actions">
+            <button className="btn icon-only" onClick={() => openSheet('plan')} aria-label="План">
+              <Icon name="plan" />
+              {props.planCount > 0 && <span className={`cnt dot ${props.planBroken ? 'bad' : ''}`}>{props.planBroken || props.planCount}</span>}
+            </button>
+            <button className={`btn icon-only ${canPlayNow ? 'glow' : ''}`} onClick={() => openSheet('dev')} aria-label="Карты развития">
+              <Icon name="cards" />
+              {priv.devCards.length > 0 && <span className={`cnt dot ${canPlayNow ? 'hot' : ''}`}>{priv.devCards.length}</span>}
+            </button>
             <button className="btn" onClick={() => openSheet('trade')}>
               <Icon name="trade" /> Обмен{pub.trade ? ' ·' : ''}
             </button>
-            {cardsBtn}
             <button className="btn primary" disabled={busy} onClick={() => void send({ type: 'endTurn' })}>
               Конец хода <Icon name="next" />
             </button>
@@ -821,11 +830,12 @@ function Actions(props: {
   }
 }
 
-let pieceNames: { road: string; settlement: string; city: string } = { road: 'дорога', settlement: 'поселение', city: 'город' };
+const pieceNames: { road: string; settlement: string; city: string } = { road: 'дорога', settlement: 'поселение', city: 'город' };
 const shortName = (k: keyof typeof pieceNames) => pieceNames[k];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-export function setPieceNames(p: { road: string; settlement: string; city: string }) {
-  pieceNames = p;
+/** Названия построек эпохи — только для рассказчика; в кнопках всегда короткие «Дорога/Поселение/Город». */
+export function setPieceNames(_p: { road: string; settlement: string; city: string }) {
+  /* намеренно пусто */
 }
 
 function computeTargets(pub: PublicState, me: PlayerId, myTurn: boolean, mode: BuildMode | null): Targets | null {
@@ -836,7 +846,7 @@ function computeTargets(pub: PublicState, me: PlayerId, myTurn: boolean, mode: B
         return {
           kind: 'edge',
           ids: legalRoadEdges(pub, me, pub.setup.lastVertex),
-          hint: `Поставь ${shortName('road')} к своему поселению`,
+          hint: 'Поставь дорогу к своему поселению',
           confirm: 'Поставить сюда?',
           action: (edge) => ({ type: 'buildRoad', edge }),
         };
@@ -860,7 +870,7 @@ function computeTargets(pub: PublicState, me: PlayerId, myTurn: boolean, mode: B
       return {
         kind: 'hex',
         ids: pub.board.hexes.filter((h) => h.id !== pub.robberHex).map((h) => h.id),
-        hint: 'Куда переставить разбойника?',
+        hint: `Куда отправить: ${ROBBER.name}?`,
         confirm: 'Сюда?',
         action: (hex, victim) => ({ type: 'moveRobber', hex, ...(victim ? { victim } : {}) }),
       };
@@ -1054,22 +1064,23 @@ function PlanSheet({
   onPick: (k: PlanPick) => void;
 }) {
   const [adding, setAdding] = useState<null | 'bank' | 'offer'>(null);
-  const [give, setGive] = useState<Resource>();
+  const [give, setGive] = useState<Resource | null>(null);
   const [offerGive, setOfferGive] = useState<ResourceMap>(emptyResources());
   const [offerWant, setOfferWant] = useState<ResourceMap>(emptyResources());
 
   if (adding === 'bank') {
     return (
       <div className="stack">
-        <div className="label">Отдаю банку ({give ? `${priv.tradeRatios[give]}:1` : 'выбери'})</div>
-        <ResourcePicker onPick={setGive} />
+        <HandMini hand={priv.resources} />
+        <div className="label">Отдаю банку</div>
+        <ResourcePicker selected={give} sub={(r) => `${priv.tradeRatios[r]}:1`} onPick={setGive} />
         <div className="label">Получаю</div>
         <ResourcePicker
           disabled={(r) => !give || r === give}
           onPick={(r) => {
             setPlan([...plan, { id: newStepId(), kind: 'bank', give: give!, receive: r }]);
             setAdding(null);
-            setGive(undefined);
+            setGive(null);
           }}
         />
         <button className="btn ghost wide" onClick={() => setAdding(null)}>
@@ -1082,78 +1093,131 @@ function PlanSheet({
     const ok = sum(offerGive) > 0 && sum(offerWant) > 0;
     return (
       <div className="stack">
-        <div className="label">Отдаю</div>
-        <ResourceStepper value={offerGive} onChange={setOfferGive} />
-        <div className="label">Хочу</div>
-        <ResourceStepper value={offerWant} onChange={setOfferWant} />
-        <button
-          className="btn primary wide"
-          disabled={!ok}
-          onClick={() => {
-            setPlan([...plan, { id: newStepId(), kind: 'offer', give: offerGive, want: offerWant }]);
-            setAdding(null);
-            setOfferGive(emptyResources());
-            setOfferWant(emptyResources());
+        <TradeGrid
+          give={offerGive}
+          want={offerWant}
+          hand={priv.resources}
+          onChange={(g, w) => {
+            setOfferGive(g);
+            setOfferWant(w);
           }}
-        >
-          Добавить в план
-        </button>
-        <button className="btn ghost wide" onClick={() => setAdding(null)}>
-          Назад
-        </button>
+        />
+        <div className="row">
+          <button className="btn ghost grow" onClick={() => setAdding(null)}>
+            Назад
+          </button>
+          <button
+            className="btn primary grow"
+            disabled={!ok}
+            onClick={() => {
+              setPlan([...plan, { id: newStepId(), kind: 'offer', give: offerGive, want: offerWant }]);
+              setAdding(null);
+              setOfferGive(emptyResources());
+              setOfferWant(emptyResources());
+            }}
+          >
+            В план
+          </button>
+        </div>
       </div>
     );
   }
 
+  const ready = checked.filter((c) => c.status === 'ready').length;
+  const missing: Partial<ResourceMap> = {};
+  for (const c of checked) if (c.status === 'short' && c.missing) for (const r of RESOURCES) missing[r] = (missing[r] ?? 0) + (c.missing[r] ?? 0);
+  const points = plan.filter((s) => s.kind === 'settlement' || s.kind === 'city').length;
+  const brokenN = checked.filter((c) => c.status === 'broken').length;
+
   return (
     <div className="stack">
-      {hints.map((h) => (
-        <div key={h} className="hint-card">
-          <Icon name="bulb" size={18} /> {h}
+      {checked.length > 0 ? (
+        <div className={`plan-sum ${brokenN ? 'bad' : ready === checked.length ? 'good' : ''}`}>
+          <div className="ps-main">
+            <b>
+              Готово {ready} из {checked.length}
+            </b>
+            {points > 0 && <span className="ps-vp">+{points} очк.</span>}
+          </div>
+          {brokenN > 0 && <div className="ps-line">Сломалось шагов: {brokenN} — кто-то занял место. Убери или замени.</div>}
+          {Object.keys(missing).length > 0 && (
+            <div className="ps-line">
+              Не хватает: <ResChips value={missing} />
+            </div>
+          )}
         </div>
-      ))}
-      {checked.length === 0 ? (
-        <p className="muted">План пуст. Добавь шаги — в свой ход выполнишь их одной кнопкой.</p>
       ) : (
-        <ol className="list plan-list">
+        <p className="muted small">Собери ходы заранее, пока ходят другие. План перепроверяется после каждого чужого хода, а в свой ход выполняется одной кнопкой.</p>
+      )}
+
+      {checked.length > 0 && (
+        <ol className="plan-steps">
           {checked.map((c, i) => (
-            <li key={c.step.id} className={`item ${c.status === 'ready' ? 'ok' : c.status === 'short' ? 'warn' : 'broken'}`}>
-              <span className="plan-n">{i + 1}</span>
-              <Icon name={STEP_ICON[c.step.kind]} />
-              <div className="grow">
-                <div className="t">{STEP_LABEL[c.step.kind]}</div>
-                <div className="s">{stepText(c)}</div>
+            <li key={c.step.id} className={`pstep ${c.status}`}>
+              <span className="pstep-ic">
+                <Icon name={STEP_ICON[c.step.kind]} size={20} />
+                <i>{i + 1}</i>
+              </span>
+              <div className="pstep-body">
+                <b>{STEP_LABEL[c.step.kind]}</b>
+                <span className="pstep-st">
+                  {c.status === 'ready' && (c.step.kind === 'bank' || c.step.kind === 'offer' ? <StepTerms step={c.step} /> : 'готово')}
+                  {c.status === 'short' && (
+                    <>
+                      не хватает <ResChips value={c.missing ?? {}} />
+                    </>
+                  )}
+                  {c.status === 'broken' && (c.reason ?? 'место занято')}
+                </span>
               </div>
-              <button className="btn ghost icon" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(move(plan, i, i - 1))}>
-                ↑
-              </button>
-              <button className="btn ghost icon" aria-label="Убрать" onClick={() => setPlan(plan.filter((s) => s.id !== c.step.id))}>
-                <Icon name="close" size={16} />
-              </button>
+              <div className="pstep-ctl">
+                <button className="btn ghost icon" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(move(plan, i, i - 1))}>
+                  <Icon name="up" size={16} />
+                </button>
+                <button className="btn ghost icon" aria-label="Убрать" onClick={() => setPlan(plan.filter((s) => s.id !== c.step.id))}>
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
             </li>
           ))}
         </ol>
       )}
+
+      <div className="label">Добавить шаг</div>
       <div className="plan-add">
-        <button className="btn" onClick={() => onPick('road')}>
-          <Icon name="road" /> Дорога
+        <button className="act" onClick={() => onPick('road')}>
+          <span className="act-top"><Icon name="road" size={18} /> Дорога</span>
+          <Cost cost={COSTS.road} />
         </button>
-        <button className="btn" onClick={() => onPick('settlement')}>
-          <Icon name="house" /> Поселение
+        <button className="act" onClick={() => onPick('settlement')}>
+          <span className="act-top"><Icon name="house" size={18} /> Поселение</span>
+          <Cost cost={COSTS.settlement} />
         </button>
-        <button className="btn" onClick={() => onPick('city')}>
-          <Icon name="castle" /> Город
+        <button className="act" onClick={() => onPick('city')}>
+          <span className="act-top"><Icon name="castle" size={18} /> Город</span>
+          <Cost cost={COSTS.city} />
         </button>
-        <button className="btn" disabled={pub.devDeckCount <= 0} onClick={() => setPlan([...plan, { id: newStepId(), kind: 'devCard' }])}>
-          <Icon name="cards" /> Карта
+        <button className="act" disabled={pub.devDeckCount <= 0} onClick={() => setPlan([...plan, { id: newStepId(), kind: 'devCard' }])}>
+          <span className="act-top"><Icon name="cards" size={18} /> Карта</span>
+          <Cost cost={COSTS.devCard} />
         </button>
-        <button className="btn" onClick={() => setAdding('bank')}>
-          <Icon name="bank" /> Банк
+        <button className="act" onClick={() => setAdding('bank')}>
+          <span className="act-top"><Icon name="bank" size={18} /> Банк</span>
+          <small className="faint">курс {Math.min(...RESOURCES.map((r) => priv.tradeRatios[r]))}:1</small>
         </button>
-        <button className="btn" onClick={() => setAdding('offer')}>
-          <Icon name="trade" /> Обмен
+        <button className="act" onClick={() => setAdding('offer')}>
+          <span className="act-top"><Icon name="trade" size={18} /> Обмен</span>
+          <small className="faint">игрокам</small>
         </button>
       </div>
+
+      {hints.length > 0 && (
+        <div className="hint-card">
+          <Icon name="bulb" size={18} />
+          <span>{hints.join(' · ')}</span>
+        </div>
+      )}
+
       {checked.length > 0 && (
         <div className="row">
           <button className="btn ghost grow" onClick={() => setPlan([])}>
@@ -1167,6 +1231,25 @@ function PlanSheet({
       {!canRun && checked.length > 0 && <p className="faint small center">Выполнить можно в свой ход после броска</p>}
     </div>
   );
+}
+
+function StepTerms({ step }: { step: PlanStep }) {
+  if (step.kind === 'bank') {
+    const g: Partial<ResourceMap> = { [step.give]: 1 };
+    const w: Partial<ResourceMap> = { [step.receive]: 1 };
+    return (
+      <span className="counter-line">
+        <ResChips value={g} /> → <ResChips value={w} />
+      </span>
+    );
+  }
+  if (step.kind === 'offer')
+    return (
+      <span className="counter-line">
+        <ResChips value={step.give} /> → <ResChips value={step.want} />
+      </span>
+    );
+  return null;
 }
 
 function move<T>(a: T[], from: number, to: number): T[] {
@@ -1188,7 +1271,7 @@ function Costs() {
       {rows.map(([n, c]) => (
         <div key={n} className="item">
           <span className="grow t">{n}</span>
-          <span>{resourcesText(c)}</span>
+          <Cost cost={c} />
         </div>
       ))}
     </div>

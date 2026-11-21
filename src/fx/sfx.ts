@@ -1,3 +1,4 @@
+import { tgHaptic } from '../app/tg';
 // Synthesized sound kit (Web Audio, no files) + haptics.
 import { useSyncExternalStore } from 'react';
 
@@ -355,6 +356,8 @@ const PATTERNS: Record<string, number | number[]> = {
 
 export function haptic(pattern: HapticPattern = 'tap'): void {
   try {
+    const kind = typeof pattern === 'string' ? pattern : 'heavy';
+    if ((kind === 'tap' || kind === 'success' || kind === 'error' || kind === 'heavy') && tgHaptic(kind)) return;
     if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
     navigator.vibrate(typeof pattern === 'string' ? PATTERNS[pattern] ?? 8 : pattern);
   } catch { /* unsupported */ }

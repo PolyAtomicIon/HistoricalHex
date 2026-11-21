@@ -8,9 +8,13 @@ import { join } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { ClientMsg, ServerMsg } from '../src/proto';
 import { DEFAULT_SETTINGS } from '../src/proto';
-import { cryptoRng } from '../src/engine';
+import { cryptoRng, victoryPoints } from '../src/engine';
 import type { Client, SavedRoom } from './room';
 import { Room } from './room';
+import { leaderboard, openAccounts, profileOf, recordGame, renameProfile, signInTelegram, verifyMiniApp, verifyWidget, view } from './accounts';
+
+const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
+const TG_BOT = process.env.TG_BOT_NAME ?? '';
 
 const PORT = Number(process.env.PORT ?? 8790);
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -50,6 +54,25 @@ function drop(pin: string): void {
   rmSync(join(DATA_DIR, `${pin}.json`), { force: true });
 }
 
+void openAccounts(join(DATA_DIR, 'hh.sqlite')).then((kind) => console.log(`accounts: ${kind}`));
+Room.onFinished = (room) => {
+  try {
+    const st = room.state!;
+    recordGame({
+      id: `${room.pin}-${room.created}`,
+      era: room.settings.lore,
+      finishedAt: Date.now(),
+      players: st.order.map((pid) => {
+        const seat = room.seats.get(pid);
+        const pl = st.players[pid];
+        return { pid, name: pl.name, bot: seat?.bot, vp: victoryPoints(st, pid), winner: st.winner === pid };
+      }),
+    });
+  } catch (e) {
+    console.error('recordGame failed', e);
+  }
+};
+
 // Восстановить комнаты после перезапуска
 for (const f of readdirSync(DATA_DIR)) {
   if (!/^\d{6}\.json$/.test(f)) continue;
@@ -78,6 +101,11 @@ function newPin(): string {
 }
 
 const http = createServer((req, res) => {
+  if (req.url?.endsWith('/api/leaderboard')) {
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'max-age=30' });
+    res.end(JSON.stringify(leaderboard(50)));
+    return;
+  }
   if (req.url?.endsWith('/health')) {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
@@ -133,6 +161,25 @@ wss.on('connection', (ws: WebSocket) => {
     if (!me) throw new Error('Сначала hello');
 
     switch (msg.t) {
+      case 'profile':
+        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+      case 'rename': {
+        if (typeof msg.name !== 'string') throw new Error('Плохое имя');
+        renameProfile(me, msg.name);
+        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+      }
+      case 'tgAuth': {
+        if (!TG_TOKEN) throw new Error('Вход через Telegram ещё не настроен');
+        const u =
+          typeof msg.initData === 'string'
+            ? verifyMiniApp(msg.initData, TG_TOKEN)
+            : msg.widget && typeof msg.widget === 'object'
+              ? verifyWidget(msg.widget, TG_TOKEN)
+              : null;
+        if (!u || typeof u.id !== 'number') throw new Error('Telegram не подтвердил вход');
+        signInTelegram(me, u);
+        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined });
+      }
       case 'create': {
         if (++created > CREATE_LIMIT) throw new Error('Слишком много новых комнат — подожди');
         if (rooms.size >= MAX_ROOMS) throw new Error('Сервер переполнен, попробуй позже');

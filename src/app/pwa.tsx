@@ -1,0 +1,71 @@
+// PWA: регистрация service worker (только в проде) и кнопка «Установить» на главной.
+
+import { useEffect, useState } from 'react';
+import { Icon } from './icons';
+import { Sheet } from './Sheet';
+import { inTelegram } from './tg';
+
+type BIP = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
+let deferred: BIP | undefined;
+const subs = new Set<() => void>();
+
+export function registerPwa(): void {
+  if (typeof window === 'undefined') return;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e as BIP;
+    subs.forEach((f) => f());
+  });
+  if (import.meta.env.PROD && 'serviceWorker' in navigator && !inTelegram()) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL }).catch(() => undefined);
+    });
+  }
+}
+
+const standalone = () =>
+  window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+export function InstallButton() {
+  const [, force] = useState(0);
+  const [iosHelp, setIosHelp] = useState(false);
+  useEffect(() => {
+    const f = () => force((x) => x + 1);
+    subs.add(f);
+    return () => void subs.delete(f);
+  }, []);
+  if (standalone() || inTelegram()) return null;
+  if (!deferred && !isIos()) return null;
+  return (
+    <>
+      <button
+        className="btn glass install-btn"
+        onClick={async () => {
+          if (deferred) {
+            await deferred.prompt();
+            deferred = undefined;
+            force((x) => x + 1);
+          } else setIosHelp(true);
+        }}
+      >
+        <Icon name="up" size={18} /> Установить
+      </button>
+      <Sheet open={iosHelp} onClose={() => setIosHelp(false)} title="Игра на экране «Домой»">
+        <ol className="stack install-steps">
+          <li>Нажми «Поделиться» внизу Safari (квадрат со стрелкой).</li>
+          <li>Выбери «На экран „Домой“».</li>
+          <li>Готово — HistoricalHex откроется на весь экран, как приложение.</li>
+        </ol>
+      </Sheet>
+    </>
+  );
+}
+
+/** Убрать заставку из index.html. */
+export function hideSplash(): void {
+  const el = document.getElementById('splash');
+  if (!el) return;
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 500);
+}

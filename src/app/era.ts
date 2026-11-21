@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { DEV_CARD_TYPES, RESOURCES } from '../engine';
 import type { LorePack } from '../lore/types';
 import { getLorePack } from '../lore';
-import { DEV_CARD_NAME, RESOURCE_NAME, TERRAIN_NAME } from '../i18n/ru';
+import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, TERRAIN_NAME } from '../i18n/ru';
 import { RESOURCE_ICON } from '../ui/theme';
 
 const BASE = {
@@ -22,6 +22,7 @@ export function applyEra(pack: LorePack | undefined): void {
   if (applied === (pack?.id ?? '')) return;
   applied = pack?.id ?? '';
   if (pack) currentEra = pack.id;
+  ROBBER.name = pack ? pack.robber.name : 'Разбойник';
   for (const r of RESOURCES) {
     RESOURCE_NAME[r] = pack ? pack.resources[r].name.toLowerCase() : BASE.res[r];
     RESOURCE_ICON[r] = pack ? pack.resources[r].emoji : BASE.icon[r];

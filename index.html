@@ -17,6 +17,32 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Unbounded:wght@600;800&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <div id="splash" aria-hidden="true">
+      <style>
+        #splash{position:fixed;inset:0;z-index:999;display:grid;place-items:center;background:radial-gradient(120% 80% at 50% 40%,#123247 0%,#07131d 70%);transition:opacity .45s ease}
+        #splash.out{opacity:0;pointer-events:none}
+        #splash .sp{display:flex;flex-direction:column;align-items:center;gap:18px}
+        #splash svg{width:96px;height:96px;overflow:visible}
+        #splash .e{fill:none;stroke-width:7;stroke-linecap:round;stroke-dasharray:60;stroke-dashoffset:60;animation:sp-draw 1.6s cubic-bezier(.6,0,.2,1) infinite}
+        #splash .e:nth-child(2){animation-delay:.1s}#splash .e:nth-child(3){animation-delay:.2s}#splash .e:nth-child(4){animation-delay:.3s}#splash .e:nth-child(5){animation-delay:.4s}#splash .e:nth-child(6){animation-delay:.5s}
+        #splash .t{font:800 22px/1 Unbounded,Manrope,system-ui,sans-serif;letter-spacing:-.02em;color:#f6f3ec;opacity:.92}
+        #splash .s{font:600 13px/1.2 Manrope,system-ui,sans-serif;color:rgba(246,243,236,.55)}
+        @keyframes sp-draw{0%{stroke-dashoffset:60;opacity:1}45%,70%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:-60;opacity:.2}}
+        @media (prefers-reduced-motion:reduce){#splash .e{animation:none;stroke-dashoffset:0}}
+      </style>
+      <div class="sp">
+        <svg viewBox="-50 -50 100 100">
+          <path class="e" stroke="#c8643c" d="M0,-44 L38,-22" />
+          <path class="e" stroke="#3f8c4a" d="M38,-22 L38,22" />
+          <path class="e" stroke="#9fd06a" d="M38,22 L0,44" />
+          <path class="e" stroke="#e8c14d" d="M0,44 L-38,22" />
+          <path class="e" stroke="#8d98ad" d="M-38,22 L-38,-22" />
+          <path class="e" stroke="#f2b544" d="M-38,-22 L0,-44" />
+        </svg>
+        <div class="t">HistoricalHex</div>
+        <div class="s">Собираем эпоху…</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main/main.tsx"></script>
   </body>

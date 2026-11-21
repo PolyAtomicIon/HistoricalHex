@@ -61,6 +61,8 @@ function fixedDiceRng(d: [number, number]): Rng {
 }
 
 export class Room {
+  /** Вызывается один раз, когда партия закончилась (запись статистики). */
+  static onFinished?: (room: Room) => void;
   readonly pin: string;
   hostId: PlayerId;
   created: number;
@@ -382,6 +384,10 @@ export class Room {
 
   private commit(state: GameState, events: GameEvent[]): void {
     this.state = state;
+    if (state.phase === 'finished' && this.status !== 'finished') {
+      this.status = 'finished';
+      Room.onFinished?.(this);
+    }
     if (state.phase === 'finished') this.status = 'finished';
     const now = Date.now();
     const next = new Map<PlayerId, number>();

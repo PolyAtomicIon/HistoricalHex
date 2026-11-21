@@ -5,7 +5,11 @@ import { LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
 import { applyEra, eraCover, eraIcon } from './era';
 import { EraCarousel } from './EraCarousel';
-import { ArtIcon } from './icons';
+import { ArtIcon, Icon } from './icons';
+import { Sheet } from './Sheet';
+import { ProfileView } from './Profile';
+import { tgStartPin } from './tg';
+import { InstallButton } from './pwa';
 import { haptic, sfx } from '../fx';
 
 export const NAME_KEY = 'hh.name';
@@ -27,9 +31,11 @@ export function saveName(n: string): void {
 export function Home({ initialPin }: { initialPin?: string }) {
   const { status, fatal } = useConn();
   const [era, setEra] = useState(LORE_PACKS[0].id);
-  const [pin, setPin] = useState(initialPin ?? '');
+  const startPin = initialPin ?? tgStartPin();
+  const [pin, setPin] = useState(startPin ?? '');
+  const [profileOpen, setProfileOpen] = useState(false);
   const [name, setName] = useState(savedName());
-  const [mode, setMode] = useState<'home' | 'join'>(initialPin ? 'join' : 'home');
+  const [mode, setMode] = useState<'home' | 'join'>(startPin ? 'join' : 'home');
   const [creating, setCreating] = useState(false);
   const pack = LORE_PACKS.find((p) => p.id === era)!;
   applyEra(pack);
@@ -46,6 +52,15 @@ export function Home({ initialPin }: { initialPin?: string }) {
     <main className="screen home">
       <div className="ambient" aria-hidden />
       <div key={era} className="hero-bg" style={{ backgroundImage: `url(${eraCover(era)})` }} aria-hidden />
+      <div className="home-top">
+        <InstallButton />
+        <button className="fab glass" onClick={() => setProfileOpen(true)} aria-label="Профиль">
+          <Icon name="crown" />
+        </button>
+      </div>
+      <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="Профиль">
+        <ProfileView />
+      </Sheet>
       <div className="center-col">
         <header className="brand">
           <ArtIcon key={pack.id} className="brand-mark" src={eraIcon(pack.id, 'emblem')} size={72} fallback={<span className="brand-mark" />} />

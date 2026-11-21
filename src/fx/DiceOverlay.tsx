@@ -109,7 +109,8 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
         anims.current.push(
           wrap.animate(
             [
-              { transform: `translate3d(${dir * 30}vw, 75vh, 0) scale(.55)`, opacity: 0, offset: 0 },
+              { transform: `translate3d(${dir * 22}vw, 20vh, 0) scale(.7)`, opacity: 0, offset: 0 },
+              { transform: `translate3d(${dir * 18}vw, 16vh, 0) scale(.74)`, opacity: 1, offset: 0.06 },
               { transform: `translate3d(0, 0, 0) scale(1.08)`, opacity: 1, offset: 0.52, easing: D },
               { transform: `translate3d(0, -34px, 0) scale(1)`, offset: 0.68, easing: 'cubic-bezier(.5,0,.9,.6)' },
               { transform: 'translate3d(0, 0, 0) scale(1)', offset: 0.8, easing: D },

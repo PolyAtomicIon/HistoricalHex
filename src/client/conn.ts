@@ -1,8 +1,9 @@
 // Связь с сервером: WebSocket с переподключением, состояние комнаты и события для анимаций.
 
 import { useSyncExternalStore } from 'react';
+import { tgInitData } from '../app/tg';
 import type { Action, GameEvent, HostAction, PlayerId } from '../engine';
-import type { ClientMsg, DiceSource, RoomSettings, RoomView, ServerMsg } from '../proto';
+import type { ClientMsg, DiceSource, LeaderRow, ProfileView, RoomSettings, RoomView, ServerMsg } from '../proto';
 
 const SECRET_KEY = 'hh.secret';
 const PIN_KEY = 'hh.pin';
@@ -54,6 +55,8 @@ export interface ConnState {
   notice?: { text: string; key: number };
   /** Разница часов сервера и устройства. */
   clockSkew: number;
+  /** Профиль, рейтинг (приходит по запросу 'profile'). */
+  profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string };
 }
 
 export type EventListener = (events: GameEvent[], source?: DiceSource) => void;
@@ -108,8 +111,14 @@ class Connection {
 
   private onMessage(m: ServerMsg): void {
     switch (m.t) {
-      case 'welcome':
+      case 'welcome': {
+        // Внутри Telegram Mini App — входим автоматически
+        const init = tgInitData();
+        if (init) this.ws?.send(JSON.stringify({ t: 'tgAuth', initData: init } satisfies ClientMsg));
         return this.patch({ me: m.me });
+      }
+      case 'profile':
+        return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot } });
       case 'created':
         safeSet(PIN_KEY, m.pin);
         this.resume = { t: 'open', pin: m.pin };

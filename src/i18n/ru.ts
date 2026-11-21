@@ -1,3 +1,6 @@
+/** Название разбойника текущей эпохи (подменяется в applyEra). */
+export const ROBBER = { name: 'Разбойник' };
+
 // Все тексты интерфейса на русском.
 
 import type { BotLevel, DevCardType, GameEvent, PlayerColor, PlayerId, PublicState, Resource, ResourceMap, Terrain } from '../engine';
@@ -78,7 +81,7 @@ export function phaseText(pub: PublicState): string {
       return `Сбрасывают карты: ${who.join(', ')}`;
     }
     case 'moveRobber':
-      return `${current} переставляет разбойника`;
+      return `${current} выбирает цель: ${ROBBER.name}`;
     case 'main':
       return `${current}: торговля и стройка`;
     case 'roadBuilding':
@@ -98,7 +101,7 @@ export function myPhaseText(pub: PublicState): string {
     case 'discard':
       return 'Ждём сброса карт';
     case 'moveRobber':
-      return 'Переставь разбойника';
+      return `Выбери цель: ${ROBBER.name}`;
     case 'main':
       return 'Торгуй и строй';
     case 'roadBuilding':
@@ -134,7 +137,7 @@ export function eventText(e: GameEvent, name: Names): string | null {
     case 'discarded':
       return `${name(e.player)} сбрасывает ${cards(e.count ?? 0)}${e.forced ? ' (за него сбросил хост)' : ''}`;
     case 'robberMoved':
-      return `${name(e.player)} переставляет разбойника`;
+      return `${name(e.player)}: ${ROBBER.name} — новая цель`;
     case 'stole':
       return `${name(e.thief)} крадёт карту у ${name(e.victim)}`;
     case 'devCardBought':

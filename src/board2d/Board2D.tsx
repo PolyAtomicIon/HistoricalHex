@@ -135,8 +135,47 @@ export function Board2D(props: Board2DProps) {
 
   const interactive = hl.vertices.length + hl.edges.length + hl.hexes.length > 0;
 
+  // Автозум к месту, где можно ставить (например, дорога — рядом со своими постройками)
+  const hlKey = [...hl.vertices, ...hl.edges].join(',');
+  const autoZoomed = useRef(false);
+  useEffect(() => {
+    if (props.static) return;
+    const el = pz.ref.current;
+    if (!el) return;
+    if (!hlKey) {
+      if (autoZoomed.current) pz.reset();
+      autoZoomed.current = false;
+      return;
+    }
+    const box = el.getBoundingClientRect();
+    let r: { left: number; top: number; right: number; bottom: number } | undefined;
+    el.querySelectorAll('.vertex-target .vis, .edge-target .vis').forEach((n) => {
+      const b = n.getBoundingClientRect();
+      const q = { left: b.left - box.left, top: b.top - box.top, right: b.right - box.left, bottom: b.bottom - box.top };
+      r = r ? { left: Math.min(r.left, q.left), top: Math.min(r.top, q.top), right: Math.max(r.right, q.right), bottom: Math.max(r.bottom, q.bottom) } : q;
+    });
+    if (r) {
+      pz.fitTo(r, 1.9);
+      autoZoomed.current = true;
+    }
+  }, [hlKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Тап мимо цели — берём ближайшую в радиусе 36 px (пальцу не нужно попадать точно)
+  const onSnap = (e: React.MouseEvent) => {
+    if (!interactive) return;
+    const tgt = e.target as Element;
+    if (tgt.closest('.vertex-target, .edge-target, .hex-target')) return;
+    let best: { el: Element; d: number } | undefined;
+    pz.ref.current?.querySelectorAll('.vertex-target .vis, .edge-target .vis').forEach((n) => {
+      const b = n.getBoundingClientRect();
+      const d = Math.hypot(b.left + b.width / 2 - e.clientX, b.top + b.height / 2 - e.clientY);
+      if (!best || d < best.d) best = { el: n.parentElement!, d };
+    });
+    if (best && best.d < 36) best.el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  };
+
   return (
-    <div className={`b2d ${props.className ?? ''} ${interactive ? 'picking' : ''}`} ref={pz.ref} {...pz.handlers}>
+    <div className={`b2d ${props.className ?? ''} ${interactive ? 'picking' : ''}`} ref={pz.ref} {...pz.handlers} onClick={onSnap}>
       <div className="b2d-sea" aria-hidden />
       <div className="b2d-inner" ref={pz.inner}>
         <svg key={`s${shaking}`} className={`b2d-svg ${shaking ? 'shake' : ''}`} viewBox={geo.viewBox} role="img" aria-label="Карта острова">
@@ -208,6 +247,8 @@ export function Board2D(props: Board2DProps) {
               );
             })}
           </g>
+
+          {interactive && <rect className="b2d-dim" x="-5000" y="-5000" width="10000" height="10000" />}
 
           {/* Жетоны с числами */}
           <g className="b2d-tokens">
@@ -322,10 +363,10 @@ export function Board2D(props: Board2DProps) {
             return (
               <g className="b2d-robber" style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
                 <g key={view.robberHex} className="rb-land">
-                  <circle className="rb-ring" r={S * 0.5} />
-                  <ellipse className="rb-shadow" cx={0} cy={S * 0.2} rx={S * 0.36} ry={S * 0.1} />
+                  <ellipse className="rb-shadow" cx={0} cy={S * 0.08} rx={S * 0.46} ry={S * 0.46} />
+                  <circle className="rb-ring" r={S * 0.46} />
                   <g className="rb-bob">
-                    <image href={robberSrc} x={-S * 0.55} y={-S * 0.68} width={S * 1.1} height={S * 1.1} />
+                    <image href={robberSrc} x={-S * 0.45} y={-S * 0.5} width={S * 0.9} height={S * 0.9} />
                   </g>
                 </g>
               </g>

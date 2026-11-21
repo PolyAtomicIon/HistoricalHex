@@ -83,7 +83,7 @@
   stroke-linejoin: round;
 }
 .b2d .tile-dim {
-  fill: rgba(8, 10, 22, 0.5);
+  fill: rgba(8, 10, 22, 0.32);
 }
 .b2d .tile-flash {
   fill: #fff6cc;
@@ -331,8 +331,9 @@
 }
 
 /* Пока выбираешь место — карта чуть темнее, цели ярче */
-.b2d.picking .b2d-tiles {
-  filter: saturate(0.85) brightness(0.88);
+.b2d-dim {
+  fill: rgba(5, 10, 20, 0.18);
+  pointer-events: none;
 }
 
 .b2d-reset {
@@ -354,9 +355,7 @@ html.lite .b2d-sea,
 html.lite .b2d-coast .foam {
   animation: none;
 }
-html.lite .b2d.picking .b2d-tiles {
-  filter: none;
-}
+
 html.lite .b2d .rb-bob,
 html.lite .b2d .vertex-target .vis,
 html.lite .b2d .edge-target .vis,
@@ -371,10 +370,10 @@ html.lite .b2d .hex-target {
   }
 }
 .b2d .rb-ring {
-  fill: rgba(120, 10, 10, 0.28);
+  fill: rgba(255, 244, 228, 0.92);
   stroke: #ff453a;
-  stroke-width: 4;
-  stroke-dasharray: 10 8;
+  stroke-width: 6;
+  stroke-dasharray: 14 7;
   transform-box: fill-box;
   transform-origin: center;
   animation: b2d-spin 14s linear infinite;

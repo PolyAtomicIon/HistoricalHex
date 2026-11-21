@@ -84,7 +84,38 @@ export type ClientMsg =
   | { t: 'host'; id: string; action: HostAction }
   | { t: 'react'; emoji: string }
   | { t: 'close' }
+  /** Профиль и рейтинг. */
+  | { t: 'profile' }
+  /** Вход через Telegram: initData из Mini App или данные Login Widget. */
+  | { t: 'tgAuth'; initData?: string; widget?: Record<string, string | number> }
+  | { t: 'rename'; name: string }
   | { t: 'ping' };
+
+export interface ProfileView {
+  id: string;
+  name: string;
+  username?: string;
+  photo?: string;
+  telegram: boolean;
+  rating: number;
+  games: number;
+  wins: number;
+  /** Дней подряд с партией (по Алматы). */
+  streak: number;
+  streakBest: number;
+  playedToday: boolean;
+  eras: Record<string, { games: number; wins: number }>;
+}
+
+export interface LeaderRow {
+  place: number;
+  id: string;
+  name: string;
+  rating: number;
+  games: number;
+  wins: number;
+  photo?: string;
+}
 
 export type ServerMsg =
   | { t: 'welcome'; me: PlayerId }
@@ -94,6 +125,7 @@ export type ServerMsg =
   | { t: 'result'; id: string; ok: boolean; error?: string }
   | { t: 'react'; from: PlayerId; emoji: string; at: number }
   | { t: 'error'; message: string; fatal?: boolean }
-  | { t: 'pong'; now: number };
+  | { t: 'pong'; now: number }
+  | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string };
 
 export const REACTIONS = ['👍', '😂', '😱', '🔥', '😤', '🤝', '👀', '🙏', '💀', '🎉'] as const;

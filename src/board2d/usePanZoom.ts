@@ -170,11 +170,32 @@ export function usePanZoom(enabled: boolean) {
 
   const reset = () => animateTo(1, 0, 0);
 
+  /** Приблизить так, чтобы прямоугольник (в координатах обёртки при текущем зуме) занял экран. */
+  const fitTo = (r: { left: number; top: number; right: number; bottom: number }, maxScale = 2) => {
+    const el = ref.current;
+    if (!el) return;
+    const { s, x, y } = t.current;
+    // в «нулевые» координаты (без текущего зума)
+    const x0 = (r.left - x) / s;
+    const y0 = (r.top - y) / s;
+    const x1 = (r.right - x) / s;
+    const y1 = (r.bottom - y) / s;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    const pad = 70;
+    const k = Math.max(1, Math.min(maxScale, (w - pad) / Math.max(1, x1 - x0), (h * 0.55) / Math.max(1, y1 - y0)));
+    if (k < 1.15) return animateTo(1, 0, 0);
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    animateTo(k, w / 2 - cx * k, h * 0.45 - cy * k);
+  };
+
   return {
     ref,
     inner,
     zoomed,
     reset,
+    fitTo,
     handlers: enabled
       ? { onPointerDown, onPointerMove, onPointerUp: end, onPointerCancel: end, onPointerLeave: end, onClickCapture }
       : {},

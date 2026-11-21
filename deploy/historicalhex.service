@@ -8,6 +8,9 @@ User=www-data
 Environment=PORT=8790
 Environment=HOST=127.0.0.1
 Environment=DATA_DIR=/var/lib/historicalhex
+# Секреты (TG_BOT_TOKEN, TG_BOT_NAME) — в этом файле на сервере, chmod 600; в репозиторий не попадают
+EnvironmentFile=-/etc/historicalhex.env
+Environment=NODE_NO_WARNINGS=1
 ExecStart=/usr/local/bin/node22 /opt/historicalhex/server.mjs
 Restart=always
 RestartSec=2

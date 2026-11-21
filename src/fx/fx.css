@@ -66,20 +66,21 @@ body.fx-shake > *:not([data-fx-portal]):not(script):not(style) {
 }
 .fx-dice-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(var(--die) * 0.35); transform: translateY(-4vh); }
 .fx-dice-row { display: flex; gap: calc(var(--die) * 0.45); perspective: 700px; padding: 0 20px; }
-.fx-die-wrap { position: relative; width: var(--die); height: var(--die); opacity: 0; will-change: transform, opacity; }
-.fx-die { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
+.fx-die-wrap { position: relative; width: var(--die); height: var(--die); opacity: 0; will-change: transform, opacity; perspective: 600px; }
+.fx-die { position: absolute; inset: 0; transform-style: preserve-3d; -webkit-transform-style: preserve-3d; }
 .fx-die-shadow {
   position: absolute; left: 8%; right: 8%; bottom: -18%; height: 22%; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
   transform: translateZ(-1px);
 }
 .fx-die-face {
-  position: absolute; inset: 0; border-radius: calc(var(--die) * 0.2);
+  position: absolute; inset: 0; border-radius: calc(var(--die) * 0.11);
   display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 15%;
   background:
     radial-gradient(120% 120% at 25% 18%, #ffffff 0%, #f4efe6 45%, #ddd5c6 100%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8), inset 0 -4px 8px rgba(120, 100, 70, 0.28), inset 0 3px 6px rgba(255, 255, 255, 0.9);
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 .fx-die-face span { display: block; place-self: center; width: 78%; aspect-ratio: 1; border-radius: 50%; }
 .fx-die-face span.fx-pip {

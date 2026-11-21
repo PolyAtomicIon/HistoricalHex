@@ -1,0 +1,67 @@
+import { createHash, createHmac } from 'node:crypto';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { leaderboard, profileOf, recordGame, signInTelegram, useMemoryAccounts, verifyMiniApp, verifyWidget, view } from '../server/accounts';
+
+const TOKEN = '123:abc';
+
+function miniApp(user: object, authDate = Math.floor(Date.now() / 1000)) {
+  const p = new URLSearchParams({ auth_date: String(authDate), query_id: 'q1', user: JSON.stringify(user) });
+  const dcs = [...p.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join('\n');
+  const secret = createHmac('sha256', 'WebAppData').update(TOKEN).digest();
+  p.set('hash', createHmac('sha256', secret).update(dcs).digest('hex'));
+  return p.toString();
+}
+
+describe('accounts', () => {
+  beforeEach(() => useMemoryAccounts());
+
+  it('проверяет подпись Mini App и отвергает подделку и старые данные', () => {
+    const data = miniApp({ id: 42, first_name: 'Бек' });
+    expect(verifyMiniApp(data, TOKEN)?.id).toBe(42);
+    expect(verifyMiniApp(data.replace('42', '43'), TOKEN)).toBeNull();
+    expect(verifyMiniApp(data, 'other')).toBeNull();
+    expect(verifyMiniApp(miniApp({ id: 1 }, Math.floor(Date.now() / 1000) - 2 * 86400), TOKEN)).toBeNull();
+  });
+
+  it('проверяет подпись Login Widget', () => {
+    const d: Record<string, string | number> = { id: 7, first_name: 'A', auth_date: Math.floor(Date.now() / 1000) };
+    const dcs = Object.keys(d).sort().map((k) => `${k}=${d[k]}`).join('\n');
+    const hash = createHmac('sha256', createHash('sha256').update(TOKEN).digest()).update(dcs).digest('hex');
+    expect(verifyWidget({ ...d, hash }, TOKEN)?.id).toBe(7);
+    expect(verifyWidget({ ...d, id: 8, hash }, TOKEN)).toBeNull();
+  });
+
+  it('записывает партию один раз: игры, победы, эпохи, серия, рейтинг', () => {
+    const g = {
+      id: 'g1',
+      era: 'ww2',
+      finishedAt: Date.now(),
+      players: [
+        { pid: 'pA', name: 'Аня', vp: 10, winner: true },
+        { pid: 'pB', name: 'Боря', vp: 7, winner: false },
+        { pid: 'pBot', name: 'Бот', bot: 'medium' as const, vp: 5, winner: false },
+      ],
+    };
+    recordGame(g);
+    recordGame(g);
+    const a = view(profileOf('pA'));
+    const b = view(profileOf('pB'));
+    expect(a.games).toBe(1);
+    expect(a.wins).toBe(1);
+    expect(a.eras.ww2).toEqual({ games: 1, wins: 1 });
+    expect(a.streak).toBe(1);
+    expect(a.rating).toBeGreaterThan(1000);
+    expect(b.rating).toBeLessThan(1000);
+    expect(leaderboard()[0].id).toBe('pA');
+  });
+
+  it('вход через Telegram переносит гостевой профиль и связывает второе устройство', () => {
+    recordGame({ id: 'g2', era: 'japan', finishedAt: Date.now(), players: [{ pid: 'dev1', name: 'Гость', vp: 10, winner: true }, { pid: 'b', name: 'Бот', bot: 'easy', vp: 3, winner: false }] });
+    signInTelegram('dev1', { id: 99, first_name: 'Бекзат' });
+    signInTelegram('dev2', { id: 99, first_name: 'Бекзат' });
+    const v = view(profileOf('dev2'));
+    expect(v.telegram).toBe(true);
+    expect(v.games).toBe(1);
+    expect(v.name).toBe('Бекзат');
+  });
+});
