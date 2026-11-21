@@ -202,3 +202,12 @@ if (typeof window !== 'undefined') {
     else if (on && wanted) void ctx.resume();
   });
 }
+
+/** Приглушить музыку эпохи на время сцены (налёт), потом мягко вернуть. */
+export function duckMusic(sec: number): void {
+  if (!ctx || !master || !on || !current) return;
+  fadeTo(0.08, 0.5);
+  setTimeout(() => {
+    if (on && current) fadeTo(0.55, 2);
+  }, sec * 1000);
+}

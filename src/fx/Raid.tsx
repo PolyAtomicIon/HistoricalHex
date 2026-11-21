@@ -3,6 +3,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { haptic, sfx } from './sfx';
+import { duckMusic } from './music';
 import { FxPortal, boardLocator, prefersReducedMotion } from './util';
 
 
@@ -35,33 +36,56 @@ export function Raid({ event, skipBomber }: { event: RaidEvent | null; skipBombe
     if (!event || prefersReducedMotion()) return;
     setShown(event);
     const st = styleOf(event);
-    switch (st) {
+    // В 3D самолёты/танки идут по длинному сценарию (7.5 / 6.8 с) — звук подстраивается под него
+    const long = !!skipBomber && !!event.target && (st === 'bomber' || st === 'tank');
+    const dur = long ? (st === 'bomber' ? 7500 : 6800) : DURATION[st];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const at = (ms: number, f: () => void) => timers.push(setTimeout(f, ms));
+    sfx.play('drama', { volume: long ? 1 : 0.7 });
+    duckMusic(dur / 1000 + 1);
+    if (long && st === 'bomber') {
+      sfx.play('siren');
+      at(2300, () => sfx.play('siren', { volume: 0.7 }));
+      at(900, () => sfx.play('plane', { volume: 1.2 }));
+      at(2200, () => sfx.play('plane', { volume: 1.4 }));
+      at(3500, () => sfx.play('plane', { volume: 1 }));
+      [3000, 3180, 3360, 3540].forEach((ms, i) => at(ms, () => sfx.play('bomb', { volume: 1 - i * 0.12 })));
+      at(3600, () => haptic('heavy'));
+      at(3950, () => haptic('heavy'));
+    } else if (long && st === 'tank') {
+      sfx.play('tank', { volume: 0.8 });
+      at(1500, () => sfx.play('tank', { volume: 0.9 }));
+      [3200, 3600, 4000, 4700, 5200].forEach((ms) => at(ms, () => {
+        sfx.play('cannon');
+        haptic('heavy');
+      }));
+    } else switch (st) {
       case 'archers':
         sfx.play('gallop');
-        setTimeout(() => sfx.play('arrows'), 850);
+        at(850, () => sfx.play('arrows'));
         break;
       case 'ninja':
         sfx.play('whoosh');
-        setTimeout(() => sfx.play('shuriken'), 600);
+        at(600, () => sfx.play('shuriken'));
         break;
       case 'samurai':
         sfx.play('attack');
         break;
       case 'bomber':
         sfx.play('siren');
-        setTimeout(() => sfx.play('plane', { volume: 1.3 }), 500);
-        setTimeout(() => sfx.play('plane', { volume: 1.1 }), 1500);
-        setTimeout(() => sfx.play('bomb'), 1950);
-        setTimeout(() => sfx.play('bomb', { volume: 0.8 }), 2250);
-        setTimeout(() => haptic('heavy'), 1600);
+        at(500, () => sfx.play('plane', { volume: 1.3 }));
+        at(1500, () => sfx.play('plane', { volume: 1.1 }));
+        at(1950, () => sfx.play('bomb'));
+        at(2250, () => sfx.play('bomb', { volume: 0.8 }));
+        at(1600, () => haptic('heavy'));
         break;
       case 'tank':
         sfx.play('tank');
-        setTimeout(() => haptic('heavy'), 1100);
+        at(1100, () => haptic('heavy'));
         break;
     }
-    const t = setTimeout(() => setShown((s) => (s?.key === event.key ? null : s)), DURATION[st] + 200);
-    return () => clearTimeout(t);
+    at(dur + 200, () => setShown((s) => (s?.key === event.key ? null : s)));
+    return () => timers.forEach(clearTimeout);
   }, [event?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!shown) return null;

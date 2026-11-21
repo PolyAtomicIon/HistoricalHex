@@ -489,7 +489,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
 
   const robberPos = useMemo<[number, number] | null>(() => {
     const p = world.hex.get(view.robberHex);
-    return p ? [p[0] - 0.44, p[1] + 0.2] : null;
+    return p ? [p[0], p[1]] : null;
   }, [world, view.robberHex]);
   const robberH = HEIGHT[tileMap.get(view.robberHex)?.terrain ?? 'desert'];
   // ВОВ: налёт — звено бомбардировщиков над картой; рыцарь — танковая колонна бьёт по лагерю
@@ -502,7 +502,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
     const ev = { key: raid.key, at: [p[0], HEIGHT[tileMap.get(raid.target)?.terrain ?? 'desert'], p[1]] as [number, number, number] };
     if (raid.kind === 'robber') setRaid3d(ev);
     else setTanks3d(ev);
-    const t = setTimeout(() => (raid.kind === 'robber' ? setRaid3d(null) : setTanks3d(null)), 5400);
+    const t = setTimeout(() => (raid.kind === 'robber' ? setRaid3d(null) : setTanks3d(null)), 8000);
     return () => clearTimeout(t);
   }, [raid?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -533,7 +533,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
 
       <Sea centers={centers} radius={world.radius} sunDir={sunDir} />
       <Tiles tiles={tiles} />
-      <Tokens tiles={tiles} numbers={numbers} />
+      <Tokens tiles={tiles} numbers={numbers} hide={view.robberHex} />
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
       <Roads roads={view.roads} colors={colors} ctx={ctx} />
       <Buildings buildings={view.buildings} colors={colors} ctx={ctx} />

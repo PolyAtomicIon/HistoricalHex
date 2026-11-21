@@ -1,5 +1,5 @@
 // «Танковая колонна» на 3D-карте (ВОВ): три танка выезжают к захваченному гексу, наводят башни,
-// дают залп — дульные вспышки, трассеры, разрывы и дым на лагере. ~4.5 с.
+// дают залп — дульные вспышки, трассеры, разрывы и дым на лагере. ~6.8 с.
 
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -11,17 +11,18 @@ export interface Tanks3DEvent {
   at: [number, number, number];
 }
 
-const T = 4.6;
+const T = 6.8;
 const TANKS = [
   { side: -0.9, back: 0, delay: 0 },
   { side: 0, back: 1.1, delay: 0.2 },
   { side: 0.9, back: 0.2, delay: 0.4 },
 ];
 const SHOTS = [
-  { tank: 0, t: 2.0 },
-  { tank: 1, t: 2.35 },
-  { tank: 2, t: 2.7 },
-  { tank: 1, t: 3.3 },
+  { tank: 0, t: 3.2 },
+  { tank: 1, t: 3.6 },
+  { tank: 2, t: 4.0 },
+  { tank: 1, t: 4.7 },
+  { tank: 0, t: 5.2 },
 ];
 
 export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
@@ -66,9 +67,9 @@ export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
       const tu = turrets.current[i];
       if (!h || !tu) return;
       const [sx, sz] = stopAt(i);
-      const u = Math.min(1, Math.max(0, (t - k.delay) / 1.7));
+      const u = Math.min(1, Math.max(0, (t - k.delay) / 2.8));
       const e = 1 - Math.pow(1 - u, 3);
-      const from = 3.2;
+      const from = 4.2;
       const recoil = SHOTS.filter((s) => s.tank === i).reduce((a, s) => a + (t > s.t && t < s.t + 0.25 ? (1 - (t - s.t) / 0.25) * 0.12 : 0), 0);
       const back = (1 - e) * from + recoil;
       h.position.set(sx - dir.x * back, y + 0.02 + (u < 1 ? Math.sin(t * 20 + i) * 0.01 : 0), sz - dir.z * back);
@@ -77,7 +78,7 @@ export function Tanks3D({ ev }: { ev: Tanks3DEvent }) {
       const dx = x - h.position.x;
       const dz = z - h.position.z;
       const aim = Math.atan2(-dz, dx) - yaw;
-      const ka = Math.min(1, Math.max(0, (t - 1.4 - i * 0.1) / 0.4));
+      const ka = Math.min(1, Math.max(0, (t - 2.5 - i * 0.12) / 0.5));
       tu.rotation.y = aim * ka;
       h.visible = t < T;
     });

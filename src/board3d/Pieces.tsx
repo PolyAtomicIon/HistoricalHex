@@ -421,7 +421,7 @@ export function Robber({ target, hexH, sprite, era }: { target: [number, number]
     const land = u >= 1 && c.t0 !== -99 ? Math.max(0, 1 - (clock.elapsedTime - c.t0 - T) * 4) : 0;
     if (era) {
       // Лагерь не прыгает: стоит на старом месте, пока идёт налёт, потом вырастает на новом гексе
-      const D = reduced || c.t0 === -99 ? 0 : era === 'ww2' ? 5.8 : 1.1;
+      const D = reduced || c.t0 === -99 ? 0 : era === 'ww2' ? 6.4 : 1.1;
       const el = c.t0 === -99 ? 99 : clock.elapsedTime - c.t0;
       if (el < D) {
         o.position.set(c.from[0], hexH, c.from[1]);
@@ -564,7 +564,7 @@ export function RaidZone({ target, hexH, era, res, num }: { target: [number, num
         <sprite key={i} ref={(el) => (puffs.current[i] = el)} material={m} />
       ))}
       {era === 'ww2' && <pointLight ref={light} color="#ff7a1a" distance={2.6} intensity={1.6} position={[0, 0.4, 0]} />}
-      {badge && <sprite material={badge} position={[0, 1.45, 0]} scale={[0.95, 0.36, 1]} renderOrder={20} />}
+      {badge && <sprite material={badge} position={[0, 1.05, 0]} scale={[1.05, 0.4, 1]} renderOrder={20} />}
     </group>
   );
 }

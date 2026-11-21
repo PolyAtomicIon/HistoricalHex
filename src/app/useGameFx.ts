@@ -72,7 +72,15 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       const hex = target ? pubRef.current?.board.hexes.find((h) => h.id === target) : undefined;
       setFx((f) => ({ ...f, raid: { kind, era, sprite, target, key: k.current++ } }));
       // тряска — в момент удара, а не в начале
-      setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), kind === 'robber' ? 1450 : 1000);
+      // в 3D во ВОВ удар позже: звено заходит медленно (≈3.6 с), танки стреляют с 3.2 с
+      let is3d = false;
+      try {
+        is3d = localStorage.getItem('hh.boardMode') === '3d';
+      } catch {
+        /* ok */
+      }
+      const late = era === 'ww2' && is3d && !!target;
+      setTimeout(() => setFx((f) => ({ ...f, shake: f.shake + 1 })), late ? (kind === 'robber' ? 3650 : 3250) : kind === 'robber' ? 1450 : 1000);
     };
     if (import.meta.env.DEV) {
       const w = window as unknown as { __raid: typeof raid; __robber: () => string | undefined };

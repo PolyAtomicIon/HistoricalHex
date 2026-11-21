@@ -38,7 +38,7 @@ import { ResIcon } from './ResIcon';
 import { useGameFx } from './useGameFx';
 import { GameBoard, useBoardMode, MODE_LABEL } from './GameBoard';
 import type { PlanStep } from './planner';
-import { STEP_ICON, STEP_LABEL, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
+import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 
 type BuildMode = 'road' | 'settlement' | 'city';
@@ -291,6 +291,21 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const hints = goalHints(pub, priv, me);
   const fact = useRotatingFact(pack, 16000);
   const showFact = !myTurn && pub.phase !== 'finished' && pub.phase !== 'discard' && !planPick && !pub.trade;
+  // «Пинок» плана: пока ждёшь — предложить наметь ход (план пуст или весь сломан)
+  const [nudgeOff, setNudgeOff] = useState(false);
+  const [nudgeDue, setNudgeDue] = useState(false);
+  const planIdle = plan.length === 0 || checked.every((c) => c.status === 'broken');
+  const nudgeWanted = !myTurn && pub.phase === 'main' && planIdle && !planPick && !pub.trade && sheet === null && !nudgeOff;
+  useEffect(() => {
+    if (myTurn) setNudgeOff(false); // в каждый свой ход — снова можно напомнить
+  }, [myTurn]);
+  useEffect(() => {
+    if (!nudgeWanted) return setNudgeDue(false);
+    const t = setTimeout(() => setNudgeDue(true), 1200);
+    return () => clearTimeout(t);
+  }, [nudgeWanted]);
+  const showNudge = nudgeWanted && nudgeDue;
+  const planHead = myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status !== 'ready' ? checked[0] : null;
   // Мои постройки у захваченного гекса — показать явно и подсказать, как убрать
   const blocked = useMemo(() => {
     const hex = pub.board.hexes.find((h) => h.id === pub.robberHex);
@@ -368,8 +383,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           part={{ idx: focusPlayer.idx ?? 0, total: focusClusters.length, step: stepFocus }}
         />
       ) : (
-        <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''}`} aria-live="polite">
+        <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
           {status}
+          {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
         </div>
       )}
       {fx.narration && (
@@ -444,7 +460,19 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
-      {readyCard && !build && !planPick && !selected ? (
+      {planHead && !build && !planPick && !selected ? (
+        <button key="ph" className={`board-hint glass turn-hint plan-hint ${planHead.status}`} onClick={() => setSheet('plan')}>
+          <Icon name="plan" size={18} />
+          {planHead.status === 'short' ? (
+            <>
+              План · {STEP_SHORT[planHead.step.kind]}: нужно <ResChips value={planHead.missing ?? {}} />
+            </>
+          ) : (
+            <>План · {STEP_SHORT[planHead.step.kind]}: место занято</>
+          )}
+          <span className="ph-go">›</span>
+        </button>
+      ) : readyCard && !build && !planPick && !selected ? (
         <button key="rc" className="board-hint glass turn-hint card-hint" onClick={() => setSheet('dev')}>
           <ArtIcon src={eraIcon(pack.id, `dev-${readyCard}`)} size={26} /> Можно сыграть: {pack.devCards[readyCard].name} ›
         </button>
@@ -454,7 +482,18 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       )}
 
-      {showFact && <FactPopup pack={pack} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />}
+      {showNudge && (
+        <PlanNudge
+          hint={hints[0]}
+          onPick={(k) => {
+            sfx.play('tick');
+            setPlanPick(k);
+          }}
+          onOpen={() => setSheet('plan')}
+          onClose={() => setNudgeOff(true)}
+        />
+      )}
+      <FactPopup pack={pack} allowed={showFact && !sheet && !showNudge} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />
 
       {askPush && (
         <div className="push-ask glass strong">
@@ -871,29 +910,46 @@ export function PlayersBar({
   );
 }
 
-/** Факт эпохи: всплывает снизу раз в ~40 с, пока ждёшь чужой ход; «Читать» — шторка, «×» — убрать. */
-function FactPopup({ pack, onRead }: { pack: LorePack; onRead: (f: LoreFact) => void }) {
+/**
+ * Факт эпохи: всплывает снизу, пока ждёшь чужой ход. Не меняется от хода к ходу:
+ * один и тот же факт висит, пока его не дочитали (время — по длине текста) или не закрыли;
+ * в свой ход прячется на паузу и потом возвращается тот же. Следующий — через ~75 с.
+ */
+function FactPopup({ pack, allowed, onRead }: { pack: LorePack; allowed: boolean; onRead: (f: LoreFact) => void }) {
   const [i, setI] = useState(() => Math.floor(Math.random() * pack.facts.length));
   const [shown, setShown] = useState(false);
+  const st = useRef({ seen: 0, nextAt: Date.now() + 30000, hold: false });
+  const allowedRef = useRef(allowed);
+  allowedRef.current = allowed;
+  const iRef = useRef(i);
+  iRef.current = i;
+  const shownRef = useRef(shown);
+  shownRef.current = shown;
+  const next = () => {
+    setShown(false);
+    setI((x) => (x + 1 + Math.floor(Math.random() * 3)) % Math.max(1, pack.facts.length));
+    st.current.nextAt = Date.now() + 75000;
+  };
   useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
-    const cycle = (delay: number) => {
-      t = setTimeout(() => {
-        setI((x) => (x + 1 + Math.floor(Math.random() * 3)) % pack.facts.length);
+    const id = setInterval(() => {
+      if (!allowedRef.current || document.hidden) return; // пауза: свой ход / вкладка скрыта
+      const s = st.current;
+      if (shownRef.current) {
+        const text = pack.facts[iRef.current % pack.facts.length]?.text ?? '';
+        if (!s.hold) s.seen += 1000;
+        if (s.seen >= Math.max(20000, text.length * 75)) next();
+      } else if (Date.now() >= s.nextAt) {
+        s.seen = 0;
         setShown(true);
-        t = setTimeout(() => {
-          setShown(false);
-          cycle(40000);
-        }, 12000);
-      }, delay);
-    };
-    cycle(6000);
-    return () => clearTimeout(t);
-  }, [pack]);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [pack]); // eslint-disable-line react-hooks/exhaustive-deps
   const f = pack.facts[i % pack.facts.length];
-  if (!shown || !f) return null;
+  if (!shown || !allowed || !f) return null;
+  const hold = (v: boolean) => () => (st.current.hold = v);
   return (
-    <div key={i} className="fact-pop glass strong" role="status">
+    <div key={i} className="fact-pop glass strong" role="status" onPointerDown={hold(true)} onPointerUp={hold(false)} onPointerLeave={hold(false)}>
       <ArtIcon src={eraIcon(pack.id, 'emblem')} size={40} className="fp-ic" />
       <div className="fp-body">
         <div className="fp-head">
@@ -903,10 +959,10 @@ function FactPopup({ pack, onRead }: { pack: LorePack; onRead: (f: LoreFact) => 
         </div>
         <p className="fp-text">{f.text}</p>
         <div className="fp-actions">
-          <button className="btn small-act" onClick={() => onRead(f)}>
+          <button className="btn small-act" onClick={() => { onRead(f); next(); }}>
             <Icon name="book" size={16} /> Читать
           </button>
-          <button className="btn ghost small-act" onClick={() => setShown(false)} aria-label="Скрыть">
+          <button className="btn ghost small-act" onClick={next} aria-label="Скрыть">
             <Icon name="close" size={16} />
           </button>
         </div>
@@ -970,6 +1026,63 @@ function FocusCard({
         </>
       )}
     </div>
+  );
+}
+
+/** Пока ждёшь чужой ход — карточка снизу: наметь ход заранее, одной кнопкой. */
+function PlanNudge({ hint, onPick, onOpen, onClose }: { hint?: string; onPick: (k: Exclude<PlanPick, null>) => void; onOpen: () => void; onClose: () => void }) {
+  return (
+    <div className="fact-pop plan-nudge glass strong" role="status">
+      <span className="pn-ic">
+        <Icon name="plan" size={20} />
+      </span>
+      <div className="fp-body">
+        <div className="pn-head">
+          <b>Пока ждёшь — наметь ход</b>
+          <button className="btn ghost icon-only pn-x" onClick={onClose} aria-label="Не сейчас">
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+        <p className="pn-sub">{hint ?? 'В свой ход выполнишь одной кнопкой'}</p>
+        <div className="pn-acts">
+          <button className="btn small-act" onClick={() => onPick('road')}>
+            <Icon name="road" size={16} /> Дорога
+          </button>
+          <button className="btn small-act" onClick={() => onPick('settlement')}>
+            <Icon name="house" size={16} /> Дом
+          </button>
+          <button className="btn small-act" onClick={() => onPick('city')}>
+            <Icon name="castle" size={16} /> Город
+          </button>
+          <button className="btn ghost small-act icon-only" onClick={onOpen} aria-label="Весь план">
+            <Icon name="next" size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Сколько осталось на ход: «2:41». Последние 30 с — красным, в свой ход последние 10 с тикают. */
+function TurnClock({ until, mine }: { until: number; mine: boolean }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, []);
+  const left = Math.max(0, Math.ceil((until - now) / 1000));
+  const prev = useRef(left);
+  useEffect(() => {
+    if (mine && left > 0 && left <= 10 && left !== prev.current) sfx.play('tick');
+    prev.current = left;
+  }, [left, mine]);
+  const m = Math.floor(left / 60);
+  const ss = String(left % 60).padStart(2, '0');
+  return (
+    <span className={`tclock ${left <= 30 ? 'low' : ''}`} aria-label={`Осталось ${m} мин ${left % 60} с`}>
+      <Icon name="timer" size={15} />
+      {m}:{ss}
+    </span>
   );
 }
 
@@ -1588,7 +1701,7 @@ function PlanSheet({
           )}
         </div>
       ) : (
-        <p className="muted small">Собери ходы заранее, пока ходят другие. План перепроверяется после каждого чужого хода, а в свой ход выполняется одной кнопкой.</p>
+        <p className="muted small">Пусто. Добавь стройку — план перепроверяется после каждого чужого хода.</p>
       )}
 
       {checked.length > 0 && (
@@ -1597,10 +1710,12 @@ function PlanSheet({
             <li key={c.step.id} className={`pstep ${c.status}`}>
               <span className="pstep-ic">
                 <Icon name={STEP_ICON[c.step.kind]} size={20} />
-                <i>{i + 1}</i>
               </span>
               <div className="pstep-body">
-                <b>{STEP_LABEL[c.step.kind]}</b>
+                <b>
+                  <span className="pstep-n">{i + 1}</span>
+                  {STEP_LABEL[c.step.kind]}
+                </b>
                 <span className="pstep-st">
                   {c.status === 'ready' && (c.step.kind === 'bank' || c.step.kind === 'offer' ? <StepTerms step={c.step} /> : 'готово')}
                   {c.status === 'short' && (
@@ -1612,10 +1727,10 @@ function PlanSheet({
                 </span>
               </div>
               <div className="pstep-ctl">
-                <button className="btn ghost icon" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(move(plan, i, i - 1))}>
+                <button className="pstep-btn" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(move(plan, i, i - 1))}>
                   <Icon name="up" size={16} />
                 </button>
-                <button className="btn ghost icon" aria-label="Убрать" onClick={() => setPlan(plan.filter((s) => s.id !== c.step.id))}>
+                <button className="pstep-btn" aria-label="Убрать" onClick={() => setPlan(plan.filter((s) => s.id !== c.step.id))}>
                   <Icon name="close" size={16} />
                 </button>
               </div>

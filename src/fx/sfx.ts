@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 export type SfxName =
   | 'diceShake' | 'diceLand' | 'tick' | 'pop' | 'coin' | 'chime' | 'whoosh' | 'tudum'
   | 'attack' | 'fanfare' | 'victory' | 'error' | 'yourTurn' | 'react' | 'steal'
-  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank' | 'siren';
+  | 'gallop' | 'arrows' | 'plane' | 'bomb' | 'shuriken' | 'tank' | 'siren' | 'drama' | 'cannon';
 
 export interface SfxOpts {
   /** 0..1.5 extra gain for this call */
@@ -170,6 +170,34 @@ const drum = (x: Ctx, at: number, f: number, gain = 0.6, len = 0.35) => {
 };
 
 const RECIPES: Record<SfxName, (x: Ctx, o: SfxOpts) => void> = {
+  drama: (x) => {
+    // Тревожная тема налёта (~7 с): гул низов, дробь литавр, минорный кластер струнных, удар и плач меди
+    tone(x, { f: 55, dur: 7, type: 'sawtooth', gain: 0.16, attack: 1.6, lp: 260 });
+    tone(x, { f: 82.4, dur: 6.5, type: 'sawtooth', gain: 0.1, attack: 1.8, lp: 300, detune: 6 });
+    for (let i = 0; i < 14; i++) {
+      const k = i / 13;
+      drum(x, i * 0.085, 70 + k * 6, 0.12 + k * 0.4, 0.25);
+    }
+    drum(x, 1.25, 58, 1, 1.4);
+    tone(x, { at: 1.25, f: 36, to: 26, dur: 1.8, gain: 0.7, attack: 0.01 });
+    // струнные: ля-минор + полутон сверху (си-бемоль) — диссонанс тревоги
+    [110, 130.8, 164.8, 116.5].forEach((f, i) => {
+      tone(x, { at: 1.25, f, dur: 5.2, type: 'sawtooth', gain: i === 3 ? 0.035 : 0.06, attack: 1.4, lp: 900, detune: i * 5 });
+      tone(x, { at: 1.25, f: f * 2, dur: 4.6, type: 'triangle', gain: 0.03, attack: 1.6 });
+    });
+    drum(x, 3.6, 52, 1, 1.6);
+    tone(x, { at: 3.6, f: 32, to: 22, dur: 2.2, gain: 0.8, attack: 0.01 });
+    // плач: нисходящая медь
+    [[3.9, 329.6], [4.45, 293.7], [5.0, 261.6], [5.55, 246.9]].forEach(([t, f]) => brass(x, t, f, 0.7, 0.07));
+    brass(x, 6.1, 220, 1.6, 0.08);
+    brass(x, 6.1, 164.8, 1.6, 0.05);
+  },
+  cannon: (x) => {
+    drum(x, 0, 70, 1, 0.9);
+    tone(x, { f: 120, to: 40, dur: 0.6, type: 'triangle', gain: 0.5 });
+    hiss(x, { dur: 0.7, type: 'lowpass', f: 2500, to: 150, gain: 0.6, attack: 0.002 });
+    hiss(x, { at: 0.02, dur: 0.12, type: 'highpass', f: 3000, gain: 0.25 });
+  },
   siren: (x) => {
     // воздушная тревога: вой вверх-вниз, две волны
     for (let i = 0; i < 2; i++) {

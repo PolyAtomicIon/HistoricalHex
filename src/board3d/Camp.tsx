@@ -102,10 +102,12 @@ export function Camp({ era }: { era: string }) {
   });
   return (
     <group>
-      <mesh geometry={geo} material={campMat} castShadow receiveShadow scale={1.45} />
-      <mesh ref={flame} geometry={flameGeo} material={flameMat} position={[fire[0] * 1.45, fire[1] * 1.45, fire[2] * 1.45]} />
-      {era === 'japan' && <mesh geometry={lanternGeo} material={lanternMat} position={[0.41, 0.65, 0.22]} />}
-      {!lowPower && <pointLight ref={light} color="#ff8a2a" distance={1.6} intensity={0.8} position={[fire[0] * 1.45, 0.4, fire[2] * 1.45]} />}
+      <group scale={1.2}>
+        <mesh geometry={geo} material={campMat} castShadow receiveShadow />
+        <mesh ref={flame} geometry={flameGeo} material={flameMat} position={fire} />
+        {era === 'japan' && <mesh geometry={lanternGeo} material={lanternMat} position={[0.28, 0.45, 0.15]} />}
+        {!lowPower && <pointLight ref={light} color="#ff8a2a" distance={1.6} intensity={0.8} position={[fire[0], 0.3, fire[2]]} />}
+      </group>
       {/* купол блокады */}
       <mesh geometry={domeGeo} renderOrder={9}>
         <meshBasicMaterial ref={dome} color="#ff3b2f" transparent opacity={0.1} depthWrite={false} side={THREE.DoubleSide} />

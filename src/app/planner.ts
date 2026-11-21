@@ -43,6 +43,16 @@ export const STEP_LABEL: Record<PlanStep['kind'], string> = {
   offer: 'Предложить обмен',
 };
 
+/** Короткие подписи — для одной строки подсказки. */
+export const STEP_SHORT: Record<PlanStep['kind'], string> = {
+  road: 'Дорога',
+  settlement: 'Дом',
+  city: 'Город',
+  devCard: 'Карта',
+  bank: 'Банк',
+  offer: 'Обмен',
+};
+
 export const STEP_ICON = {
   road: 'road',
   settlement: 'house',

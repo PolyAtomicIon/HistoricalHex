@@ -268,12 +268,13 @@ function Token({ tile, number }: { tile: TileInfo; number: number }) {
   );
 }
 
-export function Tokens({ tiles, numbers }: { tiles: TileInfo[]; numbers: Map<string, number> }) {
+/** hide — гекс под захватом: его число показывает значок блокады над куполом. */
+export function Tokens({ tiles, numbers, hide }: { tiles: TileInfo[]; numbers: Map<string, number>; hide?: string }) {
   return (
     <>
       {tiles.map((t) => {
         const n = numbers.get(t.id);
-        return n === undefined ? null : <Token key={t.id} tile={t} number={n} />;
+        return n === undefined || t.id === hide ? null : <Token key={t.id} tile={t} number={n} />;
       })}
     </>
   );
