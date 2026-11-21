@@ -185,18 +185,18 @@ export const newStepId = () => Math.random().toString(36).slice(2, 9);
 export function goalHints(pub: PublicState, priv: PrivateView, me: PlayerId): string[] {
   const out: string[] = [];
   const hand = priv.resources;
-  const goals: [string, ResourceMap][] = [
-    ['город', COSTS.city],
-    ['поселение', COSTS.settlement],
-    ['карту развития', COSTS.devCard],
+  const goals: [string, ResourceMap, string][] = [
+    ['город', COSTS.city, 'города'],
+    ['поселение', COSTS.settlement, 'поселения'],
+    ['карту развития', COSTS.devCard, 'карты развития'],
   ];
-  for (const [name, cost] of goals) {
+  for (const [name, cost, gen] of goals) {
     const miss = missingOf(hand, cost);
     const n = Object.values(miss).reduce((a, b) => a + (b ?? 0), 0);
     if (n === 0) out.push(`Хватает на ${name}`);
     else if (n === 1) {
       const r = Object.keys(miss)[0] as Resource;
-      out.push(`До «${name}» не хватает: ${RESOURCE_NAME[r]}`);
+      out.push(`До ${gen} не хватает: ${RESOURCE_NAME[r]}`);
     }
   }
   const ratios = tradeRatios(pub, me);

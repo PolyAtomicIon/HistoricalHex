@@ -67,7 +67,7 @@ function fitHeight(world: World, az: number, pol: number, aspect: number, persp:
     mr = Math.max(mr, Math.abs(r));
     mu = Math.max(mu, Math.abs(f * cP), Math.abs(f * cP + sP * 0.7), Math.abs(f * cP - 0.0));
   }
-  const m = 1.05; // запас на гавани
+  const m = 0.7; // запас на гавани
   const H = 2 * Math.max((mu + m) * (1 + persp * 0.08), (mr + m) / aspect);
   return { H, extR: gr + m, extF: gf + m };
 }
@@ -427,7 +427,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
         intensity={2.5}
         color={palette.light}
         castShadow={!lowPower}
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-R}
         shadow-camera-right={R}
         shadow-camera-top={R}

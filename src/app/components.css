@@ -1996,3 +1996,71 @@
   padding-left: 20px;
   line-height: 1.5;
 }
+.pav-bot {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #1b2430;
+  color: #fff;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.6);
+}
+.turn-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: normal;
+  max-width: calc(100vw - 32px);
+  width: max-content;
+  text-align: left;
+  line-height: 1.3;
+}
+.new-card {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  perspective: 900px;
+}
+.nc-card {
+  width: min(70vw, 260px);
+  padding: 20px 18px 22px;
+  border-radius: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  background: linear-gradient(160deg, rgba(var(--accent-rgb), 0.35), rgba(16, 22, 30, 0.96) 55%);
+  border: 1px solid rgba(var(--accent-rgb), 0.7);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset, 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(var(--accent-rgb), 0.35);
+  animation: nc-flip 2.2s var(--ease-out) forwards;
+}
+.nc-card small {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.nc-card b {
+  font-size: 20px;
+}
+.nc-card span {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+@keyframes nc-flip {
+  0% { transform: rotateY(90deg) scale(0.7); opacity: 0; }
+  18% { transform: rotateY(-8deg) scale(1.04); opacity: 1; }
+  28% { transform: rotateY(0) scale(1); }
+  80% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(60vh) scale(0.3); opacity: 0; }
+}

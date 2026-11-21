@@ -5,14 +5,14 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { PlayerColor } from '../engine';
-import { PLAYER_HEX } from '../ui/theme';
+import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
 import { box, merge, part } from './Terrain';
 import { hashStr, type World } from './world';
 import { useEnv } from './rig';
 
 // ---------- геометрия ----------
 
-const roadGeo = new RoundedBoxGeometry(0.74, 0.08, 0.13, 2, 0.03);
+const roadGeo = new RoundedBoxGeometry(0.76, 0.12, 0.2, 2, 0.04);
 
 function prism(w: number, h: number, d: number): THREE.BufferGeometry {
   const s = new THREE.Shape();
@@ -30,25 +30,29 @@ const plinth = () => part(new THREE.CylinderGeometry(0.15, 0.17, 0.3, 8), '#6e6a
 const houseGeo = merge([
   plinth(),
   part(box(0.28, 0.13, 0.22), '#ffffff', [0, 0.065, 0]),
-  part(prism(0.33, 0.13, 0.26), '#8a8a8a', [0, 0.13, 0]),
-  part(box(0.045, 0.07, 0.045), '#7a7a7a', [0.07, 0.22, 0.04]),
+  part(prism(0.33, 0.13, 0.26), '#e6e6e6', [0, 0.13, 0]),
+  part(box(0.045, 0.07, 0.045), '#d0d0d0', [0.07, 0.22, 0.04]),
 ]);
 
 const cityGeo = merge([
   plinth(),
   part(box(0.36, 0.14, 0.26), '#ffffff', [-0.04, 0.07, 0]),
-  part(prism(0.4, 0.12, 0.3), '#8a8a8a', [-0.04, 0.14, 0]),
+  part(prism(0.4, 0.12, 0.3), '#e6e6e6', [-0.04, 0.14, 0]),
   part(box(0.16, 0.3, 0.16), '#f2f2f2', [0.13, 0.15, 0]),
-  part(new THREE.ConeGeometry(0.125, 0.14, 4), '#777777', [0.13, 0.37, 0], [0, Math.PI / 4, 0]),
-  part(box(0.05, 0.07, 0.02), '#8b8b8b', [0.13, 0.2, 0.085]),
-  part(box(0.05, 0.07, 0.02), '#8b8b8b', [-0.08, 0.08, 0.135]),
+  part(new THREE.ConeGeometry(0.125, 0.14, 4), '#dcdcdc', [0.13, 0.37, 0], [0, Math.PI / 4, 0]),
+  part(box(0.05, 0.07, 0.02), '#3a3a3a', [0.13, 0.2, 0.085]),
+  part(box(0.05, 0.07, 0.02), '#3a3a3a', [-0.08, 0.08, 0.135]),
 ]);
+
+// Фишки крупнее (критика: 10 px на телефоне не видно)
+houseGeo.scale(1.45, 1.45, 1.45);
+cityGeo.scale(1.35, 1.35, 1.35);
 
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
 function pieceMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = matCache.get(color);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.5, metalness: 0.05 });
+    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.5, metalness: 0.05, emissive: PLAYER_HEX[color], emissiveIntensity: color === 'white' ? 0.18 : 0.08 });
     matCache.set(color, m);
   }
   return m;
@@ -186,6 +190,7 @@ function Road({ id, color, ctx }: { id: string; color: PlayerColor; ctx: PieceCt
     <group position={[xf.x, xf.y + 0.045, xf.z]} rotation={[0, xf.ang, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
         <mesh geometry={roadGeo} material={roadMat(color)} castShadow receiveShadow />
+        <lineSegments geometry={outlineGeo('road')} material={strokeMat(color)} />
       </group>
       {recent && <Puff color={PLAYER_HEX[color]} />}
     </group>
@@ -216,6 +221,7 @@ function Building({ id, kind, color, ctx }: { id: string; kind: 'settlement' | '
     <group position={[p[0], y + 0.02, p[1]]} rotation={[0, yaw, 0]}>
       <group ref={g} scale={recent ? 0 : 1}>
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={pieceMat(color)} castShadow receiveShadow />
+        <lineSegments geometry={outlineGeo(kind)} material={strokeMat(color)} />
       </group>
       {recent && <Puff color="#f4efe4" />}
     </group>
@@ -252,6 +258,17 @@ export interface GhostSpec {
 }
 
 const outlineCache = new Map<string, THREE.BufferGeometry>();
+const strokeCache = new Map<string, THREE.LineBasicMaterial>();
+/** Тёмный контур фишки цветом игрока — чтобы чужие постройки читались на любом гексе. */
+function strokeMat(color: PlayerColor): THREE.LineBasicMaterial {
+  let m = strokeCache.get(color);
+  if (!m) {
+    m = new THREE.LineBasicMaterial({ color: PLAYER_STROKE[color] });
+    strokeCache.set(color, m);
+  }
+  return m;
+}
+
 function outlineGeo(kind: 'road' | 'settlement' | 'city'): THREE.BufferGeometry {
   let g = outlineCache.get(kind);
   if (!g) {

@@ -564,6 +564,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       </Sheet>
 
       <DiceOverlay roll={fx.roll} />
+      <NewCard cards={priv.devCards} pack={pack} />
       <Raid event={fx.raid} />
       <Cinematic event={fx.cinematic} />
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
@@ -591,7 +592,12 @@ export function PlayersBar({ pub, room, onOpen, deadline }: { pub: PublicState; 
           >
             <span className="pav-ring">
               {turn && deadline && <TimerRing until={deadline} />}
-              <span className="pav-face">{p.bot || p.away || p.kicked ? <Icon name="bot" size={17} /> : p.name.charAt(0).toUpperCase()}</span>
+              <span className="pav-face">{p.name.charAt(0).toUpperCase()}</span>
+              {(p.bot || p.away || p.kicked) && (
+                <span className="pav-bot">
+                  <Icon name="bot" size={11} />
+                </span>
+              )}
             </span>
             <span className="pav-vp">{p.points}</span>
           </span>
@@ -652,6 +658,36 @@ function PlayersSheet({ pub, room, pack }: { pub: PublicState; room: RoomView; p
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Купил карту развития — показываем её крупно (переворот), чтобы не забыть, что она есть. */
+function NewCard({ cards, pack }: { cards: PrivateView['devCards']; pack: LorePack }) {
+  const prev = useRef(cards.length);
+  const [shown, setShown] = useState<{ type: DevCardType; key: number } | null>(null);
+  useEffect(() => {
+    if (cards.length > prev.current) {
+      const c = cards[cards.length - 1];
+      setShown({ type: c.type, key: Date.now() });
+      sfx.play('chime');
+      haptic('success');
+      const t = setTimeout(() => setShown(null), 2200);
+      prev.current = cards.length;
+      return () => clearTimeout(t);
+    }
+    prev.current = cards.length;
+  }, [cards]);
+  if (!shown) return null;
+  const info = pack.devCards[shown.type];
+  return (
+    <div key={shown.key} className="new-card" aria-live="polite">
+      <div className="nc-card">
+        <ArtIcon src={eraIcon(pack.id, `dev-${shown.type}`)} size={120} />
+        <small>Новая карта</small>
+        <b>{info.name}</b>
+        <span>{DEV_RULE[shown.type]}</span>
+      </div>
     </div>
   );
 }
