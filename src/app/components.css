@@ -1172,6 +1172,7 @@
   padding: 14px 30px;
   border-radius: 999px;
   font-size: 26px;
+  white-space: nowrap;
   color: #111;
   background: var(--me);
   box-shadow: 0 0 0 3px #fff, 0 20px 60px rgba(0, 0, 0, 0.45);
