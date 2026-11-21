@@ -88,7 +88,7 @@ const shadowMat = new THREE.MeshBasicMaterial({ color: '#000', transparent: true
 const GOLD = '#ffc93c';
 const mineHullMat = new THREE.MeshBasicMaterial({ color: GOLD, side: THREE.BackSide, toneMapped: false });
 const gemGeo = new THREE.OctahedronGeometry(0.095, 0).scale(1, 1.45, 1);
-const gemMat = new THREE.MeshPhysicalMaterial({ color: '#ffd24a', metalness: 0.9, roughness: 0.22, clearcoat: 1, emissive: '#8a5a00', emissiveIntensity: 0.55 });
+const gemMat = new THREE.MeshStandardMaterial({ color: '#ffd24a', metalness: 0.3, roughness: 0.35, emissive: '#b07800', emissiveIntensity: 0.6, flatShading: true });
 let haloTex: THREE.CanvasTexture | null = null;
 function haloTexture(): THREE.CanvasTexture {
   if (haloTex) return haloTex;
@@ -144,11 +144,10 @@ function MineHalo({ color, top }: { color: PlayerColor; top: number }) {
 }
 
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
-// Фишки — «лакированное дерево»: лак (clearcoat) ловит блики окружения
 function pieceMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = matCache.get(color);
   if (!m) {
-    m = new THREE.MeshPhysicalMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.42, metalness: 0.02, clearcoat: 0.9, clearcoatRoughness: 0.22, emissive: PLAYER_HEX[color], emissiveIntensity: color === 'white' ? 0.14 : 0.06 });
+    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], vertexColors: true, flatShading: true, roughness: 0.5, metalness: 0.05, emissive: PLAYER_HEX[color], emissiveIntensity: color === 'white' ? 0.18 : 0.08 });
     matCache.set(color, m);
   }
   return m;
@@ -157,7 +156,7 @@ const roadMatCache = new Map<string, THREE.MeshStandardMaterial>();
 function roadMat(color: PlayerColor): THREE.MeshStandardMaterial {
   let m = roadMatCache.get(color);
   if (!m) {
-    m = new THREE.MeshPhysicalMaterial({ color: PLAYER_HEX[color], roughness: 0.42, metalness: 0.02, clearcoat: 0.9, clearcoatRoughness: 0.25 });
+    m = new THREE.MeshStandardMaterial({ color: PLAYER_HEX[color], roughness: 0.45, metalness: 0.05 });
     roadMatCache.set(color, m);
   }
   return m;
@@ -311,6 +310,9 @@ const slotDotGeo = new THREE.CircleGeometry(0.08, 28).rotateX(-Math.PI / 2);
 const slotLineGeo = new THREE.PlaneGeometry(0.44, 0.05).rotateX(-Math.PI / 2);
 const slotRingMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.75, depthWrite: false, toneMapped: false });
 const slotDotMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.22, depthWrite: false });
+// Место, где строить нельзя (сосед уже занят): тёмный диск с тёмным кольцом
+const slotBanMat = new THREE.MeshBasicMaterial({ color: '#0d0d0f', transparent: true, opacity: 0.55, depthWrite: false });
+const slotBanRingMat = new THREE.MeshBasicMaterial({ color: '#0d0d0f', transparent: true, opacity: 0.75, depthWrite: false });
 const slotLineMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.62, depthWrite: false, toneMapped: false });
 
 function Instances({ geo, mat, mats, order }: { geo: THREE.BufferGeometry; mat: THREE.Material; mats: THREE.Matrix4[]; order: number }) {
@@ -325,21 +327,23 @@ function Instances({ geo, mat, mats, order }: { geo: THREE.BufferGeometry; mat: 
   return <instancedMesh key={mats.length} ref={ref} args={[geo, mat, mats.length]} renderOrder={order} frustumCulled={false} />;
 }
 
-/** Сетка поля: где можно поставить дом (кружок) и дорогу (штрих). Занятые места не рисуются. */
+/** Сетка поля: где можно поставить дом (белый кружок), где нельзя — сосед занят (тёмный), и дорогу (штрих). */
 export function Slots({ ctx, buildings, roads }: { ctx: PieceCtx; buildings: Record<string, unknown>; roads: Record<string, unknown> }) {
   const bKey = Object.keys(buildings).sort().join(',');
   const rKey = Object.keys(roads).sort().join(',');
-  const { verts, edges } = useMemo(() => {
+  const { verts, edges, banned } = useMemo(() => {
     const o = new THREE.Object3D();
     const verts: THREE.Matrix4[] = [];
-    for (const v of ctx.world.topo.vertices.keys()) {
+    const banned: THREE.Matrix4[] = [];
+    for (const [v, info] of ctx.world.topo.vertices) {
       if (v in buildings) continue;
+      const ban = info.neighbors.some((n) => n in buildings);
       const p = ctx.world.vert.get(v);
       if (!p) continue;
       o.position.set(p[0], vertexY(ctx, v) + 0.012, p[1]);
       o.rotation.set(0, 0, 0);
       o.updateMatrix();
-      verts.push(o.matrix.clone());
+      (ban ? banned : verts).push(o.matrix.clone());
     }
     const edges: THREE.Matrix4[] = [];
     for (const e of ctx.world.topo.edges.keys()) {
@@ -351,7 +355,7 @@ export function Slots({ ctx, buildings, roads }: { ctx: PieceCtx; buildings: Rec
       o.updateMatrix();
       edges.push(o.matrix.clone());
     }
-    return { verts, edges };
+    return { verts, edges, banned };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, bKey, rKey]);
   return (
@@ -359,6 +363,8 @@ export function Slots({ ctx, buildings, roads }: { ctx: PieceCtx; buildings: Rec
       <Instances geo={slotLineGeo} mat={slotLineMat} mats={edges} order={2} />
       <Instances geo={slotDotGeo} mat={slotDotMat} mats={verts} order={2} />
       <Instances geo={slotRingGeo} mat={slotRingMat} mats={verts} order={3} />
+      <Instances geo={slotDotGeo} mat={slotBanMat} mats={banned} order={2} />
+      <Instances geo={slotRingGeo} mat={slotBanRingMat} mats={banned} order={3} />
     </>
   );
 }
