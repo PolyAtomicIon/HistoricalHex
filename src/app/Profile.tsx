@@ -16,9 +16,9 @@ export function portalLoginUrl(portal: string): string {
   return `${portal.replace(/\/$/, '')}/historicalhex/launch?return=${encodeURIComponent(back.toString())}`;
 }
 
-export function ProfileView() {
+export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' } = {}) {
   const { profile: data, status, tgLink } = useConn();
-  const [tab, setTab] = useState<'me' | 'top'>('me');
+  const [tab, setTab] = useState<'me' | 'top'>(initialTab);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   useEffect(() => {

@@ -1,10 +1,9 @@
 // Главная: выбор эпохи, «Создать игру» или вход по PIN.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
 import { applyEra, eraCover, eraIcon } from './era';
-import { EraCarousel } from './EraCarousel';
 import { ArtIcon, Icon } from './icons';
 import { Sheet } from './Sheet';
 import { ProfileView } from './Profile';
@@ -28,17 +27,26 @@ export function saveName(n: string): void {
   }
 }
 
+/** Эпохи, которые скоро появятся (обложка есть, играть пока нельзя). */
+const SOON = [
+  { id: 'horde', title: 'Золотая Орда', years: 'XIV в.' },
+  { id: 'khanate', title: 'Казахское ханство', years: '1465' },
+];
+
 export function Home({ initialPin }: { initialPin?: string }) {
-  const { status, fatal } = useConn();
+  const { status, fatal, profile } = useConn();
   const [era, setEra] = useState(LORE_PACKS[0].id);
   const startPin = initialPin ?? tgStartPin();
   const [pin, setPin] = useState(startPin ?? '');
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState<null | 'me' | 'top'>(null);
   const [name, setName] = useState(savedName());
   const [mode, setMode] = useState<'home' | 'join'>(startPin ? 'join' : 'home');
   const [creating, setCreating] = useState(false);
   const pack = LORE_PACKS.find((p) => p.id === era)!;
   applyEra(pack);
+  useEffect(() => {
+    if (status === 'online') conn.send({ t: 'profile' });
+  }, [status]);
 
   const join = () => {
     const n = name.trim();
@@ -47,50 +55,146 @@ export function Home({ initialPin }: { initialPin?: string }) {
     haptic('tap');
     conn.join(pin.replace(/\D/g, ''), n);
   };
+  const create = () => {
+    sfx.play('pop');
+    setCreating(true);
+    setTimeout(() => setCreating(false), 4000);
+    conn.create({ lore: era });
+  };
+
+  const me = profile?.profile;
+  const leaders = profile?.leaders ?? [];
+  const top3 = leaders.slice(0, 3);
+  const myRow = me ? leaders.find((l) => l.id === me.id) : undefined;
 
   return (
-    <main className="screen home">
+    <main className="screen home hub">
       <div className="ambient" aria-hidden />
-      <div key={era} className="hero-bg" style={{ backgroundImage: `url(${eraCover(era)})` }} aria-hidden />
-      <div className="home-top">
-        <InstallButton />
-        <button className="fab glass" onClick={() => setProfileOpen(true)} aria-label="Профиль">
-          <Icon name="crown" />
-        </button>
-      </div>
-      <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="Профиль">
-        <ProfileView />
+      <Sheet open={!!profileOpen} onClose={() => setProfileOpen(null)} title={profileOpen === 'top' ? 'Лидеры' : 'Профиль'}>
+        <ProfileView key={profileOpen ?? 'x'} initialTab={profileOpen ?? 'me'} />
       </Sheet>
-      <div className="center-col">
-        <header className="brand">
-          <ArtIcon key={pack.id} className="brand-mark" src={eraIcon(pack.id, 'emblem')} size={72} fallback={<span className="brand-mark" />} />
-          <h1 className="display brand-title">HistoricalHex</h1>
-          <p className="muted brand-sub">Стройся, торгуй и узнавай историю — каждая партия в своей эпохе</p>
-        </header>
 
-        {mode === 'home' ? (
-          <>
-            <EraCarousel packs={LORE_PACKS} value={era} onChange={setEra} />
-            <div className="home-actions stack">
-              <button
-                className="btn primary big wide"
-                disabled={status !== 'online' || creating}
-                onClick={() => {
-                  sfx.play('pop');
-                  setCreating(true);
-                  setTimeout(() => setCreating(false), 4000);
-                  conn.create({ lore: era });
-                }}
-              >
-                Создать игру
-              </button>
-              <button className="btn wide" onClick={() => setMode('join')}>
-                Войти по PIN
-              </button>
-              {status !== 'online' && <p className="faint small center">Подключаемся к серверу…</p>}
+      {mode === 'home' ? (
+        <div className="hub-col">
+          <header className="hub-head">
+            <button className="hub-me" onClick={() => setProfileOpen('me')} aria-label="Профиль">
+              <span className="pf-ava">{me?.photo ? <img src={me.photo} alt="" /> : (me?.name || name || 'И').charAt(0).toUpperCase()}</span>
+              <span className="hub-hello">
+                <small>{me && me.games > 0 ? 'С возвращением' : 'Добро пожаловать'}</small>
+                <b>{me?.name || name || 'Игрок'}</b>
+              </span>
+            </button>
+            <span className="hub-chip glass">
+              <b className="accent">{me?.rating ?? '—'}</b>
+              <small>рейтинг</small>
+            </span>
+            <span className="hub-chip glass">
+              <b>{me?.streak ?? 0}</b>
+              <small>дн. подряд</small>
+            </span>
+          </header>
+          <InstallButton />
+
+          <section key={pack.id} className="hub-hero glass" style={{ backgroundImage: `url(${eraCover(pack.id)})` }}>
+            <span className="hub-hero-shade" aria-hidden />
+            <span className="hub-hero-text">
+              <span className="hub-tag">
+                <ArtIcon src={eraIcon(pack.id, 'emblem')} size={18} /> {pack.years}
+              </span>
+              <b className="display">{pack.title}</b>
+              <small>{pack.subtitle}</small>
+            </span>
+          </section>
+
+          <div className="hub-actions">
+            <button className="btn primary big" disabled={status !== 'online' || creating} onClick={create}>
+              <Icon name="play" size={20} /> Новая партия
+            </button>
+            <button className="btn big" onClick={() => setMode('join')}>
+              <Icon name="door" size={20} /> По PIN
+            </button>
+          </div>
+          {status !== 'online' && <p className="faint small center">Подключаемся к серверу…</p>}
+
+          <section className="hub-eras" aria-label="Эпохи">
+            <div className="hub-sec-h">
+              <b>Эпохи</b>
+              <small className="faint">
+                {LORE_PACKS.length} открыто · {SOON.length} скоро
+              </small>
             </div>
-          </>
-        ) : (
+            <div className="hub-strip">
+              {LORE_PACKS.map((e) => (
+                <button
+                  key={e.id}
+                  className={`hub-era ${e.id === era ? 'on' : ''}`}
+                  aria-pressed={e.id === era}
+                  onClick={() => {
+                    sfx.play('tick');
+                    setEra(e.id);
+                  }}
+                >
+                  <img src={eraCover(e.id)} alt="" loading="lazy" />
+                  <span>
+                    {e.title.replace(/^Эпоха /, '')}
+                    <small>{e.years}</small>
+                  </span>
+                </button>
+              ))}
+              {SOON.map((e) => (
+                <div key={e.id} className="hub-era soon" aria-disabled="true">
+                  <span className="hub-era-pic">
+                    <img src={eraCover(e.id)} alt="" loading="lazy" />
+                    <i>
+                      <Icon name="ban" size={12} />
+                    </i>
+                  </span>
+                  <span>
+                    {e.title}
+                    <small>скоро</small>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {top3.length > 0 && (
+            <section className="hub-leaders glass" aria-label="Лидеры">
+              <div className="hub-sec-h">
+                <b>Лидеры</b>
+                <button className="hub-more" onClick={() => setProfileOpen('top')}>
+                  Подробнее <Icon name="next" size={14} />
+                </button>
+              </div>
+              <div className="hub-pod">
+                {[top3[1], top3[0], top3[2]].map((l, i) =>
+                  l ? (
+                    <div key={l.id} className={`p${l.place}`}>
+                      {l.place === 1 && <Icon name="crown" size={16} />}
+                      <span className="pf-ava sm">{l.photo ? <img src={l.photo} alt="" /> : l.name.charAt(0).toUpperCase()}</span>
+                      <b>{l.ai ? `ИИ · ${l.name}` : l.name}</b>
+                      <span className="hub-step">
+                        {l.place} · {l.rating}
+                      </span>
+                    </div>
+                  ) : (
+                    <div key={`e${i}`} />
+                  ),
+                )}
+              </div>
+              {me && (
+                <div className="hub-myrow">
+                  <span className="n">{myRow?.place ?? '—'}</span>
+                  <span className="nm">Ты · {me.name}</span>
+                  <small>{me.games} парт.</small>
+                  <b>{me.rating}</b>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      ) : (
+        <div className="center-col">
           <form
             className="panel glass stack"
             onSubmit={(e) => {
@@ -130,9 +234,9 @@ export function Home({ initialPin }: { initialPin?: string }) {
               Назад
             </button>
           </form>
-        )}
-        {fatal && <div className="toast glass bad">{fatal}</div>}
-      </div>
+        </div>
+      )}
+      {fatal && <div className="toast glass bad">{fatal}</div>}
     </main>
   );
 }
