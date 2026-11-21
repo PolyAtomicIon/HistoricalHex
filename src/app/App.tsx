@@ -44,7 +44,7 @@ function InGame({ room }: { room: RoomView }) {
   const pack = useEra(room.settings.lore);
   setPieceNames(pack.pieces);
   if (tvMode || !room.private) return <Tv room={room} pack={pack} screen={tvMode} />;
-  if (room.public!.players[room.me]?.away) return <Away />;
+  if (room.public!.players[room.me]?.away && room.public!.phase !== 'finished') return <Away />;
   return <PhoneGame room={room} pack={pack} />;
 }
 

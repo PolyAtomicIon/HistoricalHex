@@ -18,7 +18,7 @@ import {
 } from '../engine';
 import type { RoomView } from '../proto';
 import { REACTIONS } from '../proto';
-import { conn } from '../client/conn';
+import { conn, useConn } from '../client/conn';
 import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { Icon, ArtIcon } from './icons';
@@ -1353,6 +1353,12 @@ function HostTools({ room, pub }: { room: RoomView; pub: PublicState }) {
 
 function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: LorePack }) {
   const winner = pub.winner!;
+  const prof = useConn().profile?.profile;
+  useEffect(() => {
+    // Сервер записывает партию сразу; чуть ждём и берём свежий профиль
+    const t = setTimeout(() => conn.send({ t: 'profile' }), 600);
+    return () => clearTimeout(t);
+  }, []);
   const order = [...pub.order].sort((a, b) => pub.players[b].points - pub.players[a].points);
   return (
     <div className="finish-overlay">
@@ -1360,6 +1366,19 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
         <ArtIcon src={eraIcon(pack.id, 'dev-victoryPoint')} size={96} className="win-art" fallback={<Icon name="crown" size={56} />} />
         <h2 className="display">{winner === me ? 'Ты победил!' : `Победа: ${pub.players[winner].name}`}</h2>
         <p className="muted">{pack.victory.replace('{player}', pub.players[winner].name)}</p>
+        {prof && (
+          <div className="fin-prof">
+            <span>
+              <b>{prof.rating}</b> рейтинг
+            </span>
+            <span>
+              <b>{prof.streak}</b> дн. подряд
+            </span>
+            <span>
+              <b>{prof.games}</b> партий
+            </span>
+          </div>
+        )}
         <ol className="list">
           {order.map((id) => (
             <li key={id} className="item">
