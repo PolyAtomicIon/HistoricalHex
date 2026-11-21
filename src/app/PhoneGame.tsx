@@ -1750,13 +1750,15 @@ function StealReveal({ ev, pub, me }: { ev?: { thief: PlayerId; victim: PlayerId
   const role = me === shown.thief ? 'won' : me === shown.victim ? 'lost' : 'saw';
   const resName = res ? RESOURCE_NAME[res].charAt(0).toUpperCase() + RESOURCE_NAME[res].slice(1) : '';
   return (
-    <div key={shown.key} className={`steal-pop ${role}`} role="alert" onClick={() => setShown(undefined)}>
-      <div className="sp-card glass strong">
-        <span className="sp-kicker">{role === 'won' ? 'Добыча' : role === 'lost' ? 'У тебя забрали' : 'Кража'}</span>
-        <span className="sp-art">{role !== 'saw' && res ? <ResIcon r={res} size={96} /> : <Icon name="cards" size={56} />}</span>
-        <b className="sp-title">{role === 'won' ? `+1 ${resName}` : role === 'lost' ? `−1 ${resName}` : `${thief} забирает карту`}</b>
-        <small className="sp-sub">{role === 'won' ? `у игрока ${victim}` : role === 'lost' ? `забрал ${thief}` : `у игрока ${victim}`}</small>
-      </div>
+    <div key={shown.key} className={`steal-pop dock-pop ${role}`} role="alert">
+      <button className="sp-card glass strong" onClick={() => setShown(undefined)} aria-label="Закрыть">
+        <span className="sp-art">{role !== 'saw' && res ? <ResIcon r={res} size={60} /> : <Icon name="cards" size={34} />}</span>
+        <span className="sp-txt">
+          <span className="sp-kicker">{role === 'won' ? 'Добыча' : role === 'lost' ? 'У тебя забрали' : 'Кража'}</span>
+          <b className="sp-title">{role === 'won' ? `+1 ${resName}` : role === 'lost' ? `−1 ${resName}` : `${thief} забирает карту`}</b>
+          <small className="sp-sub">{role === 'won' ? `у игрока ${victim}` : role === 'lost' ? `забрал ${thief}` : `у игрока ${victim}`}</small>
+        </span>
+      </button>
     </div>
   );
 }
