@@ -1046,16 +1046,20 @@ export function PlayersBar({
                   <Icon name="bot" size={9} />
                 </span>
               )}
+              {!compact && awardsOf(pub, id).length > 0 && (
+                <span className="pc-awb">
+                  {awardsOf(pub, id).map((a) => (
+                    <span key={a} className={`pc-aw ${a}`} title={a === 'road' ? pack?.bonuses.longestRoad : pack?.bonuses.largestArmy}>
+                      <Icon name={a === 'road' ? 'road' : 'army'} size={9} />
+                    </span>
+                  ))}
+                </span>
+              )}
             </span>
             {!compact && (
               <span className="pc-info">
                 <span className="pc-nrow">
                   <span className="pc-name">{id === room.me ? 'Ты' : p.name}</span>
-                  {awardsOf(pub, id).map((a) => (
-                    <span key={a} className={`pc-aw ${a}`} title={a === 'road' ? pack?.bonuses.longestRoad : pack?.bonuses.largestArmy}>
-                      <Icon name={a === 'road' ? 'road' : 'army'} size={10} />
-                    </span>
-                  ))}
                 </span>
                 <span className="pc-stats">
                   <Icon name="star" size={11} />

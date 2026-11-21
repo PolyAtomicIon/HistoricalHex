@@ -331,7 +331,7 @@ export function tradeVerdict(want: ResourceMap, give: ResourceMap, hand: Resourc
   fair = Math.max(-1, Math.min(1, fair));
   const ratio = `${out}:${inn}`;
   const text = !canAccept
-    ? `Нечем ответить: у тебя нет ${RESOURCES.filter((r) => (want[r] ?? 0) > hand[r]).map((r) => RESOURCE_NAME[r]).join(', ')}`
+    ? `Нечем ответить — не хватает: ${RESOURCES.filter((r) => (want[r] ?? 0) > hand[r]).map((r) => RESOURCE_NAME[r]).join(', ')}`
     : unlocks.length
       ? `Выгодно: после обмена хватит на ${unlocks[0]}`
       : loses.length
