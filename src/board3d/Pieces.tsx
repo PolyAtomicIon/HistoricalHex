@@ -28,26 +28,45 @@ function prism(w: number, h: number, d: number): THREE.BufferGeometry {
 
 const plinth = () => part(new THREE.CylinderGeometry(0.15, 0.17, 0.3, 8), '#6e6a66', [0, -0.13, 0]);
 
+// Дом (поселение): одноэтажная хата — белые стены, тёмная крыша, труба.
 const houseGeo = merge([
   plinth(),
   part(box(0.28, 0.13, 0.22), '#ffffff', [0, 0.065, 0]),
-  part(prism(0.33, 0.13, 0.26), '#e6e6e6', [0, 0.13, 0]),
-  part(box(0.045, 0.07, 0.045), '#d0d0d0', [0.07, 0.22, 0.04]),
+  part(prism(0.34, 0.13, 0.27), '#8f8f8f', [0, 0.13, 0]),
+  part(box(0.045, 0.08, 0.045), '#6f6f6f', [0.07, 0.22, 0.04]),
+  part(box(0.06, 0.08, 0.015), '#5a5a5a', [0, 0.04, 0.112]), // дверь
 ]);
 
+// Город: особняк с башней — двухэтажный корпус, зубчатая башня со шпилем, светящиеся окна.
 const cityGeo = merge([
   plinth(),
-  part(box(0.36, 0.14, 0.26), '#ffffff', [-0.04, 0.07, 0]),
-  part(prism(0.4, 0.12, 0.3), '#e6e6e6', [-0.04, 0.14, 0]),
-  part(box(0.16, 0.3, 0.16), '#f2f2f2', [0.13, 0.15, 0]),
-  part(new THREE.ConeGeometry(0.125, 0.14, 4), '#dcdcdc', [0.13, 0.37, 0], [0, Math.PI / 4, 0]),
-  part(box(0.05, 0.07, 0.02), '#3a3a3a', [0.13, 0.2, 0.085]),
-  part(box(0.05, 0.07, 0.02), '#3a3a3a', [-0.08, 0.08, 0.135]),
+  part(box(0.36, 0.2, 0.26), '#ffffff', [-0.05, 0.1, 0]), // два этажа
+  part(box(0.37, 0.018, 0.27), '#bdbdbd', [-0.05, 0.1, 0]), // карниз между этажами
+  part(prism(0.4, 0.12, 0.3), '#7a7a7a', [-0.05, 0.2, 0]),
+  part(box(0.17, 0.36, 0.17), '#f4f4f4', [0.15, 0.18, 0]), // башня
+  ...[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([dx, dz]) => part(box(0.05, 0.05, 0.05), '#e2e2e2', [0.15 + dx * 0.06, 0.385, dz * 0.06])),
+  part(new THREE.ConeGeometry(0.06, 0.14, 4), '#6a6a6a', [0.15, 0.43, 0], [0, Math.PI / 4, 0]),
+  part(box(0.07, 0.1, 0.015), '#5a5a5a', [-0.05, 0.05, 0.135]), // ворота
 ]);
+// Окна города — отдельной тёплой подсветкой (не красятся в цвет игрока)
+const cityWindowsGeo = merge(
+  [
+    ...[-0.17, 0.07].flatMap((x) => [
+      [x, 0.06, 0.131],
+      [x, 0.15, 0.131],
+      [x, 0.15, -0.131],
+    ]),
+    [-0.05, 0.15, 0.131],
+    [0.15, 0.2, 0.086],
+    [0.15, 0.29, 0.086],
+    [0.15, 0.29, -0.086],
+  ].map(([x, y, z]) => part(box(0.04, 0.05, 0.008), '#ffffff', [x, y, z])),
+);
+const windowMat = new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: false });
 
-// Фишки крупнее (критика: 10 px на телефоне не видно)
-houseGeo.scale(2.2, 2.2, 2.2);
-cityGeo.scale(1.95, 1.95, 1.95);
+houseGeo.scale(2.0, 2.0, 2.0);
+cityGeo.scale(1.85, 1.85, 1.85);
+cityWindowsGeo.scale(1.85, 1.85, 1.85);
 
 // Толстый мультяшный контур: та же геометрия, чуть больше, тёмная, вывернута внутрь (BackSide)
 const hullCache = new Map<string, THREE.MeshBasicMaterial>();
@@ -246,6 +265,7 @@ function Building({ id, kind, color, ctx }: { id: string; kind: 'settlement' | '
         <mesh geometry={padGeo} material={padMat(color)} position={[0, 0.01, 0]} receiveShadow />
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={hullMat(color)} scale={[1.13, 1.08, 1.13]} position={[0, -0.015, 0]} />
         <mesh geometry={kind === 'city' ? cityGeo : houseGeo} material={pieceMat(color)} castShadow receiveShadow />
+        {kind === 'city' && <mesh geometry={cityWindowsGeo} material={windowMat} />}
       </group>
       {recent && <Puff color="#f4efe4" />}
     </group>
@@ -481,6 +501,10 @@ const zoneRing = new THREE.CircleGeometry(0.86, 6, Math.PI / 2);
 const zoneDisc = new THREE.CircleGeometry(0.9, 6, Math.PI / 2);
 
 /** Плашка над лагерем: какой ресурс и какое число сейчас заблокированы. */
+/**
+ * Значок над куполом: [эмблема захватчика] [ресурс] [зачёркнутое число].
+ * Эмблема (отряд эпохи в красном круге) отвечает на вопрос «чей купол».
+ */
 function useBlockedBadge(era?: string, res?: string, num?: number): THREE.SpriteMaterial | null {
   const [mat, setMat] = useState<THREE.SpriteMaterial | null>(null);
   useEffect(() => {
@@ -488,28 +512,38 @@ function useBlockedBadge(era?: string, res?: string, num?: number): THREE.Sprite
       setMat(null);
       return;
     }
+    const W = 352;
+    const H = 104;
     const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 96;
+    c.width = W;
+    c.height = H;
     const g = c.getContext('2d')!;
-    const draw = (img?: HTMLImageElement) => {
-      g.clearRect(0, 0, 256, 96);
-      g.fillStyle = 'rgba(18,12,12,0.9)';
+    let unit: HTMLImageElement | undefined;
+    let resImg: HTMLImageElement | undefined;
+    const draw = () => {
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = 'rgba(18,12,12,0.92)';
       g.beginPath();
-      g.roundRect(4, 4, 248, 88, 44);
+      g.roundRect(4, 4, W - 8, H - 8, (H - 8) / 2);
       g.fill();
-      if (img) g.drawImage(img, 22, 10, 76, 76);
+      // эмблема захватчика: красный круг (концентрично: 48 − 6)
+      g.fillStyle = '#c8321f';
+      g.beginPath();
+      g.arc(52, 52, 42, 0, Math.PI * 2);
+      g.fill();
+      if (unit) g.drawImage(unit, 18, 18, 68, 68);
+      if (resImg) g.drawImage(resImg, 110, 18, 68, 68);
       g.fillStyle = num === 6 || num === 8 ? '#ff7a6e' : '#f6f3ec';
       g.font = 'bold 56px Unbounded, Manrope, sans-serif';
       g.textAlign = 'center';
       g.textBaseline = 'middle';
-      g.fillText(String(num), 170, 52);
+      g.fillText(String(num), 260, 56);
       g.strokeStyle = '#ff3b2f';
       g.lineWidth = 9;
       g.lineCap = 'round';
       g.beginPath();
-      g.moveTo(40, 76);
-      g.lineTo(216, 20);
+      g.moveTo(206, 80);
+      g.lineTo(316, 26);
       g.stroke();
     };
     draw();
@@ -517,12 +551,17 @@ function useBlockedBadge(era?: string, res?: string, num?: number): THREE.Sprite
     tex.colorSpace = THREE.SRGBColorSpace;
     const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
     setMat(m);
-    const img = new Image();
-    img.onload = () => {
-      draw(img);
-      tex.needsUpdate = true;
+    const load = (src: string, set: (i: HTMLImageElement) => void) => {
+      const img = new Image();
+      img.onload = () => {
+        set(img);
+        draw();
+        tex.needsUpdate = true;
+      };
+      img.src = src;
     };
-    img.src = `${import.meta.env.BASE_URL}eras/${era}/res-${res}.webp`;
+    load(`${import.meta.env.BASE_URL}eras/${era}/robber-unit.webp`, (i) => (unit = i));
+    load(`${import.meta.env.BASE_URL}eras/${era}/res-${res}.webp`, (i) => (resImg = i));
   }, [era, res, num]);
   return mat;
 }
@@ -564,7 +603,7 @@ export function RaidZone({ target, hexH, era, res, num }: { target: [number, num
         <sprite key={i} ref={(el) => (puffs.current[i] = el)} material={m} />
       ))}
       {era === 'ww2' && <pointLight ref={light} color="#ff7a1a" distance={2.6} intensity={1.6} position={[0, 0.4, 0]} />}
-      {badge && <sprite material={badge} position={[0, 1.05, 0]} scale={[1.05, 0.4, 1]} renderOrder={20} />}
+      {badge && <sprite material={badge} position={[0, 1.62, 0]} scale={[1.3, 0.385, 1]} renderOrder={20} />}
     </group>
   );
 }

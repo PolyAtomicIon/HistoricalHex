@@ -487,6 +487,14 @@ function Scene(props: Board3DProps & { rig: Rig }) {
     else if (world.topo.hexes.has(selected)) hl.hexes.add(selected);
   }
 
+  // Участки под постройками — с них убирается декор местности
+  const buildSpots = useMemo(
+    () => Object.keys(view.buildings).flatMap((v) => {
+      const p = world.vert.get(v);
+      return p ? [[p[0], p[1]] as [number, number]] : [];
+    }),
+    [world, view.buildings],
+  );
   const robberPos = useMemo<[number, number] | null>(() => {
     const p = world.hex.get(view.robberHex);
     return p ? [p[0], p[1]] : null;
@@ -532,7 +540,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       />
 
       <Sea centers={centers} radius={world.radius} sunDir={sunDir} />
-      <Tiles tiles={tiles} />
+      <Tiles tiles={tiles} clear={buildSpots} />
       <Tokens tiles={tiles} numbers={numbers} hide={view.robberHex} />
       <Harbors world={world} harbors={view.board.harbors} era={era} sail={sail} />
       <Roads roads={view.roads} colors={colors} ctx={ctx} />

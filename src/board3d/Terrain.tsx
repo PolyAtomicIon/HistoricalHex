@@ -544,8 +544,38 @@ function Skirt({ tiles }: { tiles: TileInfo[] }) {
   return <instancedMesh key={tiles.length} ref={ref} args={[skirtGeo(), skirtMat, tiles.length]} receiveShadow frustumCulled={false} />;
 }
 
-export default function Tiles({ tiles }: { tiles: TileInfo[] }) {
-  const props = useMemo(() => genProps(tiles), [tiles]);
+/**
+ * Расчистить место под постройки: убрать деревья/камни/овец рядом с домом, ряды пшеницы,
+ * которые проходят через участок, и пригнуть горные пики возле построек.
+ */
+function clearAround(props: Record<PropKind, Inst[]>, spots: [number, number][]): Record<PropKind, Inst[]> {
+  if (spots.length === 0) return props;
+  const near = (x: number, z: number, d: number) => spots.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < d);
+  const segNear = (o: Inst, half: number, d: number) => {
+    const dx = Math.cos(o.ry) * half;
+    const dz = -Math.sin(o.ry) * half;
+    return spots.some(([sx, sz]) => {
+      const vx = sx - (o.x - dx);
+      const vz = sz - (o.z - dz);
+      const L = 4 * half * half;
+      const k = Math.max(0, Math.min(1, (vx * 2 * dx + vz * 2 * dz) / L));
+      return Math.hypot(vx - 2 * dx * k, vz - 2 * dz * k) < d;
+    });
+  };
+  const out = {} as Record<PropKind, Inst[]>;
+  for (const k of Object.keys(props) as PropKind[]) {
+    if (k === 'peak') out[k] = props[k].map((o) => (near(o.x, o.z, 0.82) ? { ...o, s: o.s * 0.68, sy: (o.sy ?? o.s) * 0.68 } : o));
+    else if (k === 'wheat' || k === 'furrow') out[k] = props[k].filter((o) => !segNear(o, 0.43, 0.36));
+    else if (k === 'dune') out[k] = props[k].filter((o) => !near(o.x, o.z, 0.5));
+    else out[k] = props[k].filter((o) => !near(o.x, o.z, 0.44));
+  }
+  return out;
+}
+
+export default function Tiles({ tiles, clear }: { tiles: TileInfo[]; clear?: [number, number][] }) {
+  const raw = useMemo(() => genProps(tiles), [tiles]);
+  const clearKey = (clear ?? []).map((c) => c.join(',')).join(';');
+  const props = useMemo(() => clearAround(raw, clear ?? []), [raw, clearKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const byTerrain = useMemo(() => {
     const m = {} as Record<Terrain, TileInfo[]>;
     for (const t of TERRAINS) m[t] = tiles.filter((x) => x.terrain === t);

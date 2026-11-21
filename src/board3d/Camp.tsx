@@ -82,12 +82,27 @@ const domeGeo = (() => {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
-  g.scale(0.74, 0.62, 0.74);
+  g.scale(0.74, 0.95, 0.74);
   g.computeVertexNormals();
   return g;
 })();
 const domeEdges = new THREE.EdgesGeometry(domeGeo, 1);
 const rimGeo = new THREE.TorusGeometry(0.74, 0.012, 6, 48);
+const spireGeo = new THREE.CylinderGeometry(0.008, 0.012, 0.34, 6);
+spireGeo.translate(0, 0.17, 0);
+const spireMat = new THREE.MeshStandardMaterial({ color: '#2a2422', roughness: 0.6 });
+// Знамя: полотнище с вырезом-«ласточкиным хвостом», крепится к шпилю левым краем
+const flagGeo = (() => {
+  const sh = new THREE.Shape();
+  sh.moveTo(0, 0.05);
+  sh.lineTo(0.22, 0.05);
+  sh.lineTo(0.17, 0);
+  sh.lineTo(0.22, -0.05);
+  sh.lineTo(0, -0.05);
+  sh.closePath();
+  return new THREE.ShapeGeometry(sh);
+})();
+const flagMat = new THREE.MeshStandardMaterial({ color: '#7d1a12', roughness: 0.8, side: THREE.DoubleSide });
 rimGeo.rotateX(Math.PI / 2);
 
 const FIRE_AT: Record<string, [number, number, number]> = {
@@ -102,6 +117,7 @@ export function Camp({ era }: { era: string }) {
   const dome = useRef<THREE.MeshBasicMaterial>(null);
   const edges = useRef<THREE.LineBasicMaterial>(null);
   const light = useRef<THREE.PointLight>(null);
+  const flag = useRef<THREE.Mesh>(null);
   const { reduced, lowPower } = useEnv();
   const fire = FIRE_AT[era] ?? FIRE_AT.genghis;
   useFrame(({ clock }) => {
@@ -114,6 +130,7 @@ export function Camp({ era }: { era: string }) {
     if (dome.current) dome.current.opacity = 0.06 + pulse * 0.05;
     if (edges.current) edges.current.opacity = 0.45 + pulse * 0.4;
     if (light.current) light.current.intensity = 0.8 + Math.sin(t * 13) * 0.25;
+    if (flag.current) flag.current.rotation.y = Math.sin(t * 1.3) * 0.5 + t * 0.15;
   });
   return (
     <group>
@@ -133,6 +150,9 @@ export function Camp({ era }: { era: string }) {
       <mesh geometry={rimGeo} renderOrder={10}>
         <meshBasicMaterial color="#ff5a48" toneMapped={false} />
       </mesh>
+      {/* шпиль на вершине купола с тёмным знаменем захватчика */}
+      <mesh geometry={spireGeo} material={spireMat} position={[0, 0.95, 0]} />
+      <mesh ref={flag} geometry={flagGeo} material={flagMat} position={[0, 1.24, 0]} />
     </group>
   );
 }
