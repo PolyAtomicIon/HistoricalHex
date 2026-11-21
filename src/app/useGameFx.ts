@@ -110,6 +110,8 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
   useEffect(() => {
     const tv = me === undefined;
     const name = (id?: PlayerId) => (id && pubRef.current?.players[id]?.name) || 'Кто-то';
+    /** «Хиро строит» / «Ты строишь» — для простых пояснений к событиям. */
+    const who = (id: PlayerId | undefined, third: string, second: string) => (me && id === me ? `Ты ${second}` : `${name(id)} ${third}`);
     const color = (id?: PlayerId) => {
       const c = id && pubRef.current?.players[id]?.color;
       return c ? PLAYER_HEX[c] : undefined;
@@ -220,7 +222,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             }));
             if (e.total === 7) {
               setTimeout(() => {
-                cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber-unit') });
+                cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, explain: `У кого больше 7 карт — сбрасывают половину. Потом ${me === e.player ? 'ты ставишь' : `${name(e.player)} ставит`} захватчиков на гекс и ${me === e.player ? 'забираешь' : 'забирает'} карту у соседа`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber-unit') });
                 setFx((f) => ({ ...f, shake: f.shake + 1 }));
               }, rollDurationMs);
             }
@@ -252,7 +254,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             }));
             sfx.play('pop');
             if (e.kind === 'city') {
-              cine({ kind: 'built-city', title: `${p.pieces.city}!`, subtitle: narrate(p, 'city', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'emblem'), color: color(e.player) });
+              cine({ kind: 'built-city', title: `${p.pieces.city}!`, explain: `${who(e.player, 'строит', 'строишь')} город: соседние гексы дают ${me === e.player ? 'тебе' : 'ему'} двойной доход, +1 очко`, subtitle: narrate(p, 'city', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'emblem'), color: color(e.player) });
             } else if (tv) say(narrate(p, e.kind === 'road' ? 'road' : 'settlement', { player: name(e.player) }), e.player);
             break;
           }
@@ -284,10 +286,10 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
           case 'devCardPlayed': {
             const card = p.devCards[e.card];
             if (e.card === 'knight') {
-              knightBy.current = e.player; // сама сцена — после выбора цели (robberMoved)
-              say(`${card.name}: ${narrate(p, 'knight', { player: name(e.player) })}`, e.player);
+              knightBy.current = e.player; // сама атака — после выбора цели (robberMoved)
+              cine({ kind: 'knight', title: card.name, explain: `Карта воина: ${me === e.player ? 'ты ставишь' : `${name(e.player)} ставит`} захватчиков на любой гекс и ${me === e.player ? 'забираешь' : 'забирает'} карту у соседа`, subtitle: narrate(p, 'knight', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
             } else if (e.card === 'roadBuilding') {
-              cine({ kind: 'roadBuilding', title: card.name, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
+              cine({ kind: 'roadBuilding', title: card.name, explain: `${who(e.player, 'строит', 'строишь')} 2 дороги бесплатно`, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
             }
             break;
           }
@@ -295,6 +297,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             cine({
               kind: 'monopoly',
               title: p.devCards.monopoly.name,
+              explain: `${who(e.player, 'забирает', 'забираешь')} у всех весь ресурс «${RESOURCE_NAME[e.resource]}»: ${e.total} шт.`,
               subtitle: narrate(p, 'monopoly', { player: name(e.player), res: RESOURCE_NAME[e.resource], count: e.total }),
               emoji: '', img: eraIcon(p.id, `res-${e.resource}`), rain: eraIcon(p.id, 'dev-monopoly'),
               color: color(e.player),
@@ -305,6 +308,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             cine({
               kind: 'yearOfPlenty',
               title: p.devCards.yearOfPlenty.name,
+              explain: `${who(e.player, 'берёт', 'берёшь')} из банка бесплатно: ${(e.resources ?? []).map((r) => RESOURCE_NAME[r as Resource]).join(' и ')}`,
               subtitle: narrate(p, 'yearOfPlenty', { player: name(e.player) }),
               emoji: '', img: eraIcon(p.id, 'dev-yearOfPlenty'), rain: eraIcon(p.id, `res-${(e.resources ?? ['wheat'])[0]}`),
               color: color(e.player),
@@ -312,10 +316,10 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             break;
           case 'longestRoad':
             if (e.player)
-              cine({ kind: 'longestRoad', title: p.bonuses.longestRoad, subtitle: narrate(p, 'longestRoad', { player: name(e.player), n: e.length }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
+              cine({ kind: 'longestRoad', title: p.bonuses.longestRoad, explain: `Самая длинная дорога (${e.length}) — у ${me === e.player ? 'тебя' : name(e.player)}: +2 очка, пока кто-то не построит длиннее`, subtitle: narrate(p, 'longestRoad', { player: name(e.player), n: e.length }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
             break;
           case 'largestArmy':
-            cine({ kind: 'largestArmy', title: p.bonuses.largestArmy, subtitle: narrate(p, 'largestArmy', { player: name(e.player), n: e.knights }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
+            cine({ kind: 'largestArmy', title: p.bonuses.largestArmy, explain: `Больше всех сыгранных воинов (${e.knights}) — у ${me === e.player ? 'тебя' : name(e.player)}: +2 очка`, subtitle: narrate(p, 'largestArmy', { player: name(e.player), n: e.knights }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
             break;
           case 'tradeCompleted':
             sfx.play('chime');

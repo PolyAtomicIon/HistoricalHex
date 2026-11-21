@@ -10,6 +10,8 @@ export interface CinematicEvent {
   kind: CinematicKind;
   title: string;
   subtitle?: string;
+  /** Что произошло по правилам — простыми словами (под заголовком). */
+  explain?: string;
   emoji: string;
   /** Картинка вместо эмодзи (авторский арт эпохи). */
   img?: string;
@@ -148,6 +150,7 @@ export function Cinematic({ event, tv = false }: { event: CinematicEvent | null;
             <div className="fx-cin-emoji">{active.img ? <img className="fx-cin-img" src={active.img} alt="" /> : active.emoji}</div>
           </div>
           <div className="fx-cin-title">{active.title}</div>
+          {active.explain && <div className="fx-cin-explain">{active.explain}</div>}
           {active.subtitle && <div className="fx-cin-sub">{active.subtitle}</div>}
         </div>
       </div>
