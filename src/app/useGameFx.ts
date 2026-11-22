@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { GameEvent, HarborType, PlayerId, PublicState, Resource } from '../engine';
-import { RESOURCES } from '../engine';
+import { RESOURCES, topologyFor } from '../engine';
 import type { LorePack } from '../lore';
 import { narrate } from '../lore';
 import { conn } from '../client/conn';
@@ -203,14 +203,25 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
           const h = pubRef.current?.board.hexes.find((x) => x.id === hex);
           return h ? { res: hexResource(h.terrain), number: h.number } : undefined;
         },
+        roadsAt: (v: string) => {
+          const pub = pubRef.current;
+          const out: Partial<Record<PlayerId, number>> = {};
+          const vert = pub && topologyFor(pub.board.layout).vertices.get(v);
+          if (!pub || !vert) return out;
+          for (const e of vert.edges) {
+            const o = pub.roads[e];
+            if (o) out[o] = (out[o] ?? 0) + 1;
+          }
+          return out;
+        },
       };
       const lines = events.map((e) => logText(e, lctx)).filter((x): x is NonNullable<typeof x> => !!x);
-      const note = events.map((e) => noticeFor(e, lctx)).find((x) => !!x);
-      if (lines.length || note)
+      const notes = events.map((e) => noticeFor(e, lctx)).filter((x): x is NonNullable<typeof x> => !!x);
+      if (lines.length || notes.length)
         setFx((f) => ({
           ...f,
           log: [...f.log, ...lines.map((l) => ({ ...l, key: k.current++ }))].slice(-200),
-          notices: note ? [...f.notices, { ...note, key: k.current++ }].slice(-6) : f.notices,
+          notices: notes.length ? [...f.notices, ...notes.map((x) => ({ ...x, key: k.current++ }))].slice(-6) : f.notices,
         }));
       for (const e of events) {
         switch (e.type) {

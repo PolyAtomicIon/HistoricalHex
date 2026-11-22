@@ -619,7 +619,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       {notice && (
         <div key={notice.key} className="fact-pop notice-card glass strong" role="alert">
           <span className="nc-ic" style={{ ['--pc' as string]: notice.who && pub.players[notice.who] ? PLAYER_HEX[pub.players[notice.who].color] : 'var(--accent)' }}>
-            <Icon name="crown" size={20} />
+            <Icon name={notice.icon ?? 'crown'} size={20} />
           </span>
           <div className="fp-body">
             <b className="nc-title">{notice.title}</b>

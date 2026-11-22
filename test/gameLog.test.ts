@@ -27,3 +27,23 @@ describe('журнал партии', () => {
     expect(noticeFor({ type: 'diceRolled', player: 'a', dice: [1, 1], total: 2 }, ctx)).toBeNull();
   });
 });
+
+describe('разрезанная дорога', () => {
+  const at = (counts: Record<string, number>) => ({ ...ctx, roadsAt: () => counts });
+  const built = (player: string) => ({ type: 'built' as const, player, kind: 'settlement' as const, at: 'v9' });
+  it('жертве объясняет, что на концах обоих кусков строить можно', () => {
+    const n = noticeFor(built('b'), at({ a: 2 }))!;
+    expect(n.title).toBe('Твою дорогу разрезали');
+    expect(n.text).toContain('оба куска твои');
+    expect(n.icon).toBe('road');
+  });
+  it('тому, кто разрезал, и остальным — своя формулировка', () => {
+    expect(noticeFor(built('a'), at({ b: 2 }))!.title).toBe('Ты разрезал дорогу');
+    expect(noticeFor(built('b'), { ...at({ c: 2 }), me: 'z' })!.text).toContain('Мадина ставит поселение');
+  });
+  it('конец своей или чужой дороги — не разрез', () => {
+    expect(noticeFor(built('b'), at({ a: 1 }))).toBeNull();
+    expect(noticeFor(built('b'), at({ b: 2 }))).toBeNull();
+    expect(noticeFor({ type: 'built', player: 'b', kind: 'city', at: 'v9' }, at({ a: 2 }))).toBeNull();
+  });
+});

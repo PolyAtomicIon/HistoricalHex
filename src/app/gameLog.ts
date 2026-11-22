@@ -20,6 +20,8 @@ export interface Notice {
   text: string;
   who?: PlayerId;
   img?: string;
+  /** Иконка карточки (по умолчанию корона — для наград). */
+  icon?: 'crown' | 'road';
 }
 
 export interface LogCtx {
@@ -28,6 +30,8 @@ export interface LogCtx {
   me?: PlayerId;
   /** Ресурс и число гекса — для «налёт на руду 9». */
   hexInfo?: (hex: string) => { res?: Resource; number?: number } | undefined;
+  /** Сколько дорог каждого игрока сходится в перекрёстке — чтобы заметить разрезанную дорогу. */
+  roadsAt?: (vertex: string) => Partial<Record<PlayerId, number>>;
 }
 
 const res = (r?: Resource) => (r ? RESOURCE_NAME[r] : '');
@@ -91,6 +95,34 @@ export function logText(e: GameEvent, c: LogCtx): Omit<LogEntry, 'key'> | null {
 export function noticeFor(e: GameEvent, c: LogCtx): Omit<Notice, 'key'> | null {
   const n = c.name;
   switch (e.type) {
+    case 'built': {
+      // Поселение на перекрёстке, через который шла чужая дорога (2+ её участка), — дорогу разрезали.
+      if (e.kind !== 'settlement' || !c.roadsAt) return null;
+      const counts = c.roadsAt(e.at);
+      const victim = (Object.keys(counts) as PlayerId[]).find((p) => p !== e.player && (counts[p] ?? 0) >= 2);
+      if (!victim) return null;
+      const bonus = `«${c.pack.bonuses.longestRoad}»`;
+      if (victim === c.me)
+        return {
+          title: 'Твою дорогу разрезали',
+          text: `${n(e.player)} ставит поселение посреди твоей дороги. Для ${bonus} теперь считается только самый длинный кусок. Но оба куска твои: на их концах можно строить дома и вести дороги дальше — только не через чужой дом.`,
+          who: e.player,
+          icon: 'road',
+        };
+      if (e.player === c.me)
+        return {
+          title: 'Ты разрезал дорогу',
+          text: `Твоё поселение разрезало дорогу игрока ${n(victim)}. Для ${bonus} теперь считается только самый длинный кусок, но строить на концах обоих кусков этот игрок по-прежнему может.`,
+          who: victim,
+          icon: 'road',
+        };
+      return {
+        title: 'Дорогу разрезали',
+        text: `${n(e.player)} ставит поселение посреди дороги игрока ${n(victim)}. Для ${bonus} считается только самый длинный кусок, но на концах обоих кусков ${n(victim)} может строить дальше.`,
+        who: victim,
+        icon: 'road',
+      };
+    }
     case 'longestRoad':
       if (!e.player) return { title: c.pack.bonuses.longestRoad, text: 'Самую длинную дорогу разорвали — бонус +2 очка пока ни у кого.' };
       return {
