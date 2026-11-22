@@ -159,7 +159,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
             <div className="hub-sec-h">
               <b>{T('eras')}</b>
               <small className="faint">
-                {LORE_PACKS.length} {T('open')} · {SOON.length} {T('soon')}
+                {LORE_PACKS.length} {T('open')}, {SOON.length} {T('soon')}
               </small>
             </div>
             <div className="hub-strip">
