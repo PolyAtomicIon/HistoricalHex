@@ -28,6 +28,7 @@ export const UI: Record<string, T3> = {
   card: { ru: 'Карта', kz: 'Карта', en: 'Card' },
   endTurn: { ru: 'Конец хода', kz: 'Жүрісті аяқтау', en: 'End turn' },
   points: { ru: 'очков', kz: 'ұпай', en: 'points' },
+  pointsLbl: { ru: 'Очки', kz: 'Ұпай', en: 'Points' },
   bot: { ru: 'Аскар', kz: 'Асқар', en: 'Askar' },
   play: { ru: 'Играть', kz: 'Ойнау', en: 'Play' },
   rules: { ru: 'Правила', kz: 'Ережелер', en: 'Rules' },
@@ -57,6 +58,11 @@ export const WRONG: Record<string, T3> = {
     ru: 'Здесь {n} — выпадает реже. Ищи красные 6 или 8.',
     kz: 'Мұнда {n} — сирек түседі. Қызыл 6 немесе 8-ді ізде.',
     en: 'That’s {n} — it comes up less often. Look for a red 6 or 8.',
+  },
+  map: {
+    ru: 'Сейчас нажимай на карту — на подсвеченное место.',
+    kz: 'Қазір картаны бас — белгіленген орынды.',
+    en: 'Tap the map now — the highlighted spot.',
   },
   button: {
     ru: 'Нажми золотую кнопку внизу.',

@@ -11,6 +11,35 @@ import { tgStartPin } from './tg';
 import { InstallButton } from './pwa';
 import { haptic, sfx } from '../fx';
 import { LearnCard, useLearn } from './learn/Learn';
+import { LANGS, t3, useLang } from './learn/lang';
+import type { T3 } from './learn/lang';
+
+/** Тексты главной на трёх языках (названия эпох пока по-русски — это имена собственные из лор-паков). */
+const H: Record<string, T3> = {
+  hello: { ru: 'Добро пожаловать', kz: 'Қош келдің', en: 'Welcome' },
+  back: { ru: 'С возвращением', kz: 'Қайта оралдың', en: 'Welcome back' },
+  player: { ru: 'Игрок', kz: 'Ойыншы', en: 'Player' },
+  rating: { ru: 'рейтинг', kz: 'рейтинг', en: 'rating' },
+  streak: { ru: 'дн. подряд', kz: 'күн қатар', en: 'day streak' },
+  newGame: { ru: 'Новая партия', kz: 'Жаңа ойын', en: 'New game' },
+  byPin: { ru: 'По PIN', kz: 'PIN арқылы', en: 'Join by PIN' },
+  connecting: { ru: 'Подключаемся к серверу…', kz: 'Серверге қосылып жатыр…', en: 'Connecting to the server…' },
+  eras: { ru: 'Эпохи', kz: 'Дәуірлер', en: 'Eras' },
+  open: { ru: 'открыто', kz: 'ашық', en: 'open' },
+  soon: { ru: 'скоро', kz: 'жақында', en: 'soon' },
+  leaders: { ru: 'Лидеры', kz: 'Көшбасшылар', en: 'Leaders' },
+  more: { ru: 'Подробнее', kz: 'Толығырақ', en: 'More' },
+  you: { ru: 'Ты', kz: 'Сен', en: 'You' },
+  games: { ru: 'парт.', kz: 'ойын', en: 'games' },
+  wins: { ru: 'побед', kz: 'жеңіс', en: 'wins' },
+  first: { ru: 'сыграй первую партию', kz: 'алғашқы ойынды ойна', en: 'play your first game' },
+  pin: { ru: 'PIN игры', kz: 'Ойын PIN-і', en: 'Game PIN' },
+  name: { ru: 'Твоё имя', kz: 'Атың', en: 'Your name' },
+  namePh: { ru: 'Например, Бекзат', kz: 'Мысалы, Бекзат', en: 'For example, Bekzat' },
+  enter: { ru: 'Войти', kz: 'Кіру', en: 'Join' },
+  goBack: { ru: 'Назад', kz: 'Артқа', en: 'Back' },
+  profile: { ru: 'Профиль', kz: 'Профиль', en: 'Profile' },
+};
 
 export const NAME_KEY = 'hh.name';
 export function savedName(): string {
@@ -45,6 +74,8 @@ export function Home({ initialPin }: { initialPin?: string }) {
   const pack = LORE_PACKS.find((p) => p.id === era)!;
   applyEra(pack);
   const learn = useLearn();
+  const [lang, setLang] = useLang();
+  const T = (k: string) => t3(H[k], lang);
   useEffect(() => {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
@@ -70,29 +101,36 @@ export function Home({ initialPin }: { initialPin?: string }) {
 
   return (
     <main className="screen home hub">
-      <Sheet open={!!profileOpen} onClose={() => setProfileOpen(null)} title={profileOpen === 'top' ? 'Лидеры' : 'Профиль'}>
+      <Sheet open={!!profileOpen} onClose={() => setProfileOpen(null)} title={profileOpen === 'top' ? T('leaders') : T('profile')}>
         <ProfileView key={profileOpen ?? 'x'} initialTab={profileOpen ?? 'me'} />
       </Sheet>
 
       {mode === 'home' ? (
         <div className="hub-col">
           <header className="hub-head">
-            <button className="hub-me" onClick={() => setProfileOpen('me')} aria-label="Профиль">
+            <button className="hub-me" onClick={() => setProfileOpen('me')} aria-label={T('profile')}>
               <span className="pf-ava">{me?.photo ? <img src={me.photo} alt="" /> : (me?.name || name || 'И').charAt(0).toUpperCase()}</span>
               <span className="hub-hello">
-                <small>{me && me.games > 0 ? 'С возвращением' : 'Добро пожаловать'}</small>
-                <b>{me?.name || name || 'Игрок'}</b>
+                <small>{me && me.games > 0 ? T('back') : T('hello')}</small>
+                <b>{me?.name || name || T('player')}</b>
               </span>
             </button>
             <span className="hub-chip glass">
               <b className="accent">{me?.rating ?? '—'}</b>
-              <small>рейтинг</small>
+              <small>{T('rating')}</small>
             </span>
             <span className="hub-chip glass">
               <b>{me?.streak ?? 0}</b>
-              <small>дн. подряд</small>
+              <small>{T('streak')}</small>
             </span>
           </header>
+          <div className="hub-lang" role="group" aria-label="Language">
+            {LANGS.map((l) => (
+              <button key={l.id} className={l.id === lang ? 'on' : ''} onClick={() => setLang(l.id)}>
+                {l.label}
+              </button>
+            ))}
+          </div>
           <InstallButton />
 
           <section key={pack.id} className="hub-hero glass" style={{ backgroundImage: `url(${eraCover(pack.id)})` }}>
@@ -108,20 +146,20 @@ export function Home({ initialPin }: { initialPin?: string }) {
 
           <div className="hub-actions">
             <button className="btn primary big" disabled={status !== 'online' || creating} onClick={create}>
-              <Icon name="play" size={20} /> Новая партия
+              <Icon name="play" size={20} /> {T('newGame')}
             </button>
             <button className="btn big" onClick={() => setMode('join')}>
-              <Icon name="door" size={20} /> По PIN
+              <Icon name="door" size={20} /> {T('byPin')}
             </button>
           </div>
-          {status !== 'online' && <p className="faint small center">Подключаемся к серверу…</p>}
+          {status !== 'online' && <p className="faint small center">{T('connecting')}</p>}
           <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />
 
-          <section className="hub-eras" aria-label="Эпохи">
+          <section className="hub-eras" aria-label={T('eras')}>
             <div className="hub-sec-h">
-              <b>Эпохи</b>
+              <b>{T('eras')}</b>
               <small className="faint">
-                {LORE_PACKS.length} открыто · {SOON.length} скоро
+                {LORE_PACKS.length} {T('open')} · {SOON.length} {T('soon')}
               </small>
             </div>
             <div className="hub-strip">
@@ -152,7 +190,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
                   </span>
                   <span>
                     <b className="hub-era-t">{e.title}</b>
-                    <small>скоро</small>
+                    <small>{T('soon')}</small>
                   </span>
                 </div>
               ))}
@@ -160,11 +198,11 @@ export function Home({ initialPin }: { initialPin?: string }) {
           </section>
 
           {top3.length > 0 && (
-            <section className="hub-leaders glass" aria-label="Лидеры">
+            <section className="hub-leaders glass" aria-label={T('leaders')}>
               <div className="hub-sec-h">
-                <b>Лидеры</b>
+                <b>{T('leaders')}</b>
                 <button className="hub-more" onClick={() => setProfileOpen('top')}>
-                  Подробнее <Icon name="next" size={14} />
+                  {T('more')} <Icon name="next" size={14} />
                 </button>
               </div>
               <div className="hub-pod">
@@ -188,8 +226,8 @@ export function Home({ initialPin }: { initialPin?: string }) {
               {me && (
                 <div className="hub-myrow">
                   {myRow && <span className="n">{myRow.place}</span>}
-                  <span className="nm">Ты</span>
-                  <small>{me.games > 0 ? `${me.games} парт. · ${me.wins} побед` : 'сыграй первую партию'}</small>
+                  <span className="nm">{T('you')}</span>
+                  <small>{me.games > 0 ? `${me.games} ${T('games')} · ${me.wins} ${T('wins')}` : T('first')}</small>
                   <b>{me.rating}</b>
                 </div>
               )}
@@ -206,7 +244,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
             }}
           >
             <label className="label" htmlFor="pin">
-              PIN игры
+              {T('pin')}
             </label>
             <input
               id="pin"
@@ -219,7 +257,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
               placeholder="000000"
             />
             <label className="label" htmlFor="name">
-              Твоё имя
+              {T('name')}
             </label>
             <input
               id="name"
@@ -227,14 +265,14 @@ export function Home({ initialPin }: { initialPin?: string }) {
               maxLength={20}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Например, Бекзат"
+              placeholder={T('namePh')}
               autoComplete="nickname"
             />
             <button className="btn primary big wide" type="submit" disabled={pin.length !== 6 || !name.trim() || status !== 'online'}>
-              Войти
+              {T('enter')}
             </button>
             <button className="btn ghost wide" type="button" onClick={() => setMode('home')}>
-              Назад
+              {T('goBack')}
             </button>
           </form>
         </div>

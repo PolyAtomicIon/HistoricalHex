@@ -1,5 +1,5 @@
 // Язык обучения и справочника правил: русский, казахский, английский.
-// Остальной интерфейс игры пока на русском — это только для «Как играть».
+// Переведены: главный экран, обучение и правила. Остальной интерфейс партии пока на русском.
 
 import { useSyncExternalStore } from 'react';
 
@@ -18,9 +18,9 @@ function read(): Lang {
   } catch {
     /* ok */
   }
+  // Игра делается для Казахстана: по умолчанию русский, как и весь интерфейс; казахский — если телефон на казахском.
   const nav = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : 'ru';
   if (nav.startsWith('kk')) return 'kz';
-  if (nav.startsWith('en')) return 'en';
   return 'ru';
 }
 

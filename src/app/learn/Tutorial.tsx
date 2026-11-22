@@ -282,6 +282,7 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
   // ─── кнопки внизу ───
   const need = doneStep === step ? null : NEED_BTN[step];
   const press = (b: Btn) => {
+    if (!need) return say(L(WRONG.map), false);
     if (b !== need) return say(L(WRONG.button), false);
     haptic('tap');
     if (b === 'roll') return rollDice();
@@ -340,6 +341,10 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
   const text = STEPS[step];
   const readOnly = !NEED_BTN[step] && !['hexes', 'numbers', 'settle', 'road', 'robber'].includes(step);
   const canNext = readOnly || doneStep === step;
+  // Пока учимся на карте — внизу ничего нет, карта на весь экран. Рука ресурсов — с начала партии,
+  // кнопки — только когда нужно нажать одну из них.
+  const showHand = idx >= STEP_ORDER.indexOf('setupRest');
+  const showActions = !!need;
 
   const close = () => {
     markTutorialDone();
@@ -369,8 +374,8 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
               </button>
             ))}
           </div>
-          <span className="tut-pts">
-            <Icon name="star" size={15} /> {points} {pointsWord(points, lang)}
+          <span className="tut-pts" title={L(UI.pointsLbl)}>
+            <Icon name="star" size={15} /> {L(UI.pointsLbl)} {points}/10
           </span>
           <button className="tut-x" onClick={close} aria-label={L(UI.skip)}>
             {L(UI.skip)}
@@ -379,35 +384,14 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
       </header>
 
       <section key={step} className="tut-coach">
-        <small>
-          {L(UI.lesson)} {idx + 1} / {STEP_ORDER.length}
-        </small>
-        <b>{L(text.title)}</b>
+        <b>
+          <small>{idx + 1}/{STEP_ORDER.length}</small> {L(text.title)}
+        </b>
         <p>{fill(L(text.text), { name: L(UI.bot) })}</p>
         {note && (
           <p key={note.key} className={`tut-note ${note.ok ? 'ok' : 'bad'}`}>
             <Icon name={note.ok ? 'check' : 'bulb'} size={16} /> {note.text}
           </p>
-        )}
-        {step === 'finish' ? (
-          <div className="tut-acts">
-            <button className="btn primary" onClick={close}>
-              <Icon name="play" size={18} /> {L(UI.play)}
-            </button>
-            {onRules && (
-              <button className="btn ghost" onClick={onRules}>
-                <Icon name="book" size={18} /> {L(UI.rules)}
-              </button>
-            )}
-          </div>
-        ) : (
-          canNext && (
-            <div className="tut-acts">
-              <button className="btn primary" onClick={() => go()}>
-                {L(UI.next)} <Icon name="next" size={18} />
-              </button>
-            </div>
-          )
         )}
       </section>
 
@@ -433,33 +417,57 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
       </div>
 
       <footer className="tut-dock">
-        <div className="tut-hand">
-          {RESOURCES.map((r) => (
-            <div key={r} className={`tut-card ${w.hand[r] ? '' : 'zero'}`} style={{ ['--rc' as string]: RES_COLOR[r] }}>
-              <ResIcon r={r} size={28} />
-              <span className="n">{w.hand[r]}</span>
-              <span className="lbl">{RES_NAME[lang][r]}</span>
-            </div>
-          ))}
-        </div>
-        <div className="tut-actions">
-          <button className={`tut-btn wide ${need === 'roll' ? 'glow' : need ? 'off' : ''}`} onClick={() => press('roll')} aria-disabled={need !== 'roll'}>
-            <Icon name="dice" size={20} /> {L(UI.roll)}
-          </button>
-          {buttons.map((b) => (
-            <button key={b.id} className={`tut-btn ${need === b.id && armed !== b.id ? 'glow' : need && need !== b.id ? 'off' : ''} ${armed === b.id ? 'armed' : ''}`} onClick={() => press(b.id)} aria-disabled={need !== b.id}>
-              <Icon name={b.icon} size={20} />
-              <span>{b.label}</span>
+        {showHand && (
+          <div className="tut-hand">
+            {RESOURCES.map((r) => (
+              <div key={r} className={`tut-card ${w.hand[r] ? '' : 'zero'}`} style={{ ['--rc' as string]: RES_COLOR[r] }}>
+                <ResIcon r={r} size={28} />
+                <span className="n">{w.hand[r]}</span>
+                <span className="lbl">{RES_NAME[lang][r]}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {showActions && (
+          <div className="tut-actions">
+            <button className={`tut-btn wide ${need === 'roll' ? 'glow' : 'off'}`} onClick={() => press('roll')} aria-disabled={need !== 'roll'}>
+              <Icon name="dice" size={20} /> {L(UI.roll)}
             </button>
-          ))}
-          <button className={`tut-btn ${need === 'trade' ? 'glow' : need ? 'off' : ''}`} onClick={() => press('trade')} aria-disabled={need !== 'trade'}>
-            <Icon name="trade" size={20} />
-            <span>{L(UI.trade)}</span>
-          </button>
-          <button className={`tut-btn wide end ${need === 'end' ? 'glow' : need ? 'off' : ''}`} onClick={() => press('end')} aria-disabled={need !== 'end'}>
-            {L(UI.endTurn)} <Icon name="next" size={18} />
-          </button>
-        </div>
+            {buttons.map((b) => (
+              <button key={b.id} className={`tut-btn ${need === b.id && armed !== b.id ? 'glow' : need !== b.id ? 'off' : ''} ${armed === b.id ? 'armed' : ''}`} onClick={() => press(b.id)} aria-disabled={need !== b.id}>
+                <Icon name={b.icon} size={20} />
+                <span>{b.label}</span>
+              </button>
+            ))}
+            <button className={`tut-btn ${need === 'trade' ? 'glow' : 'off'}`} onClick={() => press('trade')} aria-disabled={need !== 'trade'}>
+              <Icon name="trade" size={20} />
+              <span>{L(UI.trade)}</span>
+            </button>
+            <button className={`tut-btn wide end ${need === 'end' ? 'glow' : 'off'}`} onClick={() => press('end')} aria-disabled={need !== 'end'}>
+              {L(UI.endTurn)} <Icon name="next" size={18} />
+            </button>
+          </div>
+        )}
+        {step === 'finish' ? (
+          <div className="tut-next two">
+            <button className="btn primary big" onClick={close}>
+              <Icon name="play" size={20} /> {L(UI.play)}
+            </button>
+            {onRules && (
+              <button className="btn big" onClick={onRules}>
+                <Icon name="book" size={20} /> {L(UI.rules)}
+              </button>
+            )}
+          </div>
+        ) : (
+          canNext && (
+            <div className="tut-next">
+              <button className="btn primary big" onClick={() => go()}>
+                {L(UI.next)} <Icon name="next" size={20} />
+              </button>
+            </div>
+          )
+        )}
       </footer>
 
       {tradeOpen && (
@@ -518,16 +526,6 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
       )}
     </div>
   );
-}
-
-/** «1 очко», «2 очка», «5 очков»; «1 point», «2 points». */
-function pointsWord(n: number, lang: 'ru' | 'kz' | 'en'): string {
-  if (lang === 'kz') return 'ұпай';
-  if (lang === 'en') return n === 1 ? 'point' : 'points';
-  const d = n % 10, h = n % 100;
-  if (d === 1 && h !== 11) return 'очко';
-  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return 'очка';
-  return 'очков';
 }
 
 function Die({ n }: { n: number }) {

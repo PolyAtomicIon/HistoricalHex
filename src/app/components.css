@@ -6254,3 +6254,27 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 .learn-row .btn {
   flex: 1;
 }
+
+/* Выбор языка на главной */
+.hub-lang {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.hub-lang button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: rgba(246, 243, 236, 0.7);
+}
+.hub-lang button.on {
+  background: var(--ink);
+  color: #0b1016;
+}

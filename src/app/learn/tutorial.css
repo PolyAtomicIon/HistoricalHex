@@ -79,41 +79,38 @@
   min-height: 40px;
 }
 
-/* подсказка-тренер */
+/* подсказка-тренер: компактно, чтобы карта была большой */
 .tut-coach {
-  margin: 10px 12px 0;
-  padding: 14px 16px 14px;
-  border-radius: var(--r-md);
-  background: rgba(12, 18, 26, 0.9);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+  margin: 8px 10px 0;
+  padding: 11px 14px 12px;
+  border-radius: 18px;
+  background: rgba(12, 18, 26, 0.92);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   animation: tut-in 0.35s var(--ease-out);
-}
-.tut-coach small {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(246, 243, 236, 0.5);
 }
 .tut-coach b {
   display: block;
-  margin-top: 4px;
-  font-size: 19px;
-  line-height: 1.2;
+  font-size: 17px;
+  line-height: 1.25;
+}
+.tut-coach b small {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
 }
 .tut-coach p {
-  margin: 6px 0 0;
-  font-size: 15.5px;
-  line-height: 1.45;
-  color: rgba(246, 243, 236, 0.86);
+  margin: 4px 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: rgba(246, 243, 236, 0.88);
 }
 .tut-coach .tut-note {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  margin-top: 10px;
-  padding: 9px 12px;
+  margin-top: 8px;
+  padding: 8px 11px;
   border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
@@ -193,7 +190,10 @@
   animation-delay: 0.08s;
 }
 
-/* рука и кнопки — как в партии */
+/* рука и кнопки — как в партии; пусто — не занимает места */
+.tut-dock:empty {
+  display: none;
+}
 .tut-dock {
   padding: 10px 10px calc(10px + var(--safe-b));
   background: rgba(10, 15, 22, 0.94);
@@ -413,4 +413,60 @@
 .tut-drew {
   font-size: 13.5px;
   color: rgba(246, 243, 236, 0.66);
+}
+
+/* «Дальше» — большая золотая кнопка внизу, под пальцем */
+.tut-next {
+  display: flex;
+  gap: 10px;
+}
+.tut-hand + .tut-next,
+.tut-actions + .tut-next {
+  margin-top: 10px;
+}
+.tut-next .btn {
+  flex: 1;
+  min-height: 56px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.tut-next .btn.primary {
+  animation: tut-glow 1.6s ease-in-out infinite;
+}
+
+/* Куда нажимать — крупно и золотом: на телефоне белые кружки почти не видны */
+.tut-board .b2d .vertex-target .vis {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 6px;
+  animation: tut-spot 1s ease-in-out infinite alternate;
+}
+.tut-board .b2d .edge-target .vis {
+  stroke: var(--accent);
+  stroke-width: 24px;
+  stroke-dasharray: none;
+  animation: tut-blink 0.9s ease-in-out infinite alternate;
+}
+.tut-board .b2d .hex-target {
+  fill: rgba(var(--accent-rgb), 0.28);
+  stroke: var(--accent);
+  stroke-width: 10px;
+  stroke-dasharray: none;
+  animation: tut-blink 0.9s ease-in-out infinite alternate;
+}
+@keyframes tut-blink {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tut-spot {
+  from {
+    transform: scale(1.35);
+  }
+  to {
+    transform: scale(1.9);
+  }
 }
