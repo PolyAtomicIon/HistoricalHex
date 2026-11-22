@@ -35,7 +35,11 @@ export function App() {
   return (
     <>
       {screen}
-      {state.status === 'offline' && <div className="toast glass bad">Нет связи — переподключаемся…</div>}
+      {state.status === 'offline' && (
+        <div className="toast glass bad" role="status" style={{ pointerEvents: 'none' }}>
+          Нет связи — переподключаемся…
+        </div>
+      )}
       {/* в игре сообщения показывает сам экран игры (в колонке сверху) */}
       {state.notice && !(room && !room.kicked && room.status !== 'lobby') && <TimedToast key={state.notice.key} text={state.notice.text} />}
     </>

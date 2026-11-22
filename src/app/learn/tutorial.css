@@ -470,3 +470,30 @@
     transform: scale(1.9);
   }
 }
+
+/* 2D / 3D — в углу карты */
+.tut-board > .tut-mode {
+  inset: auto;
+  left: 10px;
+  top: 10px;
+  z-index: 3;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(10, 15, 22, 0.78);
+}
+.tut-mode button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  min-width: 44px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: rgba(246, 243, 236, 0.7);
+}
+.tut-mode button.on {
+  background: var(--ink);
+  color: #0b1016;
+}

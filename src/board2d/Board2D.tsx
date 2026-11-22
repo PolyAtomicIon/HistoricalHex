@@ -201,7 +201,7 @@ export function Board2D(props: Board2DProps) {
   const interactive = hl.vertices.length + hl.edges.length + hl.hexes.length > 0;
 
   // Автозум к месту, где можно ставить (например, дорога — рядом со своими постройками)
-  const hlKey = [...hl.vertices, ...hl.edges].join(',');
+  const hlKey = [...hl.vertices, ...hl.edges, ...hl.hexes].join(',');
   const autoZoomed = useRef(false);
   useEffect(() => {
     if (props.static) return;
@@ -214,7 +214,8 @@ export function Board2D(props: Board2DProps) {
     }
     const box = el.getBoundingClientRect();
     let r: { left: number; top: number; right: number; bottom: number } | undefined;
-    el.querySelectorAll('.vertex-target .vis, .edge-target .vis').forEach((n) => {
+    // гексы-цели тоже (захватчики): если их немного — приближаемся к ним; все гексы — это вся карта, зума не будет
+    el.querySelectorAll('.vertex-target .vis, .edge-target .vis, .hex-target').forEach((n) => {
       const b = n.getBoundingClientRect();
       const q = { left: b.left - box.left, top: b.top - box.top, right: b.right - box.left, bottom: b.bottom - box.top };
       r = r ? { left: Math.min(r.left, q.left), top: Math.min(r.top, q.top), right: Math.max(r.right, q.right), bottom: Math.max(r.bottom, q.bottom) } : q;

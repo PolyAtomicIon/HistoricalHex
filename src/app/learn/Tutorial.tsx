@@ -2,7 +2,9 @@
 // Каждый шаг ждёт действия игрока (нажать гекс, угол, кнопку) — как обучение в онлайн-играх.
 // Партия локальная: сервер не нужен, проверки ходов — те же функции движка, что и в игре.
 
-import { useMemo, useRef, useState } from 'react';
+import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { EdgeId, HexId, PlayerColor, PlayerId, Resource, ResourceMap, VertexId } from '../../engine';
 import {
   COSTS,
@@ -18,6 +20,7 @@ import {
 } from '../../engine';
 import type { Building } from '../../engine';
 import { Board2D } from '../../board2d/Board2D';
+import { useBoardMode } from '../GameBoard';
 import { currentEra } from '../era';
 import { Icon } from '../icons';
 import type { IconName } from '../icons';
@@ -27,6 +30,19 @@ import { haptic, sfx } from '../../fx';
 import { LANGS, markTutorialDone, t3, useLang } from './lang';
 import { RES_NAME, STEPS, STEP_ORDER, TERRAIN_NAME, UI, WRONG, fill, type StepId } from './tutorialText';
 import './tutorial.css';
+
+const Board3D = lazy(() => import('../../board3d/Board3D'));
+
+/** 3D не запустился (нет WebGL, ошибка) — учимся на 2D. */
+class Fallback3D extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  override render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
 
 type Pid = 'me' | 'bot';
 type Btn = 'roll' | 'road' | 'house' | 'city' | 'trade' | 'card' | 'end';
@@ -87,6 +103,7 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
   const [cardOpen, setCardOpen] = useState(false);
   const firstHome = useRef<VertexId | null>(null);
   const [hint, setHint] = useState(false); // после ошибки подсвечиваем правильные гексы
+  const [mode, setMode] = useBoardMode('2d'); // выбор сохраняется и для настоящей партии
   const k = useRef(1);
 
   const say = (text: string, ok: boolean) => {
@@ -224,6 +241,27 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, doneStep, armed, w, hint]);
 
+  // ─── 3D: камера летит к месту шага (в 2D то же делает автозум к подсвеченному) ───
+  // После переключения на 3D сцене нужно время загрузиться — тогда повторяем полёт.
+  const [fly, setFly] = useState(0);
+  useEffect(() => {
+    if (mode !== '3d') return;
+    const t = window.setTimeout(() => setFly((n) => n + 1), 1800);
+    return () => window.clearTimeout(t);
+  }, [mode]);
+  const focus3d = useMemo(() => {
+    const h = highlight;
+    let at: { vertex?: string; edge?: string; hex?: string } | null = null;
+    if (step === 'road' && firstHome.current) at = { vertex: firstHome.current };
+    else if (h?.vertices?.length && step !== 'settle') at = { vertex: h.vertices[0] };
+    else if (h?.edges?.length) at = { edge: h.edges[0] };
+    else if (step === 'robber' && h?.hexes?.length) at = { hex: h.hexes[0] };
+    else if (flash?.hexes.length && doneStep === 'roll') at = { hex: flash.hexes[0] };
+    // держим камеру у места, пока шаг не выполнен (новый шаг — новый полёт)
+    return at ? { ...at, key: k.current++, hold: 60_000, zoom: 1.9 } : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, highlight, doneStep, flash, fly]);
+
   // ─── нажатия на карту ───
   const onHex = (h: HexId) => {
     const hex = hexOf.get(h);
@@ -358,7 +396,8 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
     { id: 'card', icon: 'cards', label: L(UI.card) },
   ];
 
-  return (
+  // В портал: экран под обучением создаёт свой слой, и уведомления приложения оказывались поверх кнопок
+  return createPortal(
     <div className="tut" role="dialog" aria-label={L(UI.title)}>
       <header className="tut-top">
         <div className="tut-prog" aria-label={`${L(UI.lesson)} ${idx + 1}/${STEP_ORDER.length}`}>
@@ -396,18 +435,24 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
       </section>
 
       <div className={`tut-board ${(step === 'hexes' || step === 'numbers') && !hint ? 'tut-find' : ''}`}>
-        <Board2D
-          view={view}
-          era={currentEra}
-          colors={COLORS}
-          me="me"
-          highlight={highlight}
-          onHex={onHex}
-          onVertex={onVertex}
-          onEdge={onEdge}
-          flash={flash}
-          static
-        />
+        {(() => {
+          const flat = <Board2D view={view} era={currentEra} colors={COLORS} me="me" highlight={highlight} onHex={onHex} onVertex={onVertex} onEdge={onEdge} flash={flash} />;
+          if (mode === '2d') return flat;
+          return (
+            <Fallback3D fallback={flat}>
+              <Suspense fallback={<div className="board-loading"><div className="spinner" /></div>}>
+                <Board3D view={view} colors={COLORS} mode="3d" era={currentEra} me="me" highlight={highlight} onHex={onHex} onVertex={onVertex} onEdge={onEdge} flash={flash} focus={focus3d} />
+              </Suspense>
+            </Fallback3D>
+          );
+        })()}
+        <div className="tut-mode" role="group" aria-label="2D / 3D">
+          {(['2d', '3d'] as const).map((m) => (
+            <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>
+              {m.toUpperCase()}
+            </button>
+          ))}
+        </div>
         {dice && (
           <div key={dice.key} className="tut-dice" aria-live="polite">
             <Die n={dice.a} />
@@ -524,7 +569,8 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
