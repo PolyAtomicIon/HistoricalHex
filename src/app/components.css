@@ -328,11 +328,30 @@
   position: fixed;
   inset: 0;
   z-index: 30;
-  display: grid;
-  place-items: center;
-  padding: 16px;
+  /* Длинный итог (5–6 игроков) не помещается на телефон: оверлей прокручивается сам,
+     а не отдаёт жест карте под ним. margin: auto у панели — по центру, если место есть. */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b));
   background: rgba(2, 8, 14, 0.5);
   animation: toast-in 600ms var(--spring) 1.2s backwards;
+}
+.finish-overlay > .panel {
+  margin: auto 0;
+  width: 100%;
+  max-width: 460px;
+  align-self: center;
+}
+/* «На главную» всегда под рукой, даже пока список не долистан */
+.finish-overlay .fin-home {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  box-shadow: 0 -12px 24px rgba(10, 15, 22, 0.6);
 }
 
 .kz-tag {

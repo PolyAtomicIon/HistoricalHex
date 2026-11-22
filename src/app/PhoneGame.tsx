@@ -2331,7 +2331,7 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
             </li>
           ))}
         </ol>
-        <button className="btn primary wide" onClick={() => conn.forget()}>
+        <button className="btn primary wide fin-home" onClick={() => conn.forget()}>
           На главную
         </button>
       </div>
