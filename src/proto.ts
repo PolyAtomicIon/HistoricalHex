@@ -102,6 +102,8 @@ export type ClientMsg =
   | { t: 'react'; emoji: string }
   /** Отменить свою последнюю постройку (пока после неё никто ничего не сделал). */
   | { t: 'undo' }
+  /** Ошибка в браузере игрока — для журнала сервера. */
+  | { t: 'clientError'; msg: string; ua?: string }
   | { t: 'close' }
   /** Профиль и рейтинг. */
   | { t: 'profile' }

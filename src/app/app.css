@@ -769,6 +769,19 @@ button.item {
   }
 }
 
+/* ─── слабый телефон / экономия заряда: 3D-карта сама снизила качество — убираем и размытие стекла ─── */
+html.calm *,
+html.calm *::before,
+html.calm *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.calm .glass,
+html.calm .sheet,
+html.calm .dock {
+  background: rgba(16, 24, 34, 0.94);
+}
+
 /* ─── лёгкий режим (старые телефоны) ─── */
 .lite .glass,
 .lite .sheet,

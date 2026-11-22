@@ -181,6 +181,7 @@ const CREATE_LIMIT = 5;
 wss.on('connection', (ws: WebSocket) => {
   let me: string | undefined;
   let created = 0;
+  let errs = 0;
   alive.set(ws, true);
   ws.on('pong', () => alive.set(ws, true));
   ws.on('error', () => ws.terminate());
@@ -230,6 +231,10 @@ wss.on('connection', (ws: WebSocket) => {
       case 'pushOff':
         removeSubscriptions(me);
         return send({ t: 'welcome', me, vapid: vapidPublicKey(), push: false });
+      case 'clientError':
+        // Ошибки браузера игрока — в журнал сервера (не больше 20 за соединение), чтобы видеть, что ломается у людей.
+        if (++errs <= 20) console.warn(`client error [${me}] ${String(msg.ua ?? '').slice(0, 160)} :: ${String(msg.msg ?? '').slice(0, 600)}`);
+        return;
       case 'vis':
         if (msg.hidden) hiddenTabs.add(me);
         else hiddenTabs.delete(me);

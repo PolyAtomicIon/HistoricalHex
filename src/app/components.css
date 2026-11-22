@@ -6208,3 +6208,49 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   font-variant-numeric: tabular-nums;
   box-shadow: 0 0 0 1.5px rgba(18, 24, 34, 0.95);
 }
+
+/* ─── «Как играть»: приглашение в обучение и правила ─── */
+.learn-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  align-items: center;
+  padding: 16px;
+  border-radius: var(--r-md);
+}
+.learn-ic {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--accent);
+}
+.learn-t b {
+  display: block;
+  font-size: 17px;
+}
+.learn-t small {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: rgba(246, 243, 236, 0.72);
+}
+.learn-acts {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.learn-acts .btn {
+  flex: 1;
+}
+.learn-row {
+  display: flex;
+  gap: 10px;
+}
+.learn-row .btn {
+  flex: 1;
+}

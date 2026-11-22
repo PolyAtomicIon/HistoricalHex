@@ -1,0 +1,416 @@
+/* Интерактивное обучение: полноэкранный «учебный ход» — подсказка сверху, карта, рука и кнопки снизу. */
+
+.tut {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  background: radial-gradient(120% 70% at 50% 40%, #0f3a52 0%, var(--bg) 70%);
+  color: var(--ink);
+  padding-top: var(--safe-t);
+  overflow: hidden;
+}
+
+.tut-top {
+  padding: 10px 14px 0;
+}
+.tut-prog {
+  display: flex;
+  gap: 4px;
+}
+.tut-prog i {
+  flex: 1;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: background 0.3s;
+}
+.tut-prog i.done {
+  background: rgba(var(--accent-rgb), 0.55);
+}
+.tut-prog i.now {
+  background: var(--accent);
+}
+.tut-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.tut-seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.tut-seg button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(246, 243, 236, 0.7);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  min-height: 34px;
+}
+.tut-seg button.on {
+  background: var(--ink);
+  color: #0b1016;
+}
+.tut-pts {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent);
+}
+.tut-x {
+  margin-left: auto;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(246, 243, 236, 0.66);
+  background: none;
+  border: 0;
+  padding: 8px 4px;
+  min-height: 40px;
+}
+
+/* подсказка-тренер */
+.tut-coach {
+  margin: 10px 12px 0;
+  padding: 14px 16px 14px;
+  border-radius: var(--r-md);
+  background: rgba(12, 18, 26, 0.9);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+  animation: tut-in 0.35s var(--ease-out);
+}
+.tut-coach small {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(246, 243, 236, 0.5);
+}
+.tut-coach b {
+  display: block;
+  margin-top: 4px;
+  font-size: 19px;
+  line-height: 1.2;
+}
+.tut-coach p {
+  margin: 6px 0 0;
+  font-size: 15.5px;
+  line-height: 1.45;
+  color: rgba(246, 243, 236, 0.86);
+}
+.tut-coach .tut-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  animation: tut-in 0.25s var(--ease-out);
+}
+.tut-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+.tut-note.ok {
+  background: rgba(88, 214, 141, 0.14);
+  color: #9ff0bf;
+}
+.tut-note.bad {
+  background: rgba(242, 181, 68, 0.14);
+  color: #ffd98c;
+}
+.tut-acts {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+.tut-acts .btn {
+  flex: 1;
+}
+
+/* карта */
+.tut-board {
+  position: relative;
+  min-height: 0;
+  /* у карты в партии большие отступы под шапку и док — здесь их нет */
+  --board-pad: 6px 4px 6px;
+}
+.tut-board > * {
+  position: absolute;
+  inset: 0;
+}
+/* «найди гекс»: все гексы нажимаются, но подсветка не выдаёт ответ */
+.tut-find .b2d .hex-target {
+  fill: transparent;
+  stroke: transparent;
+  animation: none;
+}
+.tut-find .b2d .b2d-dim {
+  display: none;
+}
+
+.tut-dice {
+  inset: auto;
+  right: 12px;
+  top: 10px;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+.tut-die {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  width: 50px;
+  height: 50px;
+  padding: 8px;
+  border-radius: 14px;
+  background: #f8f4ea;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45);
+  animation: tut-tumble 0.9s var(--ease-out);
+}
+.tut-die i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #1a1410;
+  place-self: center;
+}
+.tut-die:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+/* рука и кнопки — как в партии */
+.tut-dock {
+  padding: 10px 10px calc(10px + var(--safe-b));
+  background: rgba(10, 15, 22, 0.94);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35);
+}
+.tut-hand {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.tut-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px 5px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.tut-card.zero {
+  opacity: 0.6;
+}
+.tut-card .n {
+  position: absolute;
+  top: -5px;
+  right: 2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #0b1016;
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+.tut-card .lbl {
+  font-size: 12px;
+  color: rgba(246, 243, 236, 0.85);
+  white-space: nowrap;
+}
+.tut-actions {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.tut-btn {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(246, 243, 236, 0.55);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s, transform 0.12s;
+}
+.tut-btn:active {
+  transform: scale(0.96);
+}
+.tut-btn.wide {
+  grid-column: span 5;
+  flex-direction: row;
+  gap: 8px;
+  min-height: 48px;
+  font-size: 16px;
+}
+.tut-btn.end {
+  grid-column: span 5;
+}
+.tut-btn.glow {
+  background: var(--accent);
+  color: var(--accent-ink);
+  animation: tut-glow 1.4s ease-in-out infinite;
+}
+.tut-btn.off {
+  opacity: 0.35;
+}
+.tut-btn.armed {
+  background: var(--ink);
+  color: #0b1016;
+}
+
+/* всплывающие карточки (обмен, карта развития) */
+.tut-pop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 8, 12, 0.62);
+  animation: tut-fade 0.2s ease-out;
+}
+.tut-pop-card {
+  width: min(340px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 20px 20px;
+  border-radius: var(--r-lg);
+  background: #121a24;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  animation: tut-in 0.3s var(--spring);
+}
+.tut-pop-card b {
+  font-size: 19px;
+}
+.tut-pop-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: rgba(246, 243, 236, 0.82);
+}
+.tut-pop-card .btn {
+  width: 100%;
+}
+.tut-trade {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.tut-trade > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.tut-trade small {
+  font-size: 12.5px;
+  color: rgba(246, 243, 236, 0.6);
+}
+.tut-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 700;
+}
+.tut-dev {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--accent);
+}
+.btn.glow {
+  animation: tut-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes tut-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes tut-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes tut-glow {
+  50% {
+    box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.25);
+  }
+}
+@keyframes tut-tumble {
+  0% {
+    transform: translateY(-60px) rotate(-200deg) scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(4px) rotate(8deg) scale(1.05);
+    opacity: 1;
+  }
+}
+@keyframes tut-dice {
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tut *,
+  .tut-pop * {
+    animation: none !important;
+  }
+}
+@media (max-height: 700px) {
+  .tut-coach p {
+    font-size: 14.5px;
+  }
+  .tut-btn {
+    min-height: 46px;
+  }
+}
+
+.tut-drew {
+  font-size: 13.5px;
+  color: rgba(246, 243, 236, 0.66);
+}

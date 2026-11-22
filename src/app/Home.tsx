@@ -10,6 +10,7 @@ import { ProfileView } from './Profile';
 import { tgStartPin } from './tg';
 import { InstallButton } from './pwa';
 import { haptic, sfx } from '../fx';
+import { LearnCard, useLearn } from './learn/Learn';
 
 export const NAME_KEY = 'hh.name';
 export function savedName(): string {
@@ -43,6 +44,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
   const [creating, setCreating] = useState(false);
   const pack = LORE_PACKS.find((p) => p.id === era)!;
   applyEra(pack);
+  const learn = useLearn();
   useEffect(() => {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
@@ -113,6 +115,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
             </button>
           </div>
           {status !== 'online' && <p className="faint small center">Подключаемся к серверу…</p>}
+          <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />
 
           <section className="hub-eras" aria-label="Эпохи">
             <div className="hub-sec-h">
@@ -237,6 +240,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
         </div>
       )}
       {fatal && <div className="toast glass bad">{fatal}</div>}
+      {learn.ui}
     </main>
   );
 }

@@ -19,9 +19,9 @@ const HEX_PTS = HEX_CORNERS.map(([dx, dy]) => px(dx, dy));
 const hexPath = (k = 1) => HEX_PTS.map((p) => `${(p.x * k).toFixed(1)},${(p.y * k).toFixed(1)}`).join(' ');
 
 const BASE_FILL: Record<Terrain, string> = {
-  forest: '#3f6b35',
-  hills: '#b4643c',
-  pasture: '#8fbf5a',
+  forest: '#2f5f2c',
+  hills: '#b65a32',
+  pasture: '#9ccf5e',
   fields: '#e0b84a',
   mountains: '#7d8594',
   desert: '#d9c08a',
@@ -361,9 +361,18 @@ export function Board2D(props: Board2DProps) {
                         transform={mirror ? 'scale(-1 1)' : undefined}
                       />
                     )}
+                    {/* Единый цвет местности поверх рисунка эпохи: лес всегда тёмно-зелёный, глина — кирпичная и т.д. */}
+                    <rect className="tile-tint" x={-S} y={-S} width={2 * S} height={2 * S} fill={BASE_FILL[h.terrain]} />
                     <polygon points={hexPath(0.965)} fill={`url(#${id('bevel')})`} />
                   </g>
                   <polygon className="tile-edge" points={hexPath(0.955)} />
+                  {/* Какой ресурс даёт гекс — значок над жетоном, одинаковый во всех эпохах */}
+                  {h.terrain !== 'desert' && (
+                    <g className="tile-res" transform={`translate(0 ${-S * 0.585})`}>
+                      <circle r={S * 0.25} className="tr-disk" style={{ ['--tc' as string]: BASE_FILL[h.terrain] }} />
+                      <image href={eraIcon(era, `res-${TERRAIN_RESOURCE[h.terrain]}`)} x={-S * 0.21} y={-S * 0.21} width={S * 0.42} height={S * 0.42} />
+                    </g>
+                  )}
                   {robbed && (
                     <g className="raid-zone-base">
                       <polygon className="tile-dim" points={hexPath(0.965)} />

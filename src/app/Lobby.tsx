@@ -14,6 +14,7 @@ import { eraCover, eraIcon, useEra } from './era';
 import { ArtIcon, Icon } from './icons';
 import { TurnSettings } from './TurnSettings';
 import { Sheet } from './Sheet';
+import { LearnCard, useLearn } from './learn/Learn';
 import { PERSONAS } from '../bots/personas';
 
 const DICE: { id: DiceMode; label: string; hint: string }[] = [
@@ -53,6 +54,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
   const mine = room.lobby.find((s) => s.id === room.me);
   const taken = new Set(room.lobby.filter((s) => s.id !== room.me).map((s) => s.color));
   const host = room.isHost && !tv;
+  const learn = useLearn();
   const humans = room.lobby.filter((s) => !s.bot).length;
   const canStart = room.lobby.length >= 3 && room.lobby.every((s) => s.color) && humans > 0;
   const need = Math.max(0, 3 - room.lobby.length);
@@ -203,6 +205,8 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
           )}
         </section>
 
+        {!tv && <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />}
+
         {!tv && (
           <button className="lb-settings glass" onClick={() => host && setSheet('settings')} disabled={!host}>
             <span>
@@ -333,6 +337,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
           </button>
         </div>
       </Sheet>
+      {learn.ui}
     </main>
   );
 }

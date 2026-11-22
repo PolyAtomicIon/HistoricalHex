@@ -46,6 +46,7 @@ import type { TradeUi } from './TradeOffer';
 import type { LogEntry } from './gameLog';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
+import { useLearn } from './learn/Learn';
 
 type BuildMode = 'road' | 'settlement' | 'city';
 type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
@@ -72,6 +73,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const pub = room.public!;
   const priv = room.private!;
   const me = room.me;
+  const learn = useLearn();
   const meP = pub.players[me];
   const current = pub.order[pub.current];
   const myTurn = current === me && pub.phase !== 'finished';
@@ -903,6 +905,20 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <Icon name="crown" />
             <span className="grow t">Игроки и очки</span>
           </button>
+          <button className="item" onClick={() => { setSheet(null); learn.openRules(); }}>
+            <Icon name="book" />
+            <span className="grow">
+              <span className="t">Правила</span>
+              <span className="s" style={{ display: 'block' }}>Все правила с поиском · RU / KZ / EN</span>
+            </span>
+          </button>
+          <button className="item" onClick={() => { setSheet(null); learn.openTutorial(); }}>
+            <Icon name="bulb" />
+            <span className="grow">
+              <span className="t">Обучение</span>
+              <span className="s" style={{ display: 'block' }}>Учебный ход за 3 минуты</span>
+            </span>
+          </button>
           {
             <>
               <div className="label">Вид карты</div>
@@ -1029,6 +1045,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
       <ReactionsLayer items={fx.reactions} />
       {pub.phase === 'finished' && <Finished pub={pub} me={me} pack={pack} />}
+      {learn.ui}
     </main>
   );
 }

@@ -15,6 +15,7 @@ import { Tanks3D, type Tanks3DEvent } from './Tanks3D';
 import { ATTACK3D_MS, Warriors3D, type Attack3DEvent } from './Warriors3D';
 import { Atmosphere } from './Atmosphere';
 import { DEFAULT_PALETTE, EnvCtx, type Env, type Palette, type Rig } from './rig';
+import { inTelegram } from '../app/tg';
 import Sea from './Sea';
 import Tiles, { type TileInfo } from './Terrain';
 import { EdgeMarker, Flashes, Harbors, HexMarker, Tokens, VertexMarker, useResetCursor } from './Markers';
@@ -32,6 +33,8 @@ export interface Board3DProps extends BoardProps {
   /** Тряска экрана: смена значения — ~400 мс тряски. */
   shake?: number;
   lowPower?: boolean;
+  /** Без теней (средний уровень качества). */
+  noShadow?: boolean;
   /** Эпоха — для разбойника и эффекта захваченного гекса. */
   era?: string;
   /** Налёт разбойника (для ВОВ — звено бомбардировщиков в 3D). */
@@ -455,6 +458,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
   const { view, colors, highlight, onVertex, onEdge, onHex, recent = [], selected, flash, ghosts = [], mode, shake, focus, rig, era, sail, raid } = props;
   const palette = props.palette ?? DEFAULT_PALETTE;
   const lowPower = !!props.lowPower;
+  const noShadow = lowPower || !!props.noShadow;
   const reduced = useReducedMotion();
   useResetCursor();
 
@@ -571,8 +575,8 @@ function Scene(props: Board3DProps & { rig: Rig }) {
         position={[sunDir.x * 22, sunDir.y * 22, sunDir.z * 22]}
         intensity={2.75}
         color={palette.light}
-        castShadow={!lowPower}
-        shadow-mapSize={props.hifi ? [4096, 4096] : [2048, 2048]}
+        castShadow={!noShadow}
+        shadow-mapSize={props.hifi ? [4096, 4096] : TOUCH ? [1024, 1024] : [2048, 2048]}
         shadow-camera-left={-R}
         shadow-camera-right={R}
         shadow-camera-top={R}
@@ -633,23 +637,115 @@ function Scene(props: Board3DProps & { rig: Rig }) {
   );
 }
 
+// ─── Качество под устройство ───
+// Телефон в режиме экономии заряда (iOS режет до 30 к/с), встроенный браузер Telegram, слабый Android:
+// замеряем реальную частоту кадров и по шагам снижаем качество, пока игра не станет плавной.
+//   0 — полное; 1 — разрешение ×1.5, без теней; 2 — разрешение ×1, лёгкая вода и деревья, интерфейс без размытия.
+// Пониженный уровень запоминается на сутки, чтобы следующая партия сразу шла плавно.
+const TOUCH = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+const PERF_KEY = 'hh.perf3d';
+const DAY = 24 * 3600 * 1000;
+function storedTier(): number {
+  try {
+    const v = JSON.parse(localStorage.getItem(PERF_KEY) ?? 'null') as { tier: number; at: number } | null;
+    if (v && Date.now() - v.at < DAY) return Math.min(2, Math.max(0, v.tier | 0));
+  } catch {
+    /* ok */
+  }
+  return 0;
+}
+function saveTier(tier: number): void {
+  try {
+    localStorage.setItem(PERF_KEY, JSON.stringify({ tier, at: Date.now() }));
+  } catch {
+    /* ok */
+  }
+}
+/** Интерфейс без размытия стекла: backdrop-filter поверх WebGL — самое дорогое на iPhone. */
+function setCalm(on: boolean): void {
+  document.documentElement.classList.toggle('calm', on);
+}
+
+/** Средняя частота кадров по окнам в 2 с; два медленных окна подряд — сигнал снизить качество. */
+function FpsWatch({ onSlow }: { onSlow: () => void }) {
+  const st = useRef({ warm: 0, t: 0, n: 0, bad: 0 });
+  useFrame((_, dt) => {
+    const s = st.current;
+    if (typeof document !== 'undefined' && document.hidden) return;
+    s.warm += dt;
+    if (s.warm < 4) return; // первые секунды — загрузка текстур и шейдеров, не показатель
+    s.t += Math.min(dt, 0.5);
+    s.n++;
+    if (s.t < 2) return;
+    const fps = s.n / s.t;
+    s.t = 0;
+    s.n = 0;
+    if (fps < 42) {
+      if (++s.bad >= 2) {
+        s.bad = 0;
+        s.warm = 0;
+        onSlow();
+      }
+    } else s.bad = 0;
+  });
+  return null;
+}
+
 export default function Board3D(props: Board3DProps) {
   const rig = useMemo<Rig>(() => ({ az: 0, pol: 0, tilt: 0, amp: 0 }), []);
-  const lowPower = !!props.lowPower;
+  const [tier, setTier] = useState(() => (props.lowPower ? 2 : props.hifi ? 0 : Math.max(storedTier(), inTelegram() ? 1 : 0)));
+  // Потеря WebGL-контекста (iOS отбирает видеопамять у фоновой/тяжёлой вкладки): пересоздаём холст,
+  // а не оставляем чёрный экран до перезагрузки. После трёх потерь подряд — 2D-карта (через границу ошибок).
+  const [gen, setGen] = useState(0);
+  const losses = useRef(0);
+  if (losses.current > 3) throw new Error('WebGL: контекст теряется снова и снова');
+  useEffect(() => {
+    if (!gen) return;
+    const t = window.setTimeout(() => (losses.current = 0), 60_000); // минуту без потерь — счётчик с нуля
+    return () => window.clearTimeout(t);
+  }, [gen]);
+  useEffect(() => {
+    setCalm(tier >= 2);
+    return () => setCalm(false);
+  }, [tier]);
+  const slower = () =>
+    setTier((t) => {
+      const n = Math.min(2, t + 1);
+      if (n !== t) saveTier(n);
+      return n;
+    });
+  const lowPower = tier >= 2;
+  const dpr: [number, number] = tier >= 2 ? [1, 1] : tier === 1 ? [1, 1.5] : TOUCH ? [1, 2] : [1, 3];
   return (
     <div className={props.className} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', touchAction: 'none' }}>
       <Canvas
-        dpr={lowPower ? 1 : [1, 3]}
+        key={gen}
+        dpr={dpr}
         shadows={lowPower ? false : 'percentage'}
         flat
         frameloop="always"
-        gl={{ alpha: true, antialias: !lowPower, powerPreference: lowPower ? 'low-power' : 'high-performance' }}
+        gl={{ alpha: true, antialias: tier === 0, powerPreference: lowPower ? 'low-power' : 'high-performance' }}
         camera={{ fov: 5, near: 1, far: 400, position: [0, 100, 0] }}
         style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
+        onCreated={({ gl }) => {
+          const c = gl.domElement;
+          let timer = 0;
+          const rebuild = () => {
+            window.clearTimeout(timer);
+            losses.current++;
+            setTier((t) => Math.max(t, 1));
+            setGen((g) => g + 1);
+          };
+          c.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault(); // разрешаем браузеру вернуть контекст
+            timer = window.setTimeout(rebuild, 1500);
+          });
+          c.addEventListener('webglcontextrestored', rebuild);
+        }}
       >
-        <Scene {...props} rig={rig} />
+        {!props.hifi && tier < 2 && <FpsWatch onSlow={slower} />}
+        <Scene {...props} lowPower={lowPower} noShadow={tier >= 1} rig={rig} />
       </Canvas>
-
     </div>
   );
 }

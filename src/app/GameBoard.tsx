@@ -59,6 +59,9 @@ class Fallback extends Component<{ children: ReactNode; fallback: ReactNode }, {
   static getDerivedStateFromError() {
     return { failed: true };
   }
+  override componentDidCatch(e: Error) {
+    void import('../client/conn').then(({ conn }) => conn.send({ t: 'clientError', msg: `3d → 2d: ${e.message}`, ua: navigator.userAgent }));
+  }
   override render() {
     return this.state.failed ? this.props.fallback : this.props.children;
   }

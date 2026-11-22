@@ -573,3 +573,26 @@ html.lite .b2d .rz-smoke { animation: none; opacity: 0.6; }
 /* атака: остальные гексы в серое, цель — в цвете */
 .b2d-tiles .tile { transition: filter 500ms ease; }
 .b2d-tiles.attack .tile:not(.atk) { filter: grayscale(1) brightness(0.72); }
+
+/* Понятная местность: цвет ресурса поверх рисунка + значок ресурса над жетоном */
+.b2d .tile-tint {
+  mix-blend-mode: color;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.b2d .tile-res {
+  pointer-events: none;
+}
+.b2d .tile-res .tr-disk {
+  fill: #f6efe0;
+  stroke: var(--tc);
+  stroke-width: 7;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35));
+}
+html.lite .b2d .tile-tint {
+  mix-blend-mode: normal;
+  opacity: 0.18;
+}
+html.lite .b2d .tile-res .tr-disk {
+  filter: none;
+}
