@@ -11,6 +11,7 @@ import { HandMini, ResChips, ResourcePicker, TradeGrid, sum } from './widgets';
 import { ResIcon } from './ResIcon';
 import { incomingTradeHint } from './planner';
 import { Icon } from './icons';
+import { Sheet } from './Sheet';
 
 type Send = (a: Action) => Promise<void>;
 
@@ -55,56 +56,7 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
   const all = to.length === opponents.length;
   return (
     <div className="stack">
-      {mine.length > 0 && (
-        <section className="my-offers">
-          <div className="label">Твои предложения · {mine.length}</div>
-          {[...mine].reverse().map((trade) => {
-            const others = pub.order.filter((id) => id !== me && (!trade.to || trade.to.includes(id)) && !bans.includes(id));
-            return (
-              <div key={trade.id} className="offer-card">
-                <div className="offer-head">
-                  <ResChips value={trade.give} />
-                  <Icon name="trade" size={16} className="tc-arrow" />
-                  <ResChips value={trade.want} />
-                  <button className="offer-x" disabled={busy} onClick={() => send({ type: 'cancelTrade', tradeId: trade.id })} aria-label="Отменить предложение">
-                    <Icon name="close" size={16} />
-                  </button>
-                </div>
-                <ul className="offer-resp">
-                  {others.map((id) => {
-                    const r = trade.responses?.[id];
-                    const terms = r?.kind === 'counter' ? r : trade;
-                    const canDo = (r?.kind === 'accept' || r?.kind === 'counter') && hasResources(priv.resources, terms.give);
-                    return (
-                      <li key={id} className={`resp ${r?.kind ?? 'wait'}`}>
-                        <span className="grow">
-                          <b>{name(id)}</b>{' '}
-                          <small>
-                            {!r && 'думает…'}
-                            {r?.kind === 'accept' && 'согласен'}
-                            {r?.kind === 'decline' && 'отказ'}
-                            {r?.kind === 'counter' && (
-                              <span className="counter-line">
-                                встречное: <ResChips value={r.give} /> → <ResChips value={r.want} />
-                              </span>
-                            )}
-                          </small>
-                        </span>
-                        {canDo && (
-                          <button className="btn primary small-act" disabled={busy} onClick={() => send({ type: 'confirmTrade', tradeId: trade.id, with: id })}>
-                            Обменяться
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
-          <div className="label">Новое предложение</div>
-        </section>
-      )}
+      {mine.length > 0 && <MyOffers pub={pub} priv={priv} me={me} send={send} busy={busy} bans={bans} mine={mine} />}
       <div className="trade-to" role="group" aria-label="Кому предложить">
         <span className="trade-to-l">Кому</span>
         {opponents.map((id) => {
@@ -298,3 +250,94 @@ function clampTo(m: ResourceMap, hand: ResourceMap): ResourceMap {
 }
 
 export { RESOURCE_NAME };
+
+type Offer = NonNullable<PublicState['trade']>;
+
+/** Свои предложения: одна тихая строка с главным (кто согласен — кнопка сразу), подробности — во вложенной шторке. */
+function MyOffers({ pub, priv, me, send, busy, bans, mine }: { pub: PublicState; priv: PrivateView; me: string; send: Send; busy: boolean; bans: string[]; mine: Offer[] }) {
+  const [open, setOpen] = useState(false);
+  const name = namesFrom(pub);
+  const rows = (t: Offer) => pub.order.filter((id) => id !== me && (!t.to || t.to.includes(id)) && !bans.includes(id));
+  const ready = (t: Offer, id: string) => {
+    const r = t.responses?.[id];
+    const terms = r?.kind === 'counter' ? r : t;
+    return (r?.kind === 'accept' || r?.kind === 'counter') && hasResources(priv.resources, terms.give);
+  };
+  // Первое готовое согласие — его можно принять прямо из строки
+  let best: { t: Offer; id: string } | null = null;
+  for (const t of [...mine].reverse()) {
+    const id = rows(t).find((x) => ready(t, x));
+    if (id) {
+      best = { t, id };
+      break;
+    }
+  }
+  const waiting = mine.reduce((n, t) => n + rows(t).filter((id) => !t.responses?.[id]).length, 0);
+  const sub = best
+    ? `${name(best.id)} ${best.t.responses?.[best.id]?.kind === 'counter' ? 'предлагает встречное' : 'согласен'}`
+    : waiting > 0
+      ? 'ждём ответа'
+      : 'все отказались';
+  return (
+    <>
+      <div className="mo-row">
+        <button className="mo-open" onClick={() => setOpen(true)} aria-label="Открыть твои предложения">
+          <span className="mo-count">{mine.length}</span>
+          <span className="mo-t">
+            <b>{mine.length === 1 ? 'Твоё предложение' : 'Твои предложения'}</b>
+            <small className={best ? 'ok' : ''}>{sub}</small>
+          </span>
+          {!best && <span className="mo-chev" aria-hidden>›</span>}
+        </button>
+        {best && (
+          <button className="btn primary small-act" disabled={busy} onClick={() => send({ type: 'confirmTrade', tradeId: best.t.id, with: best.id })}>
+            Обменяться
+          </button>
+        )}
+      </div>
+      <Sheet open={open && mine.length > 0} onClose={() => setOpen(false)} title="Твои предложения">
+        <div className="my-offers">
+          {[...mine].reverse().map((trade) => (
+            <div key={trade.id} className="offer-card">
+              <div className="offer-head">
+                <ResChips value={trade.give} />
+                <Icon name="trade" size={16} className="tc-arrow" />
+                <ResChips value={trade.want} />
+                <button className="offer-x" disabled={busy} onClick={() => send({ type: 'cancelTrade', tradeId: trade.id })} aria-label="Отменить предложение">
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
+              <ul className="offer-resp">
+                {rows(trade).map((id) => {
+                  const r = trade.responses?.[id];
+                  return (
+                    <li key={id} className={r?.kind ?? 'wait'}>
+                      <span className="grow">
+                        <b>{name(id)}</b>{' '}
+                        <small>
+                          {!r && 'думает…'}
+                          {r?.kind === 'accept' && 'согласен'}
+                          {r?.kind === 'decline' && 'отказ'}
+                          {r?.kind === 'counter' && (
+                            <span className="counter-line">
+                              встречное: <ResChips value={r.give} /> → <ResChips value={r.want} />
+                            </span>
+                          )}
+                        </small>
+                      </span>
+                      {ready(trade, id) && (
+                        <button className="btn primary small-act" disabled={busy} onClick={() => send({ type: 'confirmTrade', tradeId: trade.id, with: id })}>
+                          Обменяться
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Sheet>
+    </>
+  );
+}

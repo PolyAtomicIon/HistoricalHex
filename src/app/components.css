@@ -2093,8 +2093,6 @@
 .pstep.short { background: rgba(var(--accent-rgb), 0.07); }
 .item.ok { background: rgba(88, 214, 141, 0.09); }
 .item.warn { background: rgba(var(--accent-rgb), 0.08); }
-.resp.accept { background: rgba(88, 214, 141, 0.1); }
-.resp.counter { background: rgba(var(--accent-rgb), 0.09); }
 .pl-row.turn { background: rgba(255, 255, 255, 0.12); }
 .leaders .lead.me { background: rgba(var(--accent-rgb), 0.1); }
 .era-card.on { border-color: rgba(255, 255, 255, 0.55); }
@@ -4205,7 +4203,8 @@ html.lite .home .era-card.on .era-cover {
 }
 .hud-stack > * {
   pointer-events: auto;
-  position: static !important;
+  /* relative, не static: иначе блик стекла (::before, inset 0) растягивается на всю колонку полупрозрачной полосой */
+  position: relative !important;
   transform: none !important;
   left: auto !important;
   right: auto !important;
@@ -6303,7 +6302,7 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 4px;
 }
 .trade-to-l {
   font-size: 14px;
@@ -6315,8 +6314,8 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   font: inherit;
   font-size: 15px;
   font-weight: 700;
-  min-height: 38px;
-  padding: 6px 14px;
+  min-height: 36px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: 0;
   background: rgba(255, 255, 255, 0.07);
@@ -6554,11 +6553,11 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 .trade-to-item {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
 }
 .trade-ban {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 36px;
   border: 0;
   border-radius: 50%;
   background: none;
@@ -6672,4 +6671,67 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 .deal-mini .dm-btns .btn {
   min-height: 40px;
   font-size: 15px;
+}
+
+/* Обмен: свои предложения — одна строка, подробности во вложенной шторке */
+.mo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 4px;
+  border-radius: var(--r-sheet-in, 16px);
+  background: rgba(255, 255, 255, 0.06);
+}
+.mo-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.mo-count {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.mo-t {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.mo-t b {
+  font-size: 15px;
+}
+.mo-t small {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mo-t small.ok {
+  color: var(--good);
+}
+.mo-chev {
+  margin-left: auto;
+  font-size: 22px;
+  color: var(--ink-3);
+}
+.offer-resp li {
+  min-height: 36px;
 }
