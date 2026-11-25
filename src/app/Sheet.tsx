@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Drawer, DrawerBackdrop, DrawerContent, DrawerDescription, DrawerTitle } from '@ui-sdk/react/drawer';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { sfx } from '../fx';
 import { useLite } from './lite';
 
@@ -25,6 +25,8 @@ export function Sheet({
   right?: ReactNode;
 }) {
   const { lite } = useLite();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useDragToClose(bodyRef, onClose, open && dismissible && !lite);
   if (lite) return <LiteSheet {...{ open, onClose, title, description, children, dismissible, right }} />;
   return (
     <Drawer
@@ -43,7 +45,9 @@ export function Sheet({
           {right}
         </div>
         {description && <DrawerDescription className="sheet-desc">{description}</DrawerDescription>}
-        <div className="sheet-body">{children}</div>
+        <div className="sheet-body" ref={bodyRef}>
+          {children}
+        </div>
       </DrawerContent>
     </Drawer>
   );
@@ -92,4 +96,92 @@ function LiteSheet({
       </div>
     </div>
   );
+}
+
+/**
+ * Смахнуть шторку можно не только за «язычок», но и за содержимое — как в портале:
+ * если список прокручен до верха, свайп вниз тянет всю шторку за пальцем; отпустил ниже порога
+ * или резко — закрывается, иначе пружинит обратно. Прокрутка вверх/вниз внутри списка не страдает.
+ */
+function useDragToClose(ref: React.RefObject<HTMLDivElement | null>, onClose: () => void, enabled: boolean) {
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    if (!enabled) return;
+    // шторка монтируется в портал чуть позже — ждём кадр
+    let off = () => {};
+    let tries = 0;
+    let timer = 0;
+    const attach = () => {
+      const body = ref.current;
+      const sheet = body?.closest<HTMLElement>('.sheet');
+      if (!body || !sheet) {
+        if (tries++ < 10) timer = window.setTimeout(attach, 60);
+        return;
+      }
+      let y0 = 0;
+      let t0 = 0;
+      let dy = 0;
+      let armed = false;
+      let dragging = false;
+      let prev = '';
+      const start = (e: TouchEvent) => {
+        if (e.touches.length !== 1) return;
+        armed = body.scrollTop <= 0;
+        dragging = false;
+        dy = 0;
+        y0 = e.touches[0].clientY;
+        t0 = Date.now();
+      };
+      const move = (e: TouchEvent) => {
+        if (!armed) return;
+        const d = e.touches[0].clientY - y0;
+        if (!dragging) {
+          if (d < -2) {
+            armed = false; // повёл вверх — это прокрутка
+            return;
+          }
+          if (d < 8 || body.scrollTop > 0) return;
+          dragging = true;
+          prev = sheet.style.transform;
+        }
+        e.preventDefault(); // не даём iOS «оттягивать» список
+        dy = Math.max(0, d - 8);
+        sheet.style.transition = 'none';
+        sheet.style.transform = `translateY(${dy}px)`;
+      };
+      const end = () => {
+        if (!dragging) return;
+        dragging = false;
+        const v = dy / Math.max(1, Date.now() - t0);
+        sheet.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)';
+        if (dy > 120 || (v > 0.6 && dy > 40)) {
+          sheet.style.transform = 'translateY(100%)';
+          setTimeout(() => close.current(), 160);
+          setTimeout(() => {
+            sheet.style.transform = prev;
+            sheet.style.transition = '';
+          }, 420);
+        } else {
+          sheet.style.transform = prev;
+          setTimeout(() => (sheet.style.transition = ''), 240);
+        }
+      };
+      body.addEventListener('touchstart', start, { passive: true });
+      body.addEventListener('touchmove', move, { passive: false });
+      body.addEventListener('touchend', end);
+      body.addEventListener('touchcancel', end);
+      off = () => {
+        body.removeEventListener('touchstart', start);
+        body.removeEventListener('touchmove', move);
+        body.removeEventListener('touchend', end);
+        body.removeEventListener('touchcancel', end);
+      };
+    };
+    attach();
+    return () => {
+      window.clearTimeout(timer);
+      off();
+    };
+  }, [ref, enabled]);
 }
