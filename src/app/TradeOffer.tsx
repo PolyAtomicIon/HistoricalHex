@@ -74,46 +74,49 @@ export function TradeCard(p: Props) {
   const { t, from, v, answered } = useOffer(p);
   const tone = v.canAccept ? (v.fair >= 0 ? 'good' : 'warn') : 'bad';
   const agreed = answered?.kind === 'accept';
+  // Мини-плашка: кто, что отдаёшь → что получаешь, три кнопки. Не закрывает карту.
   return (
-    <section key={t.id} className={`deal glass strong ${agreed ? 'agreed' : ''}`} aria-label={`Предложение от ${from.name}`}>
-      <header className="deal-head">
+    <section key={t.id} className={`deal deal-mini glass strong ${agreed ? 'agreed' : ''}`} aria-label={`Предложение от ${from.name}`}>
+      <div className="dm-row">
         <span className="deal-ava" style={{ background: PLAYER_HEX[from.color] }}>
           {from.name.charAt(0).toUpperCase()}
         </span>
-        <span className="deal-who">
-          <b>{from.name}</b>
-          <small>{answered ? answerText(answered.kind) : 'предлагает сделку'}</small>
+        <b className="dm-name">{from.name}</b>
+        <span className="dm-terms">
+          <MiniRes res={t.want} />
+          <Icon name="next" size={14} />
+          <MiniRes res={t.give} get />
         </span>
-      </header>
-      <div className="deal-swap">
-        <div className="deal-tile give">
-          <DealPile res={t.want} />
-          <span>Отдаёшь</span>
-        </div>
-        <span className="deal-x" aria-hidden>
-          <Icon name="trade" size={18} />
-        </span>
-        <div className="deal-tile get">
-          <DealPile res={t.give} />
-          <span>Получаешь</span>
-        </div>
       </div>
-      <p className={`deal-verdict ${tone}`}>{v.text}</p>
+      {(answered || !v.canAccept) && <p className={`dm-note ${answered ? '' : tone}`}>{answered ? answerText(answered.kind) : v.text}</p>}
       {!answered && (
-        <div className="deal-btns">
+        <div className="dm-btns">
           <button className="btn" disabled={p.busy} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
-            Отказать
+            Нет
+          </button>
+          <button className="btn" onClick={p.counter}>
+            Своё
           </button>
           <button className="btn deal-yes" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
-            Принять
-          </button>
-          <button className="deal-more" onClick={p.counter}>
-            Предложить своё
+            Да
           </button>
         </div>
       )}
-      {agreed && <span className="deal-wait" aria-hidden><i /><i /><i /></span>}
     </section>
+  );
+}
+
+/** Ресурсы в мини-плашке: значок + количество; «получаешь» — зелёным. */
+function MiniRes({ res, get }: { res: ResourceMap; get?: boolean }) {
+  return (
+    <span className={`dm-res ${get ? 'get' : 'give'}`}>
+      {list(res).map((r) => (
+        <span key={r} className="dm-r">
+          <ResIcon r={r} size={26} />
+          {(res[r] ?? 0) > 1 && <small>×{res[r]}</small>}
+        </span>
+      ))}
+    </span>
   );
 }
 

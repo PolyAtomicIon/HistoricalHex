@@ -6605,3 +6605,71 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   background: rgba(255, 69, 58, 0.2);
   color: #ff6b5b;
 }
+
+/* Входящее предложение — мини-плашка */
+.deal.deal-mini {
+  padding: 10px 12px;
+  gap: 8px;
+}
+.deal-mini .dm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.deal-mini .deal-ava {
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  flex: none;
+}
+.deal-mini .dm-name {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.deal-mini .dm-terms {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-3);
+}
+.deal-mini .dm-res {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.deal-mini .dm-res.get {
+  background: rgba(88, 214, 141, 0.16);
+}
+.deal-mini .dm-r {
+  display: inline-flex;
+  align-items: center;
+}
+.deal-mini .dm-r small {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.deal-mini .dm-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.deal-mini .dm-note.bad {
+  color: var(--bad);
+}
+.deal-mini .dm-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 8px;
+}
+.deal-mini .dm-btns .btn {
+  min-height: 40px;
+  font-size: 15px;
+}
