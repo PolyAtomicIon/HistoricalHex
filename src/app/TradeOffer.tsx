@@ -99,20 +99,24 @@ function CounterButton({ p, ideas, className, children }: { p: Props; ideas: Cou
     setOpen(false);
     void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'counter', give: c.get, want: c.give });
   };
+  // Лучшее встречное — одним касанием; остальные варианты и «своё» — в шторке (кнопка «ещё»)
   return (
     <>
-      <button className={className ?? 'btn deal-yes'} disabled={p.busy} onClick={() => (ideas.length === 1 ? send(ideas[0]) : setOpen(true))}>
-        {children ??
-          (ideas.length === 1 ? (
-            <span className="dm-counter">
-              <MiniRes res={ideas[0].give} />
-              <Icon name="next" size={12} />
-              <MiniRes res={ideas[0].get} get />
-            </span>
-          ) : (
-            `Встречное · ${ideas.length}`
-          ))}
+      <button className={className ?? 'btn deal-yes'} disabled={p.busy} onClick={() => send(ideas[0])} aria-label={`Предложить: ${ideas[0].label}`}>
+        {children ?? (
+          <span className="dm-counter">
+            <small>Предложить</small>
+            <MiniRes res={ideas[0].give} />
+            <Icon name="next" size={12} />
+            <MiniRes res={ideas[0].get} get />
+          </span>
+        )}
       </button>
+      {!children && (
+        <button className="btn dm-more" onClick={() => setOpen(true)} aria-label="Другие варианты">
+          <Icon name="menu" size={18} />
+        </button>
+      )}
       <Sheet open={open} onClose={() => setOpen(false)} title="Встречное предложение" description={`${from.name} просит то, чего у тебя нет. Предложи иначе:`}>
         <div className="list counter-list">
           {ideas.map((c, i) => (
@@ -167,6 +171,7 @@ export function TradeCard(p: Props) {
           <MiniRes res={t.give} get />
         </span>
       </div>
+      {!answered && from.bot && <span key={`tm${t.id}`} className="dm-timer" aria-hidden />}
       {(answered || !v.canAccept) && (
         <p className={`dm-note ${answered ? '' : tone}`}>{answered ? answerText(answered.kind) : v.text}</p>
       )}

@@ -57,6 +57,8 @@ export interface BotContext {
 
 /** Сколько ждать ответа людей на предложение обмена. */
 export const TRADE_WAIT_MS = 9000;
+/** Сколько бот ждёт ответа живых игроков на своё предложение (в любом темпе, даже в турбо). */
+export const HUMAN_TRADE_MS = 8000;
 
 type Goal = 'city' | 'settlement' | 'devCard' | 'road';
 const GOAL_COST: Record<Goal, ResourceMap> = {
@@ -433,7 +435,13 @@ function smartMain(ctx: BotContext, mine: ResourceMap, pieces: { roads: number; 
       if (r?.kind === 'accept') return hasResources(res, trade.give);
       return false;
     });
-    if (yes) return { type: 'confirmTrade', tradeId: trade.id, with: yes };
+    // Живым игрокам — время ответить: бот не закрывает сделку с ботом, пока люди думают
+    const humansThinking = others.some((p) => !pub.players[p]?.bot && (!trade.to || trade.to.includes(p)) && !trade.responses?.[p]);
+    const elapsed = memory.offeredAt === undefined ? Infinity : ctx.now - memory.offeredAt;
+    const human = others.find((p) => !pub.players[p]?.bot && trade.responses?.[p]?.kind === 'accept' && hasResources(res, trade.give));
+    if (human) return { type: 'confirmTrade', tradeId: trade.id, with: human };
+    if (yes && (!humansThinking || elapsed > HUMAN_TRADE_MS)) return { type: 'confirmTrade', tradeId: trade.id, with: yes };
+    if (yes) return null;
     const allAnswered = others.filter((p) => !trade.to || trade.to.includes(p)).every((p) => trade.responses?.[p]);
     const waited = memory.offeredAt !== undefined && ctx.now - memory.offeredAt > TRADE_WAIT_MS;
     return allAnswered || waited ? { type: 'cancelTrade' } : null;

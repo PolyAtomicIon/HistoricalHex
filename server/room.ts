@@ -573,7 +573,9 @@ export class Room {
       const from = state.order[state.current];
       for (const pid of state.order) {
         if (pid === from || newOffer.responses[pid] || (newOffer.to && !newOffer.to.includes(pid))) continue;
-        if (!this.bans[pid]?.includes(from)) continue;
+        // авто-отказ: тайный бан или у человека пустая рука (ответить всё равно нечем)
+        const empty = !state.players[pid].bot && Object.values(state.players[pid].resources).every((n) => !n);
+        if (!this.bans[pid]?.includes(from) && !empty) continue;
         const r = applyAction(state, pid, { type: 'respondTrade', tradeId: newOffer.id, kind: 'decline' }, cryptoRng);
         if (r.ok) {
           state = r.state;
@@ -760,6 +762,19 @@ export class Room {
     if (on) list.add(player);
     else list.delete(player);
     this.bans[me] = [...list];
+    // забанил посреди открытого предложения — сразу отказ
+    const st = this.state;
+    if (on && st && st.phase === 'main' && st.order[st.current] === player) {
+      for (const t of st.trades ?? []) {
+        if (t.responses[me] || (t.to && !t.to.includes(me))) continue;
+        const r = applyAction(this.state!, me, { type: 'respondTrade', tradeId: t.id, kind: 'decline' }, cryptoRng);
+        if (r.ok) {
+          this.state = r.state;
+          this.sendEvents(r.events);
+          this.scheduleBots();
+        }
+      }
+    }
     this.changed();
     for (const c of this.clients) if (c.me === me) c.send({ t: 'room', room: this.view(me) });
   }

@@ -7282,9 +7282,12 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 .board-hint,
 .plan-run,
 .fact-pop,
+.fact-chip,
 .wait-fact,
 .confirm,
-.undo-chip {
+.undo-chip,
+.rob-pick,
+.steal-pop.dock-pop {
   margin-bottom: var(--deal-h, 0px);
   transition: margin-bottom 260ms var(--ease-out, ease-out);
 }
@@ -7501,3 +7504,21 @@ html.lite .hub-glow { display: none; }
   font-weight: 700;
   text-decoration: none;
 }
+/* встречное: «Предложить ⟨что⟩ → ⟨что⟩» одним касанием, рядом «ещё» */
+.dm-counter small { font-size: 13px; font-weight: 800; margin-right: 2px; }
+.dm-btns .dm-cnt { flex: 3; padding: 0 10px; }
+.dm-btns .dm-more { flex: 0 0 48px; padding: 0; }
+/* бот ждёт ответа людей 8 секунд — тонкая полоска убывает */
+.deal-mini { overflow: hidden; }
+.dm-timer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.55);
+  transform-origin: left;
+  animation: dm-timer 8s linear both;
+}
+@keyframes dm-timer { to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .dm-timer { animation-duration: 8s; } }

@@ -68,3 +68,30 @@ describe('боты и обмен', () => {
     }
   });
 });
+
+const ok = (r: ReturnType<typeof applyAction>): GameState => {
+  if (!r.ok) throw new Error(r.error);
+  return r.state;
+};
+
+describe('бот-продавец ждёт людей', () => {
+  it('бот согласился, человек думает — ждём до 8 с; человек согласился — сделка с ним', () => {
+    const s = afterSetup(3);
+    s.players.a.bot = 'medium';
+    s.players.b.bot = 'medium';
+    // c — человек
+    s.players.a.resources = { ...emptyResources(), wood: 1 };
+    s.players.b.resources = { ...emptyResources(), ore: 1 };
+    s.players.c.resources = { ...emptyResources(), ore: 1 };
+    const give = { ...emptyResources(), wood: 1 };
+    const want = { ...emptyResources(), ore: 1 };
+    let st = ok(applyAction(s, 'a', { type: 'offerTrade', give, want }, seededRng(1)));
+    const tid = st.trades![0].id;
+    st = ok(applyAction(st, 'b', { type: 'respondTrade', tradeId: tid, kind: 'accept' }, seededRng(1)));
+    const ctx = (now: number, t: GameState) => ({ level: 'medium' as const, pub: toPublicView(t), priv: toPrivateView(t, 'a'), me: 'a', rng: seededRng(2), memory: { offeredAt: 0 }, now });
+    expect(decide(ctx(3000, st))).toBeNull();
+    expect(decide(ctx(9000, st))).toMatchObject({ type: 'confirmTrade', with: 'b' });
+    const st2 = ok(applyAction(st, 'c', { type: 'respondTrade', tradeId: tid, kind: 'accept' }, seededRng(1)));
+    expect(decide(ctx(1000, st2))).toMatchObject({ type: 'confirmTrade', with: 'c' });
+  });
+});
