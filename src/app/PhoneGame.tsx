@@ -490,6 +490,12 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               setSheet('pprofile');
             }}
             part={{ idx: focusPlayer.idx ?? 0, total: focusClusters.length, step: stepFocus }}
+            banned={bans.includes(focusPlayer.id)}
+            onBan={() => {
+              const on = !bans.includes(focusPlayer.id);
+              conn.send({ t: 'ban', player: focusPlayer.id, on });
+              setGameToast({ text: on ? `Ты не торгуешь с игроком ${pub.players[focusPlayer.id]?.name}. Он не узнает.` : `Снова торгуешь с игроком ${pub.players[focusPlayer.id]?.name}`, key: Date.now() });
+            }}
           />
         ) : (
           tick ? (
@@ -1311,6 +1317,8 @@ function FocusCard({
   me,
   onMore,
   part,
+  banned,
+  onBan,
 }: {
   pub: PublicState;
   id: PlayerId;
@@ -1318,6 +1326,9 @@ function FocusCard({
   me: PlayerId;
   onMore: () => void;
   part?: { idx: number; total: number; step: (d: number) => void };
+  /** Тайный бан в обмене: только для чужих игроков. */
+  banned?: boolean;
+  onBan?: () => void;
 }) {
   const p = pub.players[id];
   const b = Object.values(pub.buildings).filter((x) => x.owner === id);
@@ -1348,6 +1359,12 @@ function FocusCard({
         </small>
       </span>
       </button>
+      {onBan && id !== me && (
+        <button className={`fc-ban ${banned ? 'on' : ''}`} onClick={onBan} aria-label={banned ? 'Снова торговать' : 'Не торговать'} title={banned ? 'Ты с ним не торгуешь — нажми, чтобы снять' : 'Не торговать с ним'}>
+          <Icon name="ban" size={16} />
+          <span>{banned ? 'Бан' : 'Обмен'}</span>
+        </button>
+      )}
       {part && part.total > 1 && (
         <>
           <span className="fc-count">
