@@ -51,6 +51,10 @@ export function useEra(id: string | undefined): LorePack {
 
 /** Обложка эпохи (сгенерирована через Codex, лежит в public/eras). */
 export const eraCover = (id: string) => `${import.meta.env.BASE_URL}eras/${id}.webp`;
+/** Средняя обложка (800px, ~45 КБ) — для крупных карточек на телефоне. */
+export const eraCoverMd = (id: string) => `${import.meta.env.BASE_URL}eras/${id}-md.webp`;
+/** Маленькая обложка (360px, ~12 КБ) — для плиток, списков и размытого фона. */
+export const eraThumb = (id: string) => `${import.meta.env.BASE_URL}eras/${id}-sm.webp`;
 
 /** Авторская иконка эпохи (сгенерирована через Codex): emblem, robber, res-<ресурс>, dev-<карта>. */
 export const eraIcon = (id: string, name: string) => `${import.meta.env.BASE_URL}eras/${id}/${name}.webp`;

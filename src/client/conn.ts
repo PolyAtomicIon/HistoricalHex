@@ -90,6 +90,8 @@ class Connection {
   /** Что повторить после переподключения. */
   private resume?: ClientMsg;
   private started = false;
+  /** Страница ушла в кэш «назад/вперёд»: соединение закрыто, не переподключаемся. */
+  private frozen = false;
 
   start(): void {
     if (this.started) return;
@@ -99,9 +101,22 @@ class Connection {
       if (document.visibilityState === 'visible' && this.ws?.readyState !== WebSocket.OPEN) this.connect();
     });
     window.addEventListener('online', () => this.connect());
+    // Кэш «назад/вперёд»: страницу с открытым WebSocket браузер не сохраняет — закрываем при уходе, открываем при возврате
+    window.addEventListener('pagehide', () => {
+      this.frozen = true;
+      const ws = this.ws;
+      this.ws = undefined;
+      ws?.close();
+    });
+    window.addEventListener('pageshow', () => {
+      if (!this.frozen) return;
+      this.frozen = false;
+      this.connect();
+    });
   }
 
   private connect(): void {
+    if (this.frozen) return;
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
     this.patch({ status: 'connecting' });
     const ws = new WebSocket(wsUrl());

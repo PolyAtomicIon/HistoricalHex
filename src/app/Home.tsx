@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
-import { applyEra, eraCover, eraIcon } from './era';
+import { applyEra, eraCoverMd, eraThumb, eraIcon } from './era';
 import { ArtIcon, Icon } from './icons';
 import { Sheet } from './Sheet';
 import { ProfileView } from './Profile';
@@ -25,7 +25,7 @@ const H: Record<string, T3> = {
   newGame: { ru: 'Новая партия', kz: 'Жаңа ойын', en: 'New game' },
   about: { ru: 'Об игре', kz: 'Ойын туралы', en: 'About the game' },
   byPin: { ru: 'По PIN', kz: 'PIN арқылы', en: 'Join by PIN' },
-  connecting: { ru: 'Подключаемся к серверу…', kz: 'Серверге қосылып жатыр…', en: 'Connecting to the server…' },
+  connecting: { ru: 'Подключаемся…', kz: 'Қосылуда…', en: 'Connecting…' },
   eras: { ru: 'Эпохи', kz: 'Дәуірлер', en: 'Eras' },
   open: { ru: 'открыто', kz: 'ашық', en: 'open' },
   soon: { ru: 'скоро', kz: 'жақында', en: 'soon' },
@@ -120,7 +120,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
   const myRow = me ? leaders.find((l) => l.id === me.id) : undefined;
 
   return (
-    <main className="screen home hub" style={{ ['--era-cover' as string]: `url(${eraCover(pack.id)})` }}>
+    <main className="screen home hub" style={{ ['--era-cover' as string]: `url(${eraThumb(pack.id)})` }}>
       <span className="hub-glow" aria-hidden />
       <Sheet open={!!profileOpen} onClose={() => setProfileOpen(null)} title={profileOpen === 'top' ? T('leaders') : T('profile')}>
         <ProfileView key={profileOpen ?? 'x'} initialTab={profileOpen ?? 'me'} />
@@ -130,7 +130,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
       {mode === 'home' ? (
         <div className="hub-col">
           <header className="hub-head">
-            <button className="hub-me" onClick={() => setProfileOpen('me')} aria-label={T('profile')}>
+            <button className="hub-me" onClick={() => setProfileOpen('me')} title={T('profile')}>
               <span className="pf-ava">{me?.photo ? <img src={me.photo} alt="" /> : (me?.name || name || 'И').charAt(0).toUpperCase()}</span>
               <span className="hub-hello">
                 <small>{me && me.games > 0 ? T('back') : T('hello')}</small>
@@ -160,7 +160,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
           <section
             key={pack.id}
             className="hub-hero glass"
-            style={{ backgroundImage: `url(${eraCover(pack.id)})` }}
+            style={{ backgroundImage: `url(${eraCoverMd(pack.id)})` }}
             onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
             onPointerUp={(e) => {
               const s0 = swipe.current;
@@ -189,17 +189,13 @@ export function Home({ initialPin }: { initialPin?: string }) {
 
           <div className="hub-actions">
             <button className="btn primary big" disabled={status !== 'online' || creating} onClick={create}>
-              <Icon name="play" size={20} /> {T('newGame')}
+              <Icon name="play" size={20} /> {status === 'online' ? T('newGame') : T('connecting')}
             </button>
             <button className="btn big" onClick={() => setMode('join')}>
               <Icon name="door" size={20} /> {T('byPin')}
             </button>
           </div>
-          {status !== 'online' && <p className="faint small center">{T('connecting')}</p>}
           <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />
-          <FriendsStrip friends={friends} lang={lang} onOpen={setWho} />
-          {feed && <LiveGames live={others} lang={lang} />}
-
           <section className="hub-eras" aria-label={T('eras')}>
             <div className="hub-sec-h">
               <b>{T('eras')}</b>
@@ -218,7 +214,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
                     setEra(e.id);
                   }}
                 >
-                  <img src={eraCover(e.id)} alt="" loading="lazy" />
+                  <img src={eraThumb(e.id)} alt="" loading="lazy" width={180} height={101} />
                   <span>
                     <b className="hub-era-t">{e.short ?? e.title.replace(/^Эпоха /, '')}</b>
                     <small>{e.years}</small>
@@ -228,7 +224,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
               {SOON.map((e) => (
                 <div key={e.id} className="hub-era soon" aria-disabled="true">
                   <span className="hub-era-pic">
-                    <img src={eraCover(e.id)} alt="" loading="lazy" />
+                    <img src={eraThumb(e.id)} alt="" loading="lazy" width={180} height={101} />
                     <i>
                       <Icon name="ban" size={12} />
                     </i>
@@ -241,6 +237,9 @@ export function Home({ initialPin }: { initialPin?: string }) {
               ))}
             </div>
           </section>
+          <FriendsStrip friends={friends} lang={lang} onOpen={setWho} />
+          {feed && <LiveGames live={others} lang={lang} />}
+
 
           {top3.length > 0 && (
             <section className="hub-leaders glass" aria-label={T('leaders')}>

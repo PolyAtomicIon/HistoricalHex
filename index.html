@@ -12,9 +12,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HistoricalHex" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Unbounded:wght@600;800&display=swap" rel="stylesheet" />
+    <!-- шрифты свои (не Google): не блокируют отрисовку, кириллица и казахские буквы -->
+    <link rel="preload" href="./fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/unbounded-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="./fonts/fonts.css" />
+    <!-- обложка эпохи по умолчанию — главный кадр главной (LCP): качаем сразу, не дожидаясь JS -->
+    <link rel="preload" as="image" href="./eras/genghis-md.webp" type="image/webp" fetchpriority="high" />
   </head>
   <body>
     <div id="splash" aria-hidden="true">

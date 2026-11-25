@@ -10,21 +10,44 @@
     <link rel="alternate" hreflang="ru" href="https://bekzaty.abmco.kz/catan/about/" />
     <link rel="alternate" hreflang="kk" href="https://bekzaty.abmco.kz/catan/about/?lang=kz" />
     <link rel="alternate" hreflang="en" href="https://bekzaty.abmco.kz/catan/about/?lang=en" />
+    <link rel="alternate" hreflang="x-default" href="https://bekzaty.abmco.kz/catan/about/" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "HistoricalHex",
+        "url": "https://bekzaty.abmco.kz/catan/",
+        "image": "https://bekzaty.abmco.kz/catan/about/shots/og.jpg",
+        "description": "Мобильная настольная игра на гексах: строй, торгуй и узнавай историю. Каждая партия — в своей исторической эпохе.",
+        "inLanguage": ["ru", "kk", "en"],
+        "genre": ["Board game", "Strategy"],
+        "gamePlatform": ["Web browser", "iOS", "Android"],
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "playMode": ["MultiPlayer", "SinglePlayer"],
+        "numberOfPlayers": { "@type": "QuantitativeValue", "minValue": 2, "maxValue": 6 },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KZT" }
+      }
+    </script>
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="HistoricalHex" />
     <meta property="og:url" content="https://bekzaty.abmco.kz/catan/about/" />
     <meta property="og:title" content="HistoricalHex — настольная игра на гексах в исторических эпохах" />
     <meta property="og:description" content="Строй, торгуй и узнавай историю. Каждая партия — в своей эпохе. Играй с телефона за одним столом или онлайн." />
     <!-- og:image обязан быть абсолютным URL -->
-    <meta property="og:image" content="https://bekzaty.abmco.kz/catan/about/shots/board-2d.jpg" />
-    <meta property="og:image:width" content="780" />
-    <meta property="og:image:height" content="1688" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://bekzaty.abmco.kz/catan/about/shots/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://bekzaty.abmco.kz/catan/about/shots/og.jpg" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:locale:alternate" content="kk_KZ" />
+    <meta property="og:locale:alternate" content="en_US" />
     <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png" />
     <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Unbounded:wght@600;800&display=swap" rel="stylesheet" />
+    <link rel="preload" href="../fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="../fonts/unbounded-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="../fonts/fonts.css" />
     <link rel="stylesheet" href="./about.css" />
   </head>
   <body>
@@ -66,7 +89,7 @@
           </div>
           <div class="hero-media">
             <div class="phone">
-              <img src="./shots/home.jpg" srcset="./shots/sm/home.jpg 520w, ./shots/home.jpg 780w" sizes="(min-width: 900px) 296px, 276px" width="780" height="1688" alt="Главный экран HistoricalHex: обложка эпохи Чингисхана и кнопка новой партии" data-alt="altHome" fetchpriority="high" />
+              <img src="./shots/sm/home.webp" srcset="./shots/sm/home.webp 560w, ./shots/home.webp 780w" sizes="(min-width: 760px) 296px, 276px" width="780" height="1688" alt="Главный экран HistoricalHex: обложка эпохи Чингисхана и кнопка новой партии" data-alt="altHome" fetchpriority="high" />
             </div>
           </div>
         </div>
@@ -74,16 +97,16 @@
 
       <!-- 2. Как это играется -->
       <section class="feats wrap">
-        <p class="eyebrow" data-i="howEyebrow">Как это играется</p>
+        <h2 class="eyebrow" data-i="howEyebrow">Как это играется</h2>
 
         <article class="feat" style="margin-top: 28px">
           <div class="feat-media">
             <div class="duo">
               <figure class="phone">
-                <img src="./shots/board-2d.jpg" srcset="./shots/sm/board-2d.jpg 520w, ./shots/board-2d.jpg 780w" sizes="220px" width="780" height="1688" loading="lazy" decoding="async" alt="Рисованная 2D-карта острова в середине партии" data-alt="alt2d" />
+                <img src="./shots/sm/board-2d.webp" srcset="./shots/sm/board-2d.webp 560w, ./shots/board-2d.webp 780w" sizes="220px" width="780" height="1688" loading="lazy" decoding="async" alt="Рисованная 2D-карта острова в середине партии" data-alt="alt2d" />
               </figure>
               <figure class="phone">
-                <img src="./shots/board-3d.jpg" srcset="./shots/sm/board-3d.jpg 520w, ./shots/board-3d.jpg 780w" sizes="220px" width="780" height="1688" loading="lazy" decoding="async" alt="Тот же остров в 3D: низкополигональные горы, леса и корабли" data-alt="alt3d" />
+                <img src="./shots/sm/board-3d.webp" srcset="./shots/sm/board-3d.webp 560w, ./shots/board-3d.webp 780w" sizes="220px" width="780" height="1688" loading="lazy" decoding="async" alt="Тот же остров в 3D: низкополигональные горы, леса и корабли" data-alt="alt3d" />
               </figure>
             </div>
           </div>
@@ -96,7 +119,7 @@
         <article class="feat flip">
           <div class="feat-media">
             <div class="phone">
-              <img src="./shots/trade.jpg" srcset="./shots/sm/trade.jpg 520w, ./shots/trade.jpg 780w" sizes="276px" width="780" height="1688" loading="lazy" decoding="async" alt="Карточка входящего обмена с кнопкой встречного предложения" data-alt="altTrade" />
+              <img src="./shots/sm/trade.webp" srcset="./shots/sm/trade.webp 560w, ./shots/trade.webp 780w" sizes="276px" width="780" height="1688" loading="lazy" decoding="async" alt="Карточка входящего обмена с кнопкой встречного предложения" data-alt="altTrade" />
             </div>
           </div>
           <div>
@@ -108,7 +131,7 @@
         <article class="feat">
           <div class="feat-media">
             <div class="phone">
-              <img src="./shots/stats.jpg" srcset="./shots/sm/stats.jpg 520w, ./shots/stats.jpg 780w" sizes="276px" width="780" height="1688" loading="lazy" decoding="async" alt="Сводка стола: рынок ресурсов и кто что получает за бросок" data-alt="altStats" />
+              <img src="./shots/sm/stats.webp" srcset="./shots/sm/stats.webp 560w, ./shots/stats.webp 780w" sizes="276px" width="780" height="1688" loading="lazy" decoding="async" alt="Сводка стола: рынок ресурсов и кто что получает за бросок" data-alt="altStats" />
             </div>
           </div>
           <div>
@@ -118,7 +141,7 @@
         </article>
 
         <div class="more">
-          <p class="eyebrow" data-i="moreEyebrow">Ещё в игре</p>
+          <h2 class="eyebrow" data-i="moreEyebrow">Ещё в игре</h2>
           <ul class="more-grid">
             <li>
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="8" width="15" height="11" rx="3" /><path d="M12 8V4.5M9.5 13v1.5M14.5 13v1.5M2.5 13v2M21.5 13v2" /><circle cx="12" cy="3.6" r="1" /></svg>

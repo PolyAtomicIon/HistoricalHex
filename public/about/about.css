@@ -79,6 +79,9 @@ p {
   padding-right: max(var(--gut), env(safe-area-inset-right, 0px));
 }
 .eyebrow {
+  margin: 0;
+  font-family: inherit;
+  line-height: 1.4;
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -729,7 +732,8 @@ p {
     grid-template-columns: 1fr 1fr;
   }
 }
-@media (min-width: 900px) {
+/* с 760px (iPad в портрете) — две колонки */
+@media (min-width: 760px) {
   :root {
     --gut: 32px;
   }
@@ -765,7 +769,7 @@ p {
     margin-top: 140px;
   }
   .more-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
   .more-grid li {
@@ -808,6 +812,20 @@ p {
   .final {
     padding-top: 140px;
     padding-bottom: 72px;
+  }
+}
+
+@media (min-width: 1000px) {
+  .more-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+/* совсем узкие телефоны (320px): шапка не вылезает за край */
+@media (max-width: 359px) {
+  .lang button {
+    min-width: 38px;
+    height: 36px;
+    font-size: 13px;
   }
 }
 

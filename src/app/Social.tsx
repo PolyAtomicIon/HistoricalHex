@@ -6,7 +6,7 @@ import { conn, useConn } from '../client/conn';
 import { LORE_PACKS } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { ArtIcon, Icon } from './icons';
-import { eraCover, eraIcon } from './era';
+import { eraCoverMd, eraIcon } from './era';
 import { Sheet } from './Sheet';
 export { ProfileSheet } from './Profile';
 import { t3, type Lang, type T3 } from './learn/lang';
@@ -132,7 +132,7 @@ export function ResumeGames({ games, lang }: { games: LiveGame[]; lang: Lang }) 
   return (
     <div className="resume-list">
       {games.map((g) => (
-        <button key={g.pin} className="resume-card" onClick={() => conn.open(g.pin)} style={{ backgroundImage: `url(${eraCover(g.era)})` }}>
+        <button key={g.pin} className="resume-card" onClick={() => conn.open(g.pin)} style={{ backgroundImage: `url(${eraCoverMd(g.era)})` }}>
           <span className="rc-shade" aria-hidden />
           <span className="rc-top">
             <span className={`rc-badge ${g.paused ? 'paused' : 'live'}`}>

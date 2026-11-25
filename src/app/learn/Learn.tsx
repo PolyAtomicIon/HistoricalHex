@@ -1,10 +1,11 @@
 // «Как играть»: интерактивное обучение и справочник правил — открываются с главной, из лобби и из меню партии.
 
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { Icon } from '../icons';
 import { conn } from '../../client/conn';
-import { RulesSheet } from './RulesSheet';
-import { Tutorial } from './Tutorial';
+// Обучение и правила — отдельные чанки: грузятся, когда их впервые открывают
+const RulesSheet = lazy(() => import('./RulesSheet').then((m) => ({ default: m.RulesSheet })));
+const Tutorial = lazy(() => import('./Tutorial').then((m) => ({ default: m.Tutorial })));
 import { t3, tutorialDone, useLang } from './lang';
 import type { T3 } from './lang';
 
@@ -22,19 +23,21 @@ const TXT: Record<string, T3> = {
 export function useLearn() {
   const [tut, setTut] = useState(false);
   const [rules, setRules] = useState(false);
+  const [rulesUsed, setRulesUsed] = useState(false);
   const ui = (
-    <>
+    <Suspense fallback={null}>
       {tut && (
         <Tutorial
           onClose={() => setTut(false)}
           onRules={() => {
             setTut(false);
+            setRulesUsed(true);
             setRules(true);
           }}
         />
       )}
-      <RulesSheet open={rules} onClose={() => setRules(false)} />
-    </>
+      {rulesUsed && <RulesSheet open={rules} onClose={() => setRules(false)} />}
+    </Suspense>
   );
   return {
     openTutorial: () => {
@@ -42,6 +45,7 @@ export function useLearn() {
       conn.send({ t: 'track', event: 'tutorialStart' });
     },
     openRules: () => {
+      setRulesUsed(true);
       setRules(true);
       conn.send({ t: 'track', event: 'rulesOpen' });
     },

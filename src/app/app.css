@@ -127,10 +127,12 @@ textarea {
 }
 .btn.primary {
   background: linear-gradient(180deg, var(--accent), var(--accent));
+  background: linear-gradient(180deg, var(--accent), var(--accent)); /* без color-mix: Safari < 16.2 */
   background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 100%, white 14%), var(--accent));
   color: var(--accent-ink);
   border-color: transparent;
   box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.45), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.45), 0 1px 0 rgba(255, 255, 255, 0.5) inset; /* без color-mix: Safari < 16.2 */
   box-shadow: 0 8px 24px color-mix(in oklab, var(--accent) 45%, transparent), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
 }
 .btn.danger {
@@ -403,6 +405,7 @@ textarea {
 }
 .status-pill.mine {
   background: rgba(var(--accent-rgb), 0.35);
+  background: rgba(22, 30, 40, 0.5); /* без color-mix: Safari < 16.2 */
   background: color-mix(in oklab, var(--accent) 35%, rgba(22, 30, 40, 0.5));
 }
 
@@ -434,6 +437,7 @@ textarea {
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0.25));
+  background: linear-gradient(180deg, transparent, transparent); /* без color-mix: Safari < 16.2 */
   background: linear-gradient(180deg, color-mix(in oklab, var(--rc) 55%, transparent), color-mix(in oklab, var(--rc) 25%, transparent));
   border: 1px solid rgba(255, 255, 255, 0.14);
   transition: transform 300ms var(--spring);
@@ -524,6 +528,7 @@ textarea {
 }
 .act.on {
   background: rgba(var(--accent-rgb), 0.40);
+  background: rgba(var(--accent-rgb), 0.4); /* без color-mix: Safari < 16.2 */
   background: color-mix(in oklab, var(--accent) 40%, transparent);
   border-color: var(--glass-border);
 }
@@ -739,6 +744,7 @@ button.item {
   border-radius: var(--r-md);
   padding: 12px 14px;
   background: rgba(var(--accent-rgb), 0.16);
+  background: rgba(var(--accent-rgb), 0.16); /* без color-mix: Safari < 16.2 */
   background: color-mix(in oklab, var(--accent) 16%, transparent);
   border: 1px solid var(--glass-border);
   border: 1px solid var(--glass-border);

@@ -19,6 +19,7 @@
   font-size: 64px;
   line-height: 1;
   filter: drop-shadow(0 10px 30px rgba(var(--accent-rgb), 0.60));
+  filter: drop-shadow(0 10px 30px rgba(var(--accent-rgb), 0.6)); /* без color-mix: Safari < 16.2 */
   filter: drop-shadow(0 10px 30px color-mix(in oklab, var(--accent) 60%, transparent));
   animation: float 4s ease-in-out infinite;
 }
@@ -31,6 +32,7 @@
   font-size: clamp(32px, 9vw, 52px);
   margin: 10px 0 4px;
   background: linear-gradient(180deg, #fff, var(--accent));
+  background: linear-gradient(180deg, #fff, var(--accent)); /* без color-mix: Safari < 16.2 */
   background: linear-gradient(180deg, #fff, color-mix(in oklab, var(--accent) 70%, white));
   -webkit-background-clip: text;
   background-clip: text;
@@ -148,6 +150,7 @@
   border-radius: 50%;
   background: var(--pc, #888);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.30);
+  box-shadow: 0 0 0 3px transparent; /* без color-mix: Safari < 16.2 */
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--pc, #888) 30%, transparent);
   flex: none;
 }
@@ -264,6 +267,7 @@
   border-color: var(--glass-border);
   transform: scale(1.1);
   box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.50);
+  box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.5); /* без color-mix: Safari < 16.2 */
   box-shadow: 0 6px 20px color-mix(in oklab, var(--accent) 50%, transparent);
 }
 .pips {
@@ -4592,6 +4596,7 @@ html.lite .home .era-card.on .era-cover {
   font-size: 22px;
   color: #111;
   background: var(--pc);
+  box-shadow: 0 0 0 6px transparent; /* без color-mix: Safari < 16.2 */
   box-shadow: 0 0 0 6px color-mix(in oklab, var(--pc) 22%, transparent);
   animation: tt-pulse 2.4s var(--ease-out) infinite;
 }
@@ -4691,7 +4696,9 @@ html.lite .home .era-card.on .era-cover {
   border-radius: 50%;
   display: grid;
   place-items: center;
+  background: transparent; /* без color-mix: Safari < 16.2 */
   background: color-mix(in oklab, var(--pc, #9aa3ad) 28%, transparent);
+  color: var(--pc, #fff); /* без color-mix: Safari < 16.2 */
   color: color-mix(in oklab, var(--pc, #fff) 55%, white);
 }
 .tf-text {
@@ -4788,6 +4795,7 @@ html.lite .home .era-card.on .era-cover {
 
 /* имя в ленте — цветом игрока */
 .tf-text b {
+  color: var(--pc, var(--ink)); /* без color-mix: Safari < 16.2 */
   color: color-mix(in oklab, var(--pc, var(--ink)) 55%, white);
 }
 
@@ -4892,6 +4900,7 @@ html.lite .home .era-card.on .era-cover {
   gap: 2px;
   padding: 2px 8px 2px 4px;
   border-radius: 999px;
+  background: transparent; /* без color-mix: Safari < 16.2 */
   background: color-mix(in oklab, var(--pc) 26%, transparent);
 }
 .th-g::before {
@@ -6861,7 +6870,9 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   font-size: 16px;
   font-weight: 800;
   color: #fff;
+  background: #1a2330; /* без color-mix: Safari < 16.2 */
   background: color-mix(in oklab, var(--pc) 22%, #1a2330);
+  box-shadow: inset 0 0 0 1.5px transparent; /* без color-mix: Safari < 16.2 */
   box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--pc) 45%, transparent);
   transition: background 160ms, box-shadow 160ms, transform 120ms;
 }
@@ -7484,7 +7495,7 @@ html.lite .hub-glow { display: none; }
   .hud-btns { flex-direction: row; align-items: stretch; }
   .hud-btns > .fab,
   .hud-btns > .info-fab {
-    width: auto;
+    width: max(58px, var(--pbar-h, 58px)); /* квадрат и без aspect-ratio (Safari 14) */
     aspect-ratio: 1;
     height: auto;
     min-height: 58px;

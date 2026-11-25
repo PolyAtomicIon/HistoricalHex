@@ -11,7 +11,7 @@ import { LORE_PACKS } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { haptic, sfx } from '../fx';
 import { savedName, saveName } from './Home';
-import { eraCover, eraIcon, useEra } from './era';
+import { eraCover, eraThumb, eraIcon, useEra } from './era';
 import { ArtIcon, Icon } from './icons';
 import { TurnSettings } from './TurnSettings';
 import { Sheet } from './Sheet';
@@ -303,7 +303,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
                 className={`era-row ${p.id === room.settings.lore ? 'on' : ''}`}
                 onClick={() => conn.send({ t: 'settings', settings: { lore: p.id } })}
               >
-                <span className="er-art" style={{ backgroundImage: `url(${eraCover(p.id)})` }} aria-hidden>
+                <span className="er-art" style={{ backgroundImage: `url(${eraThumb(p.id)})` }} aria-hidden>
                   <ArtIcon src={eraIcon(p.id, 'emblem')} size={26} />
                 </span>
                 <span className="er-txt">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { conn, useConn } from '../client/conn';
 import { LORE_PACKS } from '../lore';
-import { eraCover, eraIcon } from './era';
+import { eraCover, eraThumb, eraIcon } from './era';
 import { ArtIcon, Icon } from './icons';
 import { inTelegram } from './tg';
 import { Sheet } from './Sheet';
@@ -106,7 +106,7 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
             {LORE_PACKS.map((e) => {
               const s = p.eras[e.id];
               return (
-                <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraCover(e.id)})` }}>
+                <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraThumb(e.id)})` }}>
                   <ArtIcon src={eraIcon(e.id, 'emblem')} size={40} />
                   <b>{e.title}</b>
                   <small>{s ? `${s.games} парт. · ${s.wins} побед` : 'ещё не играл'}</small>
@@ -231,7 +231,7 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
             {LORE_PACKS.map((e) => {
               const s = p.eras[e.id];
               return (
-                <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraCover(e.id)})` }}>
+                <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraThumb(e.id)})` }}>
                   <ArtIcon src={eraIcon(e.id, 'emblem')} size={36} />
                   <b>{e.title}</b>
                   <small>{s ? `${s.games} парт. · ${s.wins} побед` : 'не играл'}</small>
