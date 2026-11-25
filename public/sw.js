@@ -13,12 +13,16 @@ self.addEventListener('fetch', (e) => {
   const sameOrigin = url.origin === location.origin;
   if (sameOrigin && (url.pathname.startsWith(BASE + 'ws') || url.pathname.startsWith(BASE + 'api'))) return;
 
+  // Промо-страница /about/ — обычная страница, без офлайн-оболочки игры
+  if (sameOrigin && url.pathname.startsWith(BASE + 'about/')) return;
+
   if (req.mode === 'navigate') {
     e.respondWith(
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(BASE, copy));
+          // в оболочку кладём только саму игру (не host.html и не другие страницы)
+          if (url.pathname === BASE) caches.open(CACHE).then((c) => c.put(BASE, copy));
           return res;
         })
         .catch(() => caches.match(BASE).then((r) => r || Response.error())),

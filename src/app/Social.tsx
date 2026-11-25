@@ -6,7 +6,7 @@ import { conn, useConn } from '../client/conn';
 import { LORE_PACKS } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { ArtIcon, Icon } from './icons';
-import { eraIcon } from './era';
+import { eraCover, eraIcon } from './era';
 import { Sheet } from './Sheet';
 export { ProfileSheet } from './Profile';
 import { t3, type Lang, type T3 } from './learn/lang';
@@ -30,6 +30,10 @@ const S: Record<string, T3> = {
   online: { ru: 'в сети', kz: 'желіде', en: 'online' },
   noFriends: { ru: 'Добавляй друзей: нажми на игрока в лидерах или в партии — «Добавить в друзья». Здесь будет видно, кто в сети и где играет.', kz: 'Дос қос: көшбасшылардағы немесе ойындағы ойыншыны бас — «Досқа қосу». Мұнда кім желіде екені көрінеді.', en: 'Add friends: tap a player in leaders or a game, then “Add friend”. You will see who is online and where they play.' },
   withFriends: { ru: 'друзья', kz: 'достар', en: 'friends' },
+  yours: { ru: 'Твоя партия', kz: 'Сенің ойының', en: 'Your game' },
+  resume: { ru: 'Продолжить', kz: 'Жалғастыру', en: 'Continue' },
+  onPause: { ru: 'на паузе', kz: 'үзілісте', en: 'on pause' },
+  yourTurn: { ru: 'твой ход', kz: 'сенің жүрісің', en: 'your turn' },
 };
 
 const eraName = (id: string) => {
@@ -118,6 +122,60 @@ export function LiveGames({ live, lang }: { live: LiveGame[]; lang: Lang }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Мои незаконченные партии — крупно, наверху главной: вернуться одним касанием (и после паузы на дни). */
+export function ResumeGames({ games, lang }: { games: LiveGame[]; lang: Lang }) {
+  const T = (k: string) => t3(S[k], lang);
+  if (!games.length) return null;
+  return (
+    <div className="resume-list">
+      {games.map((g) => (
+        <button key={g.pin} className="resume-card" onClick={() => conn.open(g.pin)} style={{ backgroundImage: `url(${eraCover(g.era)})` }}>
+          <span className="rc-shade" aria-hidden />
+          <span className="rc-top">
+            <span className={`rc-badge ${g.paused ? 'paused' : 'live'}`}>
+              <Icon name={g.paused ? 'pause' : 'play'} size={12} />
+              {T('yours')} · {g.paused ? T('onPause') : g.turn > 0 ? `${T('turn')} ${g.turn}` : T('setup')}
+            </span>
+          </span>
+          <span className="rc-body">
+            <b className="display">{eraName(g.era)}</b>
+            <span className="rc-players">
+              {g.players.map((p, i) => (
+                <span key={i} className={`fp ${i === g.current ? 'now' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}>
+                  <i />
+                  {p.name}
+                  <small>{p.points}</small>
+                </span>
+              ))}
+            </span>
+          </span>
+          <span className="rc-cta">
+            <Icon name="play" size={18} /> {T('resume')}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Сколько партий идёт прямо сейчас — живая точка на обложке. */
+export function LiveCount({ n, lang }: { n: number; lang: Lang }) {
+  if (!n) return null;
+  const ru = () => {
+    const d = n % 10;
+    const h = n % 100;
+    if (d === 1 && h !== 11) return 'партия идёт';
+    if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return 'партии идут';
+    return 'партий идут';
+  };
+  const word = lang === 'en' ? (n === 1 ? 'game live' : 'games live') : lang === 'kz' ? 'ойын жүріп жатыр' : ru();
+  return (
+    <span className="hub-livecount">
+      <i aria-hidden /> {n} {word}
+    </span>
   );
 }
 

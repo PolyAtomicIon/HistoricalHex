@@ -79,6 +79,18 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const learn = useLearn();
   // вложенные шторки меню: ведущий (→ замена ботом) и «Вид и подсказки»
   const [sub, setSub] = useState<null | 'host' | 'kick' | 'look'>(null);
+  // Высота полосы игроков → --pbar-h: подсказки сверху начинаются под ней (на iPad она выше, чем на телефоне)
+  const hudRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const bar = hudRef.current?.querySelector<HTMLElement>('.pbar');
+    const root = hudRef.current?.closest<HTMLElement>('main');
+    if (!bar || !root) return;
+    const set = () => root.style.setProperty('--pbar-h', `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    set();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(set) : null;
+    ro?.observe(bar);
+    return () => ro?.disconnect();
+  }, []);
   const factsShown = useFacts();
   const { style: fxStyle, mini: miniFx } = useFxStyle();
   const meP = pub.players[me];
@@ -456,7 +468,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </div>
 
-      <header className="hud-top">
+      <header className="hud-top" ref={hudRef}>
         <PlayersBar
           pub={pubShown}
           room={room}
@@ -468,16 +480,18 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             setFocusPlayer((f) => (f?.id === id ? null : { id, key: Date.now() }));
           }}
         />
-        <button className="fab glass" onClick={() => setSheet('menu')} aria-label="Меню">
-          <Icon name="menu" />
-        </button>
+        {/* меню и сводка — рядом с полосой игроков (на iPad они не разъезжаются по краям) */}
+        <span className="hud-btns">
+          <button className="fab glass" onClick={() => setSheet('menu')} aria-label="Меню">
+            <Icon name="menu" />
+          </button>
+          {!focusPlayer && (
+            <button className="info-fab glass" onClick={() => setSheet('info')} aria-label="Сводка стола: рынок, числа, журнал">
+              <Icon name="stats" size={20} />
+            </button>
+          )}
+        </span>
       </header>
-
-      {!focusPlayer && (
-        <button className="info-fab glass" onClick={() => setSheet('info')} aria-label="Сводка стола: рынок, числа, журнал">
-          <Icon name="stats" size={20} />
-        </button>
-      )}
 
       {/* Верх экрана — одна колонка: статус, захват, уведомления. Ничего не накладывается. */}
       <div className="hud-stack">

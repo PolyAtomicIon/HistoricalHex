@@ -1,6 +1,6 @@
 // Главная: выбор эпохи, «Создать игру» или вход по PIN.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
 import { applyEra, eraCover, eraIcon } from './era';
@@ -13,7 +13,7 @@ import { haptic, sfx } from '../fx';
 import { LearnCard, useLearn } from './learn/Learn';
 import { LANGS, t3, useLang } from './learn/lang';
 import type { T3 } from './learn/lang';
-import { FriendsStrip, LiveGames, ProfileSheet, RecentGames, useFeed } from './Social';
+import { FriendsStrip, LiveCount, LiveGames, ProfileSheet, RecentGames, ResumeGames, useFeed } from './Social';
 
 /** Тексты главной на трёх языках (названия эпох пока по-русски — это имена собственные из лор-паков). */
 const H: Record<string, T3> = {
@@ -23,6 +23,7 @@ const H: Record<string, T3> = {
   rating: { ru: 'рейтинг', kz: 'рейтинг', en: 'rating' },
   streak: { ru: 'дн. подряд', kz: 'күн қатар', en: 'day streak' },
   newGame: { ru: 'Новая партия', kz: 'Жаңа ойын', en: 'New game' },
+  about: { ru: 'Об игре', kz: 'Ойын туралы', en: 'About the game' },
   byPin: { ru: 'По PIN', kz: 'PIN арқылы', en: 'Join by PIN' },
   connecting: { ru: 'Подключаемся к серверу…', kz: 'Серверге қосылып жатыр…', en: 'Connecting to the server…' },
   eras: { ru: 'Эпохи', kz: 'Дәуірлер', en: 'Eras' },
@@ -101,13 +102,26 @@ export function Home({ initialPin }: { initialPin?: string }) {
     conn.create({ lore: era });
   };
 
+  const mine = feed?.live.filter((g) => g.mine) ?? [];
+  const others = feed?.live.filter((g) => !g.mine) ?? [];
+  // свайп по обложке листает эпохи
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const stepEra = (d: number) => {
+    const i = LORE_PACKS.findIndex((e) => e.id === era);
+    const next = LORE_PACKS[(i + d + LORE_PACKS.length) % LORE_PACKS.length];
+    sfx.play('tick');
+    haptic('tap');
+    setEra(next.id);
+  };
+
   const me = profile?.profile;
   const leaders = profile?.leaders ?? [];
   const top3 = leaders.slice(0, 3);
   const myRow = me ? leaders.find((l) => l.id === me.id) : undefined;
 
   return (
-    <main className="screen home hub">
+    <main className="screen home hub" style={{ ['--era-cover' as string]: `url(${eraCover(pack.id)})` }}>
+      <span className="hub-glow" aria-hidden />
       <Sheet open={!!profileOpen} onClose={() => setProfileOpen(null)} title={profileOpen === 'top' ? T('leaders') : T('profile')}>
         <ProfileView key={profileOpen ?? 'x'} initialTab={profileOpen ?? 'me'} />
       </Sheet>
@@ -141,8 +155,29 @@ export function Home({ initialPin }: { initialPin?: string }) {
           </div>
           <InstallButton />
 
-          <section key={pack.id} className="hub-hero glass" style={{ backgroundImage: `url(${eraCover(pack.id)})` }}>
+          <ResumeGames games={mine} lang={lang} />
+
+          <section
+            key={pack.id}
+            className="hub-hero glass"
+            style={{ backgroundImage: `url(${eraCover(pack.id)})` }}
+            onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
+            onPointerUp={(e) => {
+              const s0 = swipe.current;
+              swipe.current = null;
+              if (!s0) return;
+              const dx = e.clientX - s0.x;
+              if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - s0.y)) stepEra(dx < 0 ? 1 : -1);
+            }}
+            onPointerCancel={() => (swipe.current = null)}
+          >
             <span className="hub-hero-shade" aria-hidden />
+            <LiveCount n={feed?.live.length ?? 0} lang={lang} />
+            <span className="hub-dots" aria-hidden>
+              {LORE_PACKS.map((e) => (
+                <i key={e.id} className={e.id === era ? 'on' : ''} />
+              ))}
+            </span>
             <span className="hub-hero-text">
               <span className="hub-tag">
                 <ArtIcon src={eraIcon(pack.id, 'emblem')} size={18} /> {pack.years}
@@ -163,7 +198,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
           {status !== 'online' && <p className="faint small center">{T('connecting')}</p>}
           <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />
           <FriendsStrip friends={friends} lang={lang} onOpen={setWho} />
-          {feed && <LiveGames live={feed.live} lang={lang} />}
+          {feed && <LiveGames live={others} lang={lang} />}
 
           <section className="hub-eras" aria-label={T('eras')}>
             <div className="hub-sec-h">
@@ -244,6 +279,9 @@ export function Home({ initialPin }: { initialPin?: string }) {
             </section>
           )}
           {feed && <RecentGames recent={feed.recent} lang={lang} onPlayer={setWho} />}
+          <a className="hub-about" href={`${import.meta.env.BASE_URL}about/?lang=${lang}`}>
+            {T('about')} <Icon name="next" size={14} />
+          </a>
         </div>
       ) : (
         <div className="center-col">
