@@ -916,17 +916,6 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             }}
           />
         )}
-        {profileOf && profileOf !== me && pub.players[profileOf] && (
-          <div className="ban-row">
-            <span className="grow">
-              <b>{bans.includes(profileOf) ? 'Ты с ним не торгуешь' : 'Обмен с этим игроком'}</b>
-              <small>{bans.includes(profileOf) ? 'Его предложения тебе сразу отклоняются. Он об этом не знает.' : 'Можно тайно запретить: его предложения будут сразу отклоняться.'}</small>
-            </span>
-            <button className="btn" onClick={() => conn.send({ t: 'ban', player: profileOf, on: !bans.includes(profileOf) })}>
-              {bans.includes(profileOf) ? 'Снять запрет' : 'Не торговать'}
-            </button>
-          </div>
-        )}
       </Sheet>
 
       <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={pack.years}>
