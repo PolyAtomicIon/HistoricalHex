@@ -204,6 +204,45 @@ describe('зрители', () => {
   });
 });
 
+describe('пауза', () => {
+  it('стоп: боты не ходят, ходить нельзя; продолжить — снова идёт', async () => {
+    const host = new TestClient();
+    await host.ready();
+    host.send({ t: 'hello', secret: 'pause-host-secret-0123456789' });
+    host.send({ t: 'create', settings: { dice: 'random' } });
+    await host.until(() => !!host.room);
+    expect(host.room!.settings).toMatchObject({ pace: 'turbo', turnSeconds: 0 });
+    const pin = host.room!.pin;
+    host.send({ t: 'join', pin, name: 'Бекзат' });
+    for (let i = 0; i < 3; i++) host.send({ t: 'addBot', level: 'easy' });
+    await host.until(() => host.room!.lobby.length === 4);
+    host.send({ t: 'start' });
+    await host.until(() => host.room!.status === 'playing');
+    host.send({ t: 'pause', on: true });
+    await host.until(() => !!host.room!.paused);
+    expect(host.room!.paused!.name).toBe('Бекзат');
+    expect(host.room!.deadlines).toEqual({});
+    const frozen = JSON.stringify(host.room!.public);
+    await new Promise((r) => setTimeout(r, 400));
+    expect(JSON.stringify(host.room!.public)).toBe(frozen);
+
+    host.send({ t: 'act', id: 'p1', action: { type: 'endTurn' } });
+    await host.until(() => host.msgs.some((m) => m.t === 'result' && m.id === 'p1'));
+    const res = host.msgs.find((m) => m.t === 'result' && m.id === 'p1') as Extract<ServerMsg, { t: 'result' }>;
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/пауз/);
+
+    host.send({ t: 'feed' });
+    await host.until(() => host.msgs.some((m) => m.t === 'feed'));
+    const feed = host.msgs.find((m) => m.t === 'feed') as Extract<ServerMsg, { t: 'feed' }>;
+    expect(feed.live.find((g) => g.pin === pin)?.paused).toBe(true);
+
+    host.send({ t: 'pause', on: false });
+    await host.until(() => !host.room!.paused);
+    host.ws.close();
+  });
+});
+
 describe('друзья', () => {
   it('добавить друга, видеть его статус и позвать в партию', async () => {
     const a = new TestClient();

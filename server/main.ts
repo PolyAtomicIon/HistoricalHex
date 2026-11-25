@@ -31,6 +31,8 @@ const HOST = process.env.HOST ?? '127.0.0.1';
 const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), '.data');
 /** Комнату без подключений и изменений удаляем через это время. */
 const IDLE_MS = 1000 * 60 * 60 * 24 * 2;
+/** Партия на паузе ждёт игроков дольше — месяц. */
+const PAUSED_IDLE_MS = 1000 * 60 * 60 * 24 * 30;
 const MAX_ROOMS = 500;
 /** Пустое лобби без подключений живёт час. */
 const LOBBY_IDLE_MS = 1000 * 60 * 60;
@@ -164,7 +166,7 @@ for (const f of readdirSync(DATA_DIR)) {
   if (!/^\d{6}\.json$/.test(f)) continue;
   try {
     const data = JSON.parse(readFileSync(join(DATA_DIR, f), 'utf8')) as SavedRoom;
-    if (Date.now() - data.touched > IDLE_MS) {
+    if (Date.now() - data.touched > (data.paused ? PAUSED_IDLE_MS : IDLE_MS)) {
       rmSync(join(DATA_DIR, f), { force: true });
       continue;
     }
@@ -460,6 +462,8 @@ wss.on('connection', (ws: WebSocket, req) => {
       case 'ban':
         if (typeof msg.player !== 'string') throw new Error('Плохой запрос');
         return r.setBan(me, msg.player, !!msg.on);
+      case 'pause':
+        return r.setPaused(me, !!msg.on);
       case 'undo': {
         const res = await r.undo(me);
         if (!res.ok) send({ t: 'error', message: res.error ?? 'Отменить нельзя' });
@@ -508,7 +512,7 @@ setInterval(() => {
   for (const r of rooms.values()) {
     r.tick();
     const idle = now - r.touched;
-    if (r.clientCount === 0 && (idle > IDLE_MS || (r.status === 'lobby' && idle > LOBBY_IDLE_MS))) drop(r.pin);
+    if (r.clientCount === 0 && (idle > (r.paused ? PAUSED_IDLE_MS : IDLE_MS) || (r.status === 'lobby' && idle > LOBBY_IDLE_MS))) drop(r.pin);
   }
 }, 2000);
 

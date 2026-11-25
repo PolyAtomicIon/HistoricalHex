@@ -343,3 +343,67 @@ export function tradeVerdict(want: ResourceMap, give: ResourceMap, hand: Resourc
             : `Честно ${ratio}`;
   return { canAccept, out, inn, after, unlocks, loses, fair, text };
 }
+
+/** Встречное предложение: что я отдаю (give) и что прошу (get). */
+export interface CounterIdea {
+  give: ResourceMap;
+  get: ResourceMap;
+  /** Коротко, чем отличается от исходного. */
+  label: string;
+}
+
+const total = (m: Partial<ResourceMap>) => RESOURCES.reduce((a, r) => a + (m[r] ?? 0), 0);
+
+/**
+ * Готовые встречные, когда на чужое предложение нечем ответить.
+ * want — что просит предлагающий (отдаю я), give — что он даёт (получаю я).
+ *  1) «сколько есть»: отдаю, что есть из просимого, прошу пропорционально меньше;
+ *  2) «вместо …»: недостающее заменяю тем, чего у меня больше всего.
+ */
+export function counterIdeas(want: ResourceMap, give: ResourceMap, hand: ResourceMap): CounterIdea[] {
+  if (hasResources(hand, want)) return [];
+  const out: CounterIdea[] = [];
+  const key = (c: CounterIdea) => RESOURCES.map((r) => `${c.give[r] ?? 0}${c.get[r] ?? 0}`).join('');
+  const push = (c: CounterIdea) => {
+    if (total(c.give) <= 0 || total(c.get) <= 0 || !hasResources(hand, c.give)) return;
+    if (out.some((o) => key(o) === key(c))) return;
+    out.push(c);
+  };
+  const have = emptyResources();
+  for (const r of RESOURCES) have[r] = Math.min(want[r] ?? 0, hand[r]);
+  const missing = total(want) - total(have);
+  const giveTotal = total(give);
+
+  // 1) сколько есть — и прошу меньше
+  if (total(have) > 0) {
+    const n = Math.max(1, Math.round((giveTotal * total(have)) / Math.max(1, total(want))));
+    const get = emptyResources();
+    let left = n;
+    // забираем по очереди из того, что он даёт, — чтобы набор остался похожим
+    while (left > 0) {
+      let moved = false;
+      for (const r of RESOURCES) {
+        if (left > 0 && get[r] < (give[r] ?? 0)) {
+          get[r]++;
+          left--;
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    push({ give: { ...have }, get, label: n < giveTotal ? 'Сколько есть — и меньше взамен' : 'Сколько есть' });
+  }
+
+  // 2) недостающее — другим ресурсом (тем, чего больше всего и что он сам не даёт)
+  const spare = RESOURCES.filter((r) => !(give[r] ?? 0))
+    .map((r) => ({ r, n: hand[r] - have[r] }))
+    .filter((x) => x.n >= missing)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 2);
+  for (const { r } of spare) {
+    const g = { ...have };
+    g[r] += missing;
+    push({ give: g, get: { ...give }, label: `Вместо — ${RESOURCE_NAME[r]}` });
+  }
+  return out.slice(0, 3);
+}

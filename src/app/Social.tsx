@@ -18,6 +18,7 @@ const S: Record<string, T3> = {
   back: { ru: 'Вернуться', kz: 'Оралу', en: 'Rejoin' },
   turn: { ru: 'ход', kz: 'жүріс', en: 'turn' },
   setup: { ru: 'расстановка', kz: 'орналастыру', en: 'setup' },
+  paused: { ru: 'пауза', kz: 'үзіліс', en: 'paused' },
   won: { ru: 'победил', kz: 'жеңді', en: 'won' },
   you: { ru: 'ты играл', kz: 'сен ойнадың', en: 'you played' },
   game: { ru: 'Партия', kz: 'Ойын', en: 'Game' },
@@ -102,7 +103,7 @@ export function LiveGames({ live, lang }: { live: LiveGame[]; lang: Lang }) {
               <span className="feed-act">
                 <span className="feed-cta">{g.mine ? T('back') : T('watch')}</span>
                 <small>
-                  {g.turn > 0 ? `${T('turn')} ${g.turn}` : T('setup')}
+                  {g.paused ? T('paused') : g.turn > 0 ? `${T('turn')} ${g.turn}` : T('setup')}
                   {g.watchers > 0 && (
                     <span className="feed-eyes">
                       {' · '}

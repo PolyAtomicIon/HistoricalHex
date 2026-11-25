@@ -9,7 +9,7 @@ import { RESOURCES, emptyResources, hasResources } from '../engine';
 import { RESOURCE_NAME, namesFrom } from '../i18n/ru';
 import { HandMini, ResChips, ResourcePicker, TradeGrid, sum } from './widgets';
 import { ResIcon } from './ResIcon';
-import { incomingTradeHint } from './planner';
+import { counterIdeas, incomingTradeHint } from './planner';
 import { Icon } from './icons';
 import { Sheet } from './Sheet';
 import { PLAYER_HEX } from '../ui/theme';
@@ -171,8 +171,10 @@ export function IncomingTrade({ pub, priv, me, send, busy }: { pub: PublicState;
   const mine = trade.responses?.[me];
   const [counter, setCounter] = useState(false);
   // С точки зрения отвечающего: «отдаю» = то, что хочет активный; «получаю» = то, что он отдаёт
-  const [myGive, setMyGive] = useState<ResourceMap>(() => clampTo({ ...trade.want }, priv.resources));
-  const [myGet, setMyGet] = useState<ResourceMap>({ ...trade.give });
+  // Нечем ответить — встречное сразу заполнено готовым вариантом (можно поправить)
+  const idea = counterIdeas(trade.want, trade.give, priv.resources)[0];
+  const [myGive, setMyGive] = useState<ResourceMap>(() => ({ ...emptyResources(), ...(idea?.give ?? clampTo({ ...trade.want }, priv.resources)) }));
+  const [myGet, setMyGet] = useState<ResourceMap>(() => ({ ...emptyResources(), ...(idea?.get ?? trade.give) }));
   const canAccept = hasResources(priv.resources, trade.want);
   const hint = incomingTradeHint(trade.want, trade.give, priv.resources);
 

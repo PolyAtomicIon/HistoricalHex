@@ -37,9 +37,9 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   offlineBot: true,
   dice: 'randomOrg',
   lore: 'genghis',
-  turnSeconds: 180,
+  turnSeconds: 0,
   autoRoll: true,
-  pace: 'calm',
+  pace: 'turbo',
 };
 
 export const OFFLINE_BOT_LEVEL: BotLevel = 'medium';
@@ -84,6 +84,8 @@ export interface RoomView {
   canUndo?: 'road' | 'settlement' | 'city';
   /** С кем я не торгую (тайно, видно только мне). */
   bans?: PlayerId[];
+  /** Партия на паузе: кто поставил и когда. */
+  paused?: { by: PlayerId; name: string; at: number };
 }
 
 export type ClientMsg =
@@ -106,6 +108,8 @@ export type ClientMsg =
   | { t: 'react'; emoji: string }
   /** Отменить свою последнюю постройку (пока после неё никто ничего не сделал). */
   | { t: 'undo' }
+  /** Пауза партии (любой игрок за столом) — on: false — продолжить. */
+  | { t: 'pause'; on: boolean }
   /** Тайный бан в обмене: не торговать с игроком (on: false — снять). */
   | { t: 'ban'; player: PlayerId; on: boolean }
   /** Ошибка в браузере игрока — для журнала сервера. */
@@ -196,6 +200,8 @@ export interface LiveGame {
   /** Ход сейчас у этого игрока (индекс в players). */
   current: number;
   watchers: number;
+  /** Партия на паузе. */
+  paused?: boolean;
   /** Я сижу за этим столом. */
   mine?: boolean;
   /** Имена моих друзей за этим столом. */

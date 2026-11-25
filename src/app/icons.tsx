@@ -7,6 +7,8 @@ import type { LucideIcon } from 'lucide-react';
 import {
   ChartNoAxesColumn,
   Undo2,
+  Pause,
+  Paintbrush,
   Timer,
   Swords,
   ArrowLeftRight,
@@ -83,7 +85,9 @@ export type IconName =
   | 'timer'
   | 'army'
   | 'stats'
-  | 'undo';
+  | 'undo'
+  | 'pause'
+  | 'map';
 
 const L: Record<IconName, LucideIcon> = {
   menu: Menu,
@@ -123,6 +127,8 @@ const L: Record<IconName, LucideIcon> = {
   timer: Timer,
   stats: ChartNoAxesColumn,
   undo: Undo2,
+  pause: Pause,
+  map: Paintbrush,
   army: Swords,
 };
 

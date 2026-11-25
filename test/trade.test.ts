@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resourceMap, topologyFor, tradeRatios } from '../src/engine';
 import { act, actFail, mainPhase, newGame, setHand } from './helpers';
+import { counterIdeas } from '../src/app/planner';
 
 const R = resourceMap;
 
@@ -127,5 +128,22 @@ describe('адресное предложение', () => {
     expect(s.trade!.to).toBeUndefined();
     expect(actFail(s, 'a', { type: 'offerTrade', give: R({ brick: 1 }), want: R({ ore: 1 }), to: [] })).toBe('Выбери, кому предложить');
     expect(actFail(s, 'a', { type: 'offerTrade', give: R({ brick: 1 }), want: R({ ore: 1 }), to: ['a'] })).toBe('Такого игрока нет');
+  });
+});
+
+describe('встречные предложения', () => {
+  const m = (o: Partial<Record<'brick' | 'wood' | 'sheep' | 'wheat' | 'ore', number>>) => ({ brick: 0, wood: 0, sheep: 0, wheat: 0, ore: 0, ...o });
+  it('нечем ответить — предлагает «сколько есть» и замену тем, чего много', () => {
+    const ideas = counterIdeas(m({ wheat: 2 }), m({ ore: 2 }), m({ wheat: 1, sheep: 4 }));
+    expect(ideas.length).toBeGreaterThanOrEqual(2);
+    expect(ideas[0]).toMatchObject({ give: m({ wheat: 1 }), get: m({ ore: 1 }) });
+    expect(ideas.some((c) => c.give.sheep === 1 && c.give.wheat === 1 && c.get.ore === 2)).toBe(true);
+    for (const c of ideas) expect(c.give.wheat).toBeLessThanOrEqual(1);
+  });
+  it('можно принять — встречных нет', () => {
+    expect(counterIdeas(m({ wheat: 1 }), m({ ore: 1 }), m({ wheat: 3 }))).toEqual([]);
+  });
+  it('пустая рука — ничего не предлагает', () => {
+    expect(counterIdeas(m({ wheat: 1 }), m({ ore: 1 }), m({}))).toEqual([]);
   });
 });

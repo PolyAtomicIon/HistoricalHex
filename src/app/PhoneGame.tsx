@@ -77,7 +77,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const priv = room.private!;
   const me = room.me;
   const learn = useLearn();
-  const [hostOpen, setHostOpen] = useState(false);
+  // вложенные шторки меню: ведущий (→ замена ботом) и «Вид и подсказки»
+  const [sub, setSub] = useState<null | 'host' | 'kick' | 'look'>(null);
   const factsShown = useFacts();
   const { style: fxStyle, mini: miniFx } = useFxStyle();
   const meP = pub.players[me];
@@ -969,13 +970,30 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <span className="grow t">Игроки и очки</span>
           </button>
           {room.isHost && pub.phase !== 'finished' && (
-            <button className="item" onClick={() => setHostOpen(true)}>
+            <button className="item" onClick={() => setSub('host')}>
               <Icon name="crown" />
               <span className="grow">
                 <span className="t">Ведущий</span>
                 <span className="s" style={{ display: 'block' }}>Темп, таймер хода, пропуск хода, замена ботом</span>
               </span>
               <Icon name="next" size={16} />
+            </button>
+          )}
+          {pub.phase !== 'finished' && (
+            <button
+              className="item"
+              onClick={() => {
+                conn.send({ t: 'pause', on: !room.paused });
+                setSheet(null);
+              }}
+            >
+              <Icon name={room.paused ? 'play' : 'pause'} />
+              <span className="grow">
+                <span className="t">{room.paused ? 'Продолжить партию' : 'Поставить на паузу'}</span>
+                <span className="s" style={{ display: 'block' }}>
+                  {room.paused ? `Паузу поставил ${room.paused.name}` : 'Таймеры и боты стоят — хоть до завтра, хоть неделю'}
+                </span>
+              </span>
             </button>
           )}
           <button className="item" onClick={() => { setSheet(null); learn.openRules(); }}>
@@ -992,6 +1010,82 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               <span className="s" style={{ display: 'block' }}>Учебный ход за 3 минуты</span>
             </span>
           </button>
+          <button className="item" onClick={() => setSub('look')}>
+            <Icon name="map" />
+            <span className="grow">
+              <span className="t">Вид и подсказки</span>
+              <span className="s" style={{ display: 'block' }}>2D / 3D, графика, заставки, обмен, факты</span>
+            </span>
+            <Icon name="next" size={16} />
+          </button>
+          <button
+            className="item"
+            onClick={async () => {
+              if (pushOn) {
+                conn.send({ t: 'pushOff' });
+                return;
+              }
+              const err = await enablePush(vapid, (sub) => conn.send({ t: 'pushSub', sub }));
+              if (err) conn.notify(err);
+            }}
+          >
+            <Icon name="bell" />
+            <span className="grow">
+              <span className="t">Уведомлять о моём ходе</span>
+              <span className="s" style={{ display: 'block' }}>
+                {pushSupport() === 'install' ? 'На iPhone — после установки на экран «Домой»' : 'Когда игра свёрнута или телефон спит'}
+              </span>
+            </span>
+            <span className={`switch ${pushOn ? 'on' : ''}`} aria-hidden />
+          </button>
+          <button className="item" onClick={() => setMusic(!music)}>
+            <Icon name="music" />
+            <span className="grow t">Музыка эпохи</span>
+            <span className={`switch ${music ? 'on' : ''}`} aria-hidden />
+          </button>
+          <button className="item" onClick={() => setMuted(!muted)}>
+            <Icon name={muted ? 'mute' : 'sound'} />
+            <span className="grow t">{muted ? 'Звук выключен' : 'Звук включён'}</span>
+          </button>
+          {pub.phase !== 'finished' ? (
+            <button className="btn danger wide" onClick={() => setSheet('leave')}>
+              <Icon name="door" /> Выйти — за меня доиграет бот
+            </button>
+          ) : (
+            <button className="btn wide" onClick={() => conn.forget()}>
+              На главную
+            </button>
+          )}
+        </div>
+      </Sheet>
+
+      {/* Вложенная шторка: открывается поверх меню (меню остаётся под ней стопкой), свайп вниз — обратно в меню */}
+      <Sheet open={(sub === 'host' || sub === 'kick') && sheet === 'menu'} onClose={() => setSub(null)} title="Ведущий" description="Настройки партии для всех игроков">
+        <HostTools room={room} pub={pub} onKick={() => setSub('kick')} />
+      </Sheet>
+      <Sheet open={sub === 'kick' && sheet === 'menu'} onClose={() => setSub('host')} title="Заменить ботом" description="Игрок выбывает, его место навсегда занимает бот">
+        <div className="list">
+          {pub.order
+            .filter((id) => id !== room.me && !pub.players[id].kicked && !pub.players[id].bot)
+            .map((id) => (
+              <button
+                key={id}
+                className="item"
+                onClick={() => {
+                  conn.send({ t: 'kick', player: id, level: 'medium' });
+                  setSub('host');
+                }}
+              >
+                <span style={{ width: 12, height: 12, borderRadius: 6, flex: 'none', background: PLAYER_HEX[pub.players[id].color] }} />
+                <span className="grow t">{pub.players[id].name}</span>
+                <Icon name="bot" size={18} />
+              </button>
+            ))}
+          {pub.order.every((id) => id === room.me || pub.players[id].kicked || pub.players[id].bot) && <p className="faint small">Кроме тебя за столом только боты</p>}
+        </div>
+      </Sheet>
+      <Sheet open={sub === 'look' && sheet === 'menu'} onClose={() => setSub(null)} title="Вид и подсказки" description="Сохраняется на этом телефоне">
+        <div className="stack">
           {
             <>
               <div className="label">Вид карты</div>
@@ -1057,35 +1151,6 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               </button>
             ))}
           </div>
-          <button
-            className="item"
-            onClick={async () => {
-              if (pushOn) {
-                conn.send({ t: 'pushOff' });
-                return;
-              }
-              const err = await enablePush(vapid, (sub) => conn.send({ t: 'pushSub', sub }));
-              if (err) conn.notify(err);
-            }}
-          >
-            <Icon name="bell" />
-            <span className="grow">
-              <span className="t">Уведомлять о моём ходе</span>
-              <span className="s" style={{ display: 'block' }}>
-                {pushSupport() === 'install' ? 'На iPhone — после установки на экран «Домой»' : 'Когда игра свёрнута или телефон спит'}
-              </span>
-            </span>
-            <span className={`switch ${pushOn ? 'on' : ''}`} aria-hidden />
-          </button>
-          <button className="item" onClick={() => setMusic(!music)}>
-            <Icon name="music" />
-            <span className="grow t">Музыка эпохи</span>
-            <span className={`switch ${music ? 'on' : ''}`} aria-hidden />
-          </button>
-          <button className="item" onClick={() => setMuted(!muted)}>
-            <Icon name={muted ? 'mute' : 'sound'} />
-            <span className="grow t">{muted ? 'Звук выключен' : 'Звук включён'}</span>
-          </button>
           {!physical && !room.settings.autoRoll && (
             <button
               className="item"
@@ -1104,22 +1169,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               <span className="faint">{autoRoll ? 'вкл' : 'выкл'}</span>
             </button>
           )}
-          <Costs />
-          {pub.phase !== 'finished' ? (
-            <button className="btn danger wide" onClick={() => setSheet('leave')}>
-              <Icon name="door" /> Выйти — за меня доиграет бот
-            </button>
-          ) : (
-            <button className="btn wide" onClick={() => conn.forget()}>
-              На главную
-            </button>
-          )}
         </div>
-      </Sheet>
-
-      {/* Вложенная шторка: открывается поверх меню (меню остаётся под ней стопкой), свайп вниз — обратно в меню */}
-      <Sheet open={hostOpen && sheet === 'menu'} onClose={() => setHostOpen(false)} title="Ведущий" description="Настройки партии для всех игроков">
-        <HostTools room={room} pub={pub} />
       </Sheet>
 
       <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title="Кто доиграет за тебя?" description="Вернёшься — место снова твоё">
@@ -2364,40 +2414,19 @@ function move<T>(a: T[], from: number, to: number): T[] {
   return b;
 }
 
-function Costs() {
-  const rows: [string, ResourceMap][] = [
-    [cap(shortName('road')), COSTS.road],
-    [cap(shortName('settlement')), COSTS.settlement],
-    [cap(shortName('city')), COSTS.city],
-    ['Карта развития', COSTS.devCard],
-  ];
-  return (
-    <div className="list costs">
-      {rows.map(([n, c]) => (
-        <div key={n} className="item">
-          <span className="grow t">{n}</span>
-          <Cost cost={c} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function HostTools({ room, pub }: { room: RoomView; pub: PublicState }) {
+function HostTools({ room, pub, onKick }: { room: RoomView; pub: PublicState; onKick: () => void }) {
   if (pub.phase === 'finished') return null;
   return (
     <div className="stack">
-          <TurnSettings settings={room.settings} editable />
-          <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
-            <Icon name="skip" /> Пропустить ход {pub.players[pub.order[pub.current]].name}
-          </button>
-          {pub.order
-            .filter((id) => id !== room.me && !pub.players[id].kicked)
-            .map((id) => (
-              <button key={id} className="btn danger wide" onClick={() => conn.send({ t: 'kick', player: id, level: 'medium' })}>
-                <Icon name="ban" /> Заменить ботом: {pub.players[id].name}
-              </button>
-            ))}
+      <TurnSettings settings={room.settings} editable />
+      <button className="btn wide" disabled={!!room.paused} onClick={() => void conn.host({ type: 'skipTurn' })}>
+        <Icon name="skip" /> Пропустить ход {pub.players[pub.order[pub.current]].name}
+      </button>
+      <button className="item" onClick={onKick}>
+        <Icon name="ban" />
+        <span className="grow t">Заменить игрока ботом</span>
+        <Icon name="next" size={16} />
+      </button>
     </div>
   );
 }

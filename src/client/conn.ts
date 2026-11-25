@@ -8,6 +8,8 @@ import type { ClientMsg, DiceSource, FriendRow, LeaderRow, LiveGame, ProfileView
 const SECRET_KEY = 'hh.secret';
 const PIN_KEY = 'hh.pin';
 
+const SETTINGS_KEY = 'hh.roomSettings';
+
 function safeGet(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -187,6 +189,11 @@ class Connection {
   }
 
   send(m: ClientMsg): boolean {
+    // Настройки ведущего запоминаем: следующая комната создаётся с ними же
+    if (m.t === 'settings' && this.state.room?.isHost) {
+      const { lore: _lore, ...rest } = m.settings ?? {};
+      safeSet(SETTINGS_KEY, JSON.stringify({ ...this.savedSettings(), ...rest }));
+    }
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(m));
       return true;
@@ -219,8 +226,18 @@ class Connection {
     return safeGet(PIN_KEY);
   }
 
+  /** Последние настройки, которые я ставил как ведущий (темп, таймер, кубики…). */
+  savedSettings(): Partial<RoomSettings> {
+    try {
+      const v = JSON.parse(safeGet(SETTINGS_KEY) ?? '{}');
+      return v && typeof v === 'object' ? (v as Partial<RoomSettings>) : {};
+    } catch {
+      return {};
+    }
+  }
+
   create(settings?: Partial<RoomSettings>): void {
-    if (!this.send({ t: 'create', settings })) this.notify('Нет связи с сервером');
+    if (!this.send({ t: 'create', settings: { ...this.savedSettings(), ...settings } })) this.notify('Нет связи с сервером');
   }
   open(pin: string): void {
     this.patch({ fatal: undefined });

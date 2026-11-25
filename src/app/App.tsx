@@ -68,8 +68,46 @@ function InGame({ room }: { room: RoomView }) {
   return (
     <>
       {screen}
+      {room.paused && room.public?.phase !== 'finished' && <PauseCard room={room} />}
       {intro && <EraIntro pack={pack} onDone={closeIntro} />}
     </>
+  );
+}
+
+/** Партия на паузе: ходить нельзя, таймеры и боты стоят. Любой игрок за столом продолжает. */
+function PauseCard({ room }: { room: RoomView }) {
+  const p = room.paused!;
+  const d = new Date(p.at);
+  const today = new Date().toDateString() === d.toDateString();
+  const when = today
+    ? `в ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+    : d.toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className="pause-veil" role="dialog" aria-label="Партия на паузе">
+      <div className="pause-card glass strong">
+        <span className="pc-ic">
+          <Icon name="pause" size={26} />
+        </span>
+        <b className="display">Партия на паузе</b>
+        <small className="muted">
+          {p.name} · {when}
+          <br />
+          Таймеры и боты стоят. Доска и карты на месте.
+        </small>
+        {room.seated && !tvMode ? (
+          <button className="btn primary wide" onClick={() => conn.send({ t: 'pause', on: false })}>
+            <Icon name="play" /> Продолжить
+          </button>
+        ) : (
+          <small className="faint">Продолжит любой игрок за столом</small>
+        )}
+        {!tvMode && (
+          <button className="btn ghost wide" onClick={() => conn.forget()}>
+            На главную
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -76,6 +76,8 @@ export interface SavedRoom {
   state?: GameState;
   /** Тайный бан в обмене: кто с кем не торгует (видит только сам игрок). */
   bans?: Record<PlayerId, PlayerId[]>;
+  /** Партия на паузе: кто и когда поставил. */
+  paused?: { by: PlayerId; at: number };
 }
 
 /** От кого игра сейчас ждёт действия. */
@@ -109,6 +111,8 @@ export class Room {
   kicked = new Set<PlayerId>();
   state?: GameState;
   diceSource?: DiceSource;
+  /** Пауза: таймеры, автоход и боты стоят, ходить нельзя. Живёт хоть неделями. */
+  paused?: { by: PlayerId; at: number };
 
   private clients = new Set<Client>();
   /** Когда игрок ушёл из сети (если не в сети). */
@@ -141,6 +145,7 @@ export class Room {
     for (const s of data.seats) this.seats.set(s.id, s);
     for (const k of data.kicked) this.kicked.add(k);
     this.bans = data.bans ?? {};
+    this.paused = data.paused;
     if (data.state) {
       this.state = normalizeState(data.state);
       const now = Date.now();
@@ -163,6 +168,7 @@ export class Room {
       seats: [...this.seats.values()],
       kicked: [...this.kicked],
       bans: this.bans,
+      ...(this.paused ? { paused: this.paused } : {}),
       state: this.state,
     };
   }
@@ -214,6 +220,7 @@ export class Room {
       current: st.current,
       watchers: this.watchers,
       ...(me && this.isSeated(me) ? { mine: true } : {}),
+      ...(this.paused ? { paused: true } : {}),
       players: st.order.map((id) => {
         const p = pub.players[id];
         return { name: p.name, color: p.color, points: p.points, ...(p.bot ? { bot: true } : {}), online: p.bot ? true : this.isOnline(id) };
@@ -398,6 +405,7 @@ export class Room {
       if (this.kicked.has(me)) return { ok: false, error: 'Ведущий убрал тебя из игры' };
       if (!Object.hasOwn(state.players, me)) return { ok: false, error: 'Ты не участвуешь в этой партии' };
       if (!action || typeof action !== 'object' || typeof action.type !== 'string') return { ok: false, error: 'Непонятное действие' };
+      if (this.paused && action.type !== 'returnFromBot') return { ok: false, error: 'Партия на паузе — сначала «Продолжить»' };
       if (state.players[me].bot && action.type !== 'returnFromBot') {
         return { ok: false, error: 'За тебя сейчас играет бот — нажми «Вернуться в игру»' };
       }
@@ -445,8 +453,34 @@ export class Room {
   hostAction(me: PlayerId, action: HostAction): Promise<ActionResult> {
     return this.enqueue(() => {
       if (me !== this.hostId) return { ok: false, error: 'Это может только ведущий' };
+      if (this.paused) return { ok: false, error: 'Партия на паузе' };
       return this.applyHost(action);
     });
+  }
+
+  /**
+   * Пауза / продолжить — любой человек за столом. На паузе стоят таймер хода, автобросок,
+   * замена отвалившихся ботом и сами боты. После паузы все отсчёты начинаются заново.
+   */
+  setPaused(me: PlayerId, on: boolean): void {
+    const st = this.state;
+    if (this.status !== 'playing' || !st || st.phase === 'finished') throw new Error('Пауза — только во время партии');
+    if (!this.isSeated(me) || !Object.hasOwn(st.players, me)) throw new Error('Паузу ставят игроки за столом');
+    if (on === !!this.paused) return;
+    if (on) {
+      this.paused = { by: me, at: Date.now() };
+      clearTimeout(this.botTimer);
+      this.botTimer = undefined;
+    } else {
+      this.paused = undefined;
+      const now = Date.now();
+      for (const pid of this.waitingSince.keys()) this.waitingSince.set(pid, now);
+      for (const pid of this.offlineSince.keys()) this.offlineSince.set(pid, now);
+      this.paceUntil = now + 1500;
+      for (const pid of this.waitingSince.keys()) if (!st.players[pid]?.bot && pid !== me) Room.onWaiting?.(this, pid);
+      this.scheduleBots();
+    }
+    this.changed();
   }
 
   close(me: PlayerId): void {
@@ -603,6 +637,7 @@ export class Room {
 
   /** Дедлайны для экрана: что наступит раньше — таймер хода или замена отвалившегося ботом. */
   deadlines(): Record<PlayerId, number> {
+    if (this.paused) return {};
     const out = this.offlineDeadlines();
     const state = this.state;
     const sec = this.settings.turnSeconds;
@@ -631,7 +666,7 @@ export class Room {
 
   /** Раз в пару секунд (из main): заменить ботом тех, кто не вернулся вовремя. */
   tick(): void {
-    if (this.disposed || !this.state || this.state.phase === 'finished') return;
+    if (this.disposed || this.paused || !this.state || this.state.phase === 'finished') return;
     const now = Date.now();
     for (const [pid, deadline] of Object.entries(this.offlineDeadlines())) {
       if (now < deadline) continue;
@@ -714,6 +749,7 @@ export class Room {
       ...(this.status === 'playing' ? { watchers: this.watchers } : {}),
       ...(this.undoSnap && this.undoSnap.player === me && state?.turn === this.undoSnap.turn ? { canUndo: this.undoSnap.kind } : {}),
       ...(this.bans[me]?.length ? { bans: this.bans[me] } : {}),
+      ...(this.paused ? { paused: { by: this.paused.by, name: state?.players[this.paused.by]?.name ?? 'Игрок', at: this.paused.at } } : {}),
     };
   }
 
@@ -742,7 +778,7 @@ export class Room {
   }
 
   private scheduleBots(delay?: number): void {
-    if (this.botTimer || this.disposed) return;
+    if (this.botTimer || this.disposed || this.paused) return;
     const state = this.state;
     if (!state || state.phase === 'finished') return;
     const pub = toPublicView(state);
@@ -767,7 +803,7 @@ export class Room {
   }
 
   private runBots(): void {
-    if (this.disposed) return;
+    if (this.disposed || this.paused) return;
     const state = this.state;
     if (!state || state.phase === 'finished') return;
     const pub = toPublicView(state);

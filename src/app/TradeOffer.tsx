@@ -4,14 +4,17 @@
 //   caravan — «Караван у берега»: компактная полоса сверху, карта остаётся видна, ✕ / ✓.
 // Прежний вид «Весы» убран: сохранённый выбор 'scales' показывает «Сделку».
 
-import { useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Action, PlayerId, PrivateView, PublicState, Resource, ResourceMap } from '../engine';
 import { RESOURCES } from '../engine';
 import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { Icon } from './icons';
 import { ResIcon } from './ResIcon';
-import { tradeVerdict } from './planner';
+import { counterIdeas, tradeVerdict } from './planner';
+import type { CounterIdea } from './planner';
+import { Sheet } from './Sheet';
 
 export type TradeUi = 'card' | 'caravan';
 export const TRADE_UI_LABEL: Record<TradeUi, string> = { card: 'Сделка', caravan: 'Караван' };
@@ -64,19 +67,95 @@ function useOffer({ pub, priv, me }: Pick<Props, 'pub' | 'priv' | 'me'>) {
   // с моей стороны: отдаю то, что он хочет (want), получаю то, что он даёт (give)
   const v = tradeVerdict(t.want, t.give, priv.resources);
   const answered = t.responses?.[me];
-  return { t, from, v, answered };
+  const ideas = answered ? [] : counterIdeas(t.want, t.give, priv.resources);
+  return { t, from, v, answered, ideas };
+}
+
+/** Высота карточки сделки → --deal-h: плашки над доком поднимаются над ней, а не ложатся сверху. */
+function useDealHeight(dep: unknown) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    const root = document.documentElement;
+    if (!el) return;
+    const set = () => root.style.setProperty('--deal-h', `${Math.ceil(el.getBoundingClientRect().height) + 10}px`);
+    set();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(set) : null;
+    ro?.observe(el);
+    return () => {
+      ro?.disconnect();
+      root.style.removeProperty('--deal-h');
+    };
+  }, [dep]);
+  return ref;
+}
+
+/** Встречное в одно касание: одно — сразу кнопкой, несколько — шторка со списком. */
+function CounterButton({ p, ideas, className, children }: { p: Props; ideas: CounterIdea[]; className?: string; children?: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const t = p.pub.trade!;
+  const from = p.pub.players[p.pub.order[p.pub.current]];
+  const send = (c: CounterIdea) => {
+    setOpen(false);
+    void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'counter', give: c.get, want: c.give });
+  };
+  return (
+    <>
+      <button className={className ?? 'btn deal-yes'} disabled={p.busy} onClick={() => (ideas.length === 1 ? send(ideas[0]) : setOpen(true))}>
+        {children ??
+          (ideas.length === 1 ? (
+            <span className="dm-counter">
+              <MiniRes res={ideas[0].give} />
+              <Icon name="next" size={12} />
+              <MiniRes res={ideas[0].get} get />
+            </span>
+          ) : (
+            `Встречное · ${ideas.length}`
+          ))}
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Встречное предложение" description={`${from.name} просит то, чего у тебя нет. Предложи иначе:`}>
+        <div className="list counter-list">
+          {ideas.map((c, i) => (
+            <button key={i} className="item" disabled={p.busy} onClick={() => send(c)}>
+              <span className="grow">
+                <span className="t">{c.label}</span>
+                <span className="counter-terms">
+                  <span className="faint">отдаёшь</span> <MiniRes res={c.give} />
+                  <Icon name="next" size={14} />
+                  <span className="faint">получаешь</span> <MiniRes res={c.get} get />
+                </span>
+              </span>
+            </button>
+          ))}
+          <button
+            className="item"
+            onClick={() => {
+              setOpen(false);
+              p.counter();
+            }}
+          >
+            <Icon name="feather" />
+            <span className="grow t">Своё — собрать вручную</span>
+            <Icon name="next" size={16} />
+          </button>
+        </div>
+      </Sheet>
+    </>
+  );
 }
 
 const answerText = (k: string) => (k === 'accept' ? 'Ты согласился — ждём решения' : k === 'decline' ? 'Ты отказал' : 'Ты предложил встречное');
 
 /** A · Сделка — стеклянная карточка над доком */
 export function TradeCard(p: Props) {
-  const { t, from, v, answered } = useOffer(p);
+  const { t, from, v, answered, ideas } = useOffer(p);
   const tone = v.canAccept ? (v.fair >= 0 ? 'good' : 'warn') : 'bad';
   const agreed = answered?.kind === 'accept';
+  const ref = useDealHeight(t.id);
   // Мини-плашка: кто, что отдаёшь → что получаешь, три кнопки. Не закрывает карту.
+  // Нечем ответить — вместо «Да» сразу готовое встречное (одно — кнопкой, несколько — шторкой).
   return (
-    <section key={t.id} className={`deal deal-mini glass strong ${agreed ? 'agreed' : ''}`} aria-label={`Предложение от ${from.name}`}>
+    <section ref={ref} key={t.id} className={`deal deal-mini glass strong ${agreed ? 'agreed' : ''}`} aria-label={`Предложение от ${from.name}`}>
       <div className="dm-row">
         <span className="deal-ava" style={{ background: PLAYER_HEX[from.color] }}>
           {from.name.charAt(0).toUpperCase()}
@@ -88,18 +167,26 @@ export function TradeCard(p: Props) {
           <MiniRes res={t.give} get />
         </span>
       </div>
-      {(answered || !v.canAccept) && <p className={`dm-note ${answered ? '' : tone}`}>{answered ? answerText(answered.kind) : v.text}</p>}
+      {(answered || !v.canAccept) && (
+        <p className={`dm-note ${answered ? '' : tone}`}>{answered ? answerText(answered.kind) : v.text}</p>
+      )}
       {!answered && (
         <div className="dm-btns">
           <button className="btn" disabled={p.busy} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
             Нет
           </button>
-          <button className="btn" onClick={p.counter}>
-            Своё
-          </button>
-          <button className="btn deal-yes" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
-            Да
-          </button>
+          {v.canAccept || !ideas.length ? (
+            <>
+              <button className="btn" onClick={p.counter}>
+                Своё
+              </button>
+              <button className="btn deal-yes" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
+                Да
+              </button>
+            </>
+          ) : (
+            <CounterButton p={p} ideas={ideas} className="btn deal-yes dm-cnt" />
+          )}
         </div>
       )}
     </section>
@@ -136,7 +223,7 @@ function DealPile({ res }: { res: ResourceMap }) {
 
 /** B · Караван у берега — компактная полоса (в колонке сверху) */
 export function TradeCaravan(p: Props) {
-  const { t, from, v, answered } = useOffer(p);
+  const { t, from, v, answered, ideas } = useOffer(p);
   return (
     <section key={t.id} className="tro-caravan glass strong" style={{ ['--pc' as string]: PLAYER_HEX[from.color] }} aria-label="Входящее предложение">
       <div className="trc-row">
@@ -155,9 +242,15 @@ export function TradeCaravan(p: Props) {
             <button className="trc-btn no" aria-label="Отказать" disabled={p.busy} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
               <Icon name="close" size={18} />
             </button>
-            <button className="trc-btn yes" aria-label="Принять" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
-              <Icon name="check" size={20} />
-            </button>
+            {!v.canAccept && ideas.length ? (
+              <CounterButton p={p} ideas={ideas} className="trc-btn yes">
+                <Icon name="trade" size={18} />
+              </CounterButton>
+            ) : (
+              <button className="trc-btn yes" aria-label="Принять" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
+                <Icon name="check" size={20} />
+              </button>
+            )}
           </>
         )}
       </div>
