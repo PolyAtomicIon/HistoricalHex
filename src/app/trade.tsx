@@ -45,11 +45,13 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
   // Подсказка: кто добывает то, что ты хочешь, — им и стоит предлагать
   const wanted = RESOURCES.filter((r) => want[r] > 0);
   const producers = useMemo(() => {
-    if (!wanted.length) return [];
+    const m = new Map<string, Resource[]>();
+    if (!wanted.length) return m;
     const { supply } = tableHarvest(pub);
-    const who = new Set<string>();
-    for (const r of wanted) for (const b of supply.find((x) => x.r === r)?.by ?? []) if (b.who !== me && opponents.includes(b.who)) who.add(b.who);
-    return [...who];
+    for (const r of wanted)
+      for (const b of supply.find((x) => x.r === r)?.by ?? [])
+        if (b.who !== me && opponents.includes(b.who) && !m.get(b.who)?.includes(r)) m.set(b.who, [...(m.get(b.who) ?? []), r]);
+    return m;
   }, [wanted.join(','), pub.buildings, pub.robberHex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const valid = sum(give) > 0 && sum(want) > 0 && to.length > 0;
@@ -57,31 +59,6 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
   return (
     <div className="stack">
       {mine.length > 0 && <MyOffers pub={pub} priv={priv} me={me} send={send} busy={busy} bans={bans} mine={mine} />}
-      <div className="trade-to" role="group" aria-label="Кому предложить">
-        <span className="trade-to-l">Кому</span>
-        {opponents.map((id) => {
-          const on = to.includes(id);
-          const banned = bans.includes(id);
-          return (
-            <span key={id} className={`trade-to-item ${banned ? 'banned' : ''}`}>
-              <button className={`trade-to-chip ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => setTo((t) => (on ? t.filter((x) => x !== id) : [...t, id]))}>
-                {name(id)}
-              </button>
-              <button
-                className={`trade-ban ${banned ? 'on' : ''}`}
-                aria-label={banned ? `Снова торговать с ${name(id)}` : `Не торговать с ${name(id)}`}
-                title={banned ? 'Ты с ним не торгуешь — нажми, чтобы снять' : 'Не торговать с ним'}
-                onClick={() => {
-                  conn.send({ t: 'ban', player: id, on: !banned });
-                  if (!banned) setTo((t) => t.filter((x) => x !== id));
-                }}
-              >
-                <Icon name="ban" size={15} />
-              </button>
-            </span>
-          );
-        })}
-      </div>
       <TradeGrid
         give={give}
         want={want}
@@ -91,21 +68,37 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
           setWant(w);
         }}
       />
-      {wanted.length > 0 && (
-        <div className="trade-hint">
-          <Icon name="bulb" size={16} />
-          <span className="grow">
-            {producers.length
-              ? `${wanted.map((r) => RESOURCE_NAME[r]).join(', ')} добывают: ${producers.map((id) => name(id)).join(', ')}`
-              : `Сейчас никто не добывает: ${wanted.map((r) => RESOURCE_NAME[r]).join(', ')} — попробуй банк`}
-          </span>
-          {producers.length > 0 && producers.join() !== to.join() && (
-            <button className="btn ghost small-act" onClick={() => setTo(producers.filter((id) => !bans.includes(id)))}>
-              Предложить им
+      {/* Кому — маленькие фишки; у тех, кто добывает нужное, рядом иконка ресурса. Без лишних кнопок. */}
+      <div className="trade-to" role="group" aria-label="Кому предложить">
+        <span className="trade-to-l">Кому</span>
+        {opponents.map((id) => {
+          const on = to.includes(id);
+          const banned = bans.includes(id);
+          const has = producers.get(id) ?? [];
+          return (
+            <button
+              key={id}
+              className={`trade-to-chip ${on ? 'on' : ''} ${banned ? 'banned' : ''}`}
+              aria-pressed={on}
+              title={banned ? 'Ты с ним не торгуешь — нажми, чтобы снова торговать' : undefined}
+              onClick={() => {
+                if (banned) {
+                  conn.send({ t: 'ban', player: id, on: false });
+                  setTo((t) => [...t, id]);
+                  return;
+                }
+                setTo((t) => (on ? t.filter((x) => x !== id) : [...t, id]));
+              }}
+            >
+              {banned && <Icon name="ban" size={13} />}
+              {name(id)}
+              {has.map((r) => (
+                <ResIcon key={r} r={r} size={16} />
+              ))}
             </button>
-          )}
-        </div>
-      )}
+          );
+        })}
+      </div>
       <button
         className="btn primary big wide"
         disabled={!valid || busy}
@@ -116,9 +109,8 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
           setWant(emptyResources());
         }}
       >
-        {all ? 'Предложить всем' : to.length ? `Предложить: ${to.map((id) => name(id)).join(', ')}` : 'Выбери, кому предложить'}
+        {to.length === 0 ? 'Выбери, кому' : all ? 'Предложить всем' : 'Предложить'}
       </button>
-      {!valid && to.length > 0 && <p className="faint small center">Выбери, что отдаёшь и что хочешь получить</p>}
     </div>
   );
 }
