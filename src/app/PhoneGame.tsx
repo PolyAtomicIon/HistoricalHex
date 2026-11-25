@@ -51,7 +51,7 @@ import { LOOK_DEFAULT, setBoardLook, setFacts, setFxStyle, setPlanNudge, useBoar
 import type { FxStyle } from './prefs';
 
 type BuildMode = 'road' | 'settlement' | 'city';
-type SheetId = null | 'host' | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
+type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
 type PlanPick = null | 'road' | 'settlement' | 'city';
 
 interface Targets {
@@ -76,6 +76,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const priv = room.private!;
   const me = room.me;
   const learn = useLearn();
+  const [hostOpen, setHostOpen] = useState(false);
   const factsShown = useFacts();
   const { style: fxStyle, mini: miniFx } = useFxStyle();
   const meP = pub.players[me];
@@ -961,7 +962,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <span className="grow t">Игроки и очки</span>
           </button>
           {room.isHost && pub.phase !== 'finished' && (
-            <button className="item" onClick={() => setSheet('host')}>
+            <button className="item" onClick={() => setHostOpen(true)}>
               <Icon name="crown" />
               <span className="grow">
                 <span className="t">Ведущий</span>
@@ -1109,17 +1110,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </div>
       </Sheet>
 
-      <Sheet
-        open={sheet === 'host'}
-        onClose={() => setSheet(null)}
-        title="Ведущий"
-        description="Настройки партии для всех игроков"
-        right={
-          <button className="btn ghost small-act" onClick={() => setSheet('menu')}>
-            <Icon name="next" size={16} style={{ transform: 'scaleX(-1)' }} /> Меню
-          </button>
-        }
-      >
+      {/* Вложенная шторка: открывается поверх меню (меню остаётся под ней стопкой), свайп вниз — обратно в меню */}
+      <Sheet open={hostOpen && sheet === 'menu'} onClose={() => setHostOpen(false)} title="Ведущий" description="Настройки партии для всех игроков">
         <HostTools room={room} pub={pub} />
       </Sheet>
 
