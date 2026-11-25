@@ -27,6 +27,8 @@ export interface Profile {
   created: number;
   /** Гостевой профиль влит в аккаунт (Telegram/AQL Portal) — в таблице лидеров не показывается. */
   mergedInto?: string;
+  /** Имя выдано случайно — заменится тем, под которым игрок сядет за стол. */
+  autoName?: boolean;
   /** Друзья — id профилей (односторонне, как подписка). */
   friends?: string[];
   /** ИИ-персонаж (src: server/personas.ts). */
@@ -48,6 +50,8 @@ interface Store {
   putProfile(p: Profile): void;
   deviceProfile(pid: string): string | undefined;
   linkDevice(pid: string, profileId: string): void;
+  /** Профили с именем по умолчанию «Игрок» (для разового переименования). */
+  defaultNamed(): Profile[];
   /** Все устройства профиля (для пушей). */
   devicesOf(profileId: string): string[];
   hasGame(id: string): boolean;
@@ -72,6 +76,7 @@ class MemoryStore implements Store {
   putProfile = (p: Profile) => void this.profiles.set(p.id, structuredClone(p));
   deviceProfile = (pid: string) => this.devices.get(pid);
   linkDevice = (pid: string, id: string) => void this.devices.set(pid, id);
+  defaultNamed = () => [...this.profiles.values()].filter((p) => p.name === DEFAULT_NAME && !p.ai);
   devicesOf = (id: string) => [...this.devices].filter(([, p]) => p === id).map(([d]) => d);
   hasGame = (id: string) => this.games.has(id);
   putGame = (g: FinishedGame) => {
@@ -119,6 +124,12 @@ class SqliteStore implements Store {
       .prepare('INSERT INTO profiles (id, tg_id, portal_id, data, rating, games) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tg_id = excluded.tg_id, portal_id = excluded.portal_id, data = excluded.data, rating = excluded.rating, games = excluded.games')
       .run(p.id, p.tgId ?? null, p.portalId ?? null, JSON.stringify(p), p.rating, p.games);
   deviceProfile = (pid: string) => (this.db.prepare('SELECT profile_id FROM devices WHERE pid = ?').get(pid) as { profile_id: string } | undefined)?.profile_id;
+  defaultNamed = () =>
+    this.db
+      .prepare("SELECT data FROM profiles WHERE json_extract(data, '$.name') = ?")
+      .all(DEFAULT_NAME)
+      .map((r) => this.row(r)!)
+      .filter((p) => !p.ai);
   devicesOf = (id: string) => (this.db.prepare('SELECT pid FROM devices WHERE profile_id = ?').all(id) as { pid: string }[]).map((r) => r.pid);
   linkDevice = (pid: string, id: string) =>
     void this.db.prepare('INSERT INTO devices (pid, profile_id) VALUES (?, ?) ON CONFLICT(pid) DO UPDATE SET profile_id = excluded.profile_id').run(pid, id);
@@ -168,12 +179,48 @@ const newProfile = (id: string, name: string): Profile => ({
   created: Date.now(),
 });
 
-/** Профиль устройства (создаётся при первом обращении). */
-export function profileOf(pid: string, name = 'Игрок'): Profile {
+// ───────────────────────── имена ─────────────────────────
+
+/** Старое имя по умолчанию — у новых игроков вместо него случайное. */
+export const DEFAULT_NAME = 'Игрок';
+const NAME_ADJ = ['Смелый', 'Быстрый', 'Мудрый', 'Хитрый', 'Тихий', 'Зоркий', 'Ловкий', 'Весёлый', 'Гордый', 'Степной', 'Лихой', 'Северный', 'Южный', 'Вольный', 'Отважный', 'Ясный', 'Горный', 'Песчаный', 'Ночной', 'Рассветный'];
+const NAME_NOUN = ['Беркут', 'Барс', 'Сокол', 'Волк', 'Тулпар', 'Кочевник', 'Купец', 'Батыр', 'Странник', 'Лучник', 'Всадник', 'Мастер', 'Зодчий', 'Сайгак', 'Архар', 'Караванщик', 'Кузнец', 'Пахарь', 'Мореход', 'Летописец'];
+
+/** Случайное имя вроде «Зоркий Беркут» — пока игрок не назвался сам. */
+export function randomName(rnd: () => number = Math.random): string {
+  const pick = (a: string[]) => a[Math.floor(rnd() * a.length) % a.length];
+  return `${pick(NAME_ADJ)} ${pick(NAME_NOUN)}`;
+}
+const isDefault = (n?: string) => !n?.trim() || n.trim() === DEFAULT_NAME;
+
+/** Разово: всем, кто остался «Игроком», — случайное имя. Возвращает, скольких переименовали. */
+export function renameDefaultProfiles(): number {
+  const list = store.defaultNamed();
+  for (const p of list) store.putProfile({ ...p, name: randomName(), autoName: true });
+  return list.length;
+}
+
+/** Профиль устройства (создаётся при первом обращении; без имени — случайное). */
+export function profileOf(pid: string, name?: string): Profile {
   const linked = store.deviceProfile(pid);
   const p = (linked && store.getProfile(linked)) || store.getProfile(pid);
-  if (p) return p;
-  const fresh = newProfile(pid, name);
+  const given = name && !isDefault(name) ? name.trim().slice(0, 24) : undefined;
+  if (p) {
+    if (p.ai) return p;
+    if (given && (p.autoName || isDefault(p.name)) && given !== p.name) {
+      // Игрок назвался сам (сел за стол со своим именем) — случайное имя больше не нужно
+      p.name = given;
+      delete p.autoName;
+      store.putProfile(p);
+    } else if (isDefault(p.name)) {
+      // Старый «Игрок» — при первом же обращении получает имя
+      p.name = randomName();
+      p.autoName = true;
+      store.putProfile(p);
+    }
+    return p;
+  }
+  const fresh = given ? newProfile(pid, given) : { ...newProfile(pid, randomName()), autoName: true };
   store.putProfile(fresh);
   store.linkDevice(pid, pid);
   return fresh;
@@ -456,7 +503,7 @@ function guestOf(pid: string): Profile | undefined {
 
 export function signInTelegram(pid: string, u: TgUser): Profile {
   const tg = String(u.id);
-  const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.username || 'Игрок';
+  const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.username || randomName();
   let p = store.getByTg(tg);
   if (!p) {
     // Первый вход: «повышаем» гостевой профиль этого устройства, если в нём ещё нет Telegram
@@ -484,6 +531,7 @@ export function profileByTg(tgId: string): Profile | undefined {
 export function renameProfile(pid: string, name: string): Profile {
   const p = profileOf(pid);
   p.name = name.trim().slice(0, 24) || p.name;
+  delete p.autoName;
   store.putProfile(p);
   return p;
 }
@@ -527,7 +575,7 @@ export function verifyPortalTicket(ticket: string, secret: string, now = Date.no
   usedTickets.set(p.jti, p.exp);
   return {
     uid: p.uid.slice(0, 64),
-    name: (typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'Игрок').slice(0, 40),
+    name: (typeof p.name === 'string' && p.name.trim() ? p.name.trim() : randomName()).slice(0, 40),
     photo: typeof p.photo === 'string' && p.photo.startsWith('https://') ? p.photo.slice(0, 500) : undefined,
   };
 }

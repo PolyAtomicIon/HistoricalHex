@@ -13,7 +13,7 @@ import type { Client, SavedRoom } from './room';
 import { Room, randomOrg } from './room';
 import { TgBot } from './tgbot';
 import { addSubscription, hasPush, initPush, removeSubscriptions, sendPush, vapidPublicKey } from './push';
-import { devicesOf, findProfile, getProfileById, recentGames, setFriend, ipHash, logEvent, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
+import { DEFAULT_NAME, devicesOf, findProfile, renameDefaultProfiles, getProfileById, recentGames, setFriend, ipHash, logEvent, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
 const TG_BOT = process.env.TG_BOT_NAME ?? '';
@@ -66,6 +66,8 @@ function drop(pin: string): void {
 
 void openAccounts(join(DATA_DIR, 'hh.sqlite')).then((kind) => {
   console.log(`accounts: ${kind}`);
+  const renamed = renameDefaultProfiles();
+  if (renamed) console.log(`accounts: ${renamed} «Игрок» → случайные имена`);
   if (process.env.AI_LEAGUE !== '0') runAiLeague();
 });
 initPush(DATA_DIR);
@@ -107,7 +109,7 @@ function friendsList(me: string): FriendRow[] {
       if (!p) return undefined;
       const s = at.get(id);
       // Профиль без своего имени («Игрок») — показываем имя, под которым сидит за столом
-      const name = p.name === 'Игрок' && s?.seatName ? s.seatName : p.name;
+      const name = p.name === DEFAULT_NAME && s?.seatName ? s.seatName : p.name;
       return { id, name, rating: Math.round(p.rating), online: !!s, ...(p.photo ? { photo: p.photo } : {}), ...(s?.where ? { where: s.where } : {}) };
     })
     .filter((x): x is FriendRow => !!x)
@@ -419,6 +421,9 @@ wss.on('connection', (ws: WebSocket, req) => {
         const r = rooms.get(String(msg.pin).replace(/\D/g, ''));
         if (!r) throw Object.assign(new Error('Игра с таким PIN не найдена'), { fatal: true });
         r.join(me, String(msg.name ?? ''));
+        // Сел со своим именем — профиль со случайным именем берёт его
+        const seat = r.seats.get(me);
+        if (seat) profileOf(me, seat.name);
         return enter(r);
       }
     }

@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { leaderboard, profileOf, recordGame, signInTelegram, useMemoryAccounts, verifyMiniApp, verifyWidget, view } from '../server/accounts';
+import { leaderboard, profileOf, randomName, recordGame, renameDefaultProfiles, renameProfile, signInTelegram, useMemoryAccounts, verifyMiniApp, verifyWidget, view } from '../server/accounts';
 
 const TOKEN = '123:abc';
 
@@ -142,5 +142,23 @@ describe('объединение устройств в один аккаунт',
     expect(profileByPortal('777')!.games).toBe(4);
     const rows = leaderboard(50).filter((r) => r.name === 'Гость');
     expect(rows).toHaveLength(0);
+  });
+
+  it('новому игроку — случайное имя, пока он не назовётся сам', () => {
+    expect(randomName(() => 0)).toBe('Смелый Беркут');
+    const p = profileOf('newbie');
+    expect(p.name).not.toBe('Игрок');
+    expect(p.name).toMatch(/^\S+ \S+$/);
+    // Сел за стол со своим именем — профиль его берёт
+    expect(profileOf('newbie', 'Айгерим').name).toBe('Айгерим');
+    // Дальше имя за другим столом уже не меняет профиль
+    expect(profileOf('newbie', 'Другое').name).toBe('Айгерим');
+    // Переименовался сам — тоже насовсем
+    profileOf('n2');
+    renameProfile('n2', 'Ержан');
+    expect(profileOf('n2', 'Кто-то').name).toBe('Ержан');
+    // Старые «Игрок» переименовываются разово
+    profileOf('old', 'Игрок');
+    expect(renameDefaultProfiles()).toBe(0);
   });
 });

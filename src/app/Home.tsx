@@ -78,6 +78,10 @@ export function Home({ initialPin }: { initialPin?: string }) {
   const [lang, setLang] = useLang();
   const T = (k: string) => t3(H[k], lang);
   const feed = useFeed();
+  // Имя для входа по PIN: сохранённое или из профиля (у новых — случайное, можно поменять)
+  useEffect(() => {
+    if (!name && profile?.profile.name) setName(profile.profile.name);
+  }, [profile?.profile.name]); // eslint-disable-line react-hooks/exhaustive-deps
   const [who, setWho] = useState<{ pid: string; name: string } | null>(null);
   useEffect(() => {
     if (status === 'online') conn.send({ t: 'profile' });
