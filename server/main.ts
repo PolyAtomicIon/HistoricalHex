@@ -6,14 +6,14 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { ClientMsg, ServerMsg } from '../src/proto';
+import type { ClientMsg, FriendRow, ServerMsg } from '../src/proto';
 import { DEFAULT_SETTINGS } from '../src/proto';
 import { cryptoRng, victoryPoints } from '../src/engine';
 import type { Client, SavedRoom } from './room';
 import { Room, randomOrg } from './room';
 import { TgBot } from './tgbot';
 import { addSubscription, hasPush, initPush, removeSubscriptions, sendPush, vapidPublicKey } from './push';
-import { findProfile, recentGames, ipHash, logEvent, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
+import { devicesOf, findProfile, getProfileById, recentGames, setFriend, ipHash, logEvent, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
 const TG_BOT = process.env.TG_BOT_NAME ?? '';
@@ -71,6 +71,57 @@ void openAccounts(join(DATA_DIR, 'hh.sqlite')).then((kind) => {
 initPush(DATA_DIR);
 /** Игроки, у которых вкладка свёрнута (по id). */
 const hiddenTabs = new Set<string>();
+
+/** Живые подключения: кто (устройство) и в какой комнате — для статуса друзей и приглашений. */
+interface LiveConn {
+  me?: string;
+  room?: Room;
+  send: (m: ServerMsg) => void;
+}
+const conns = new Set<LiveConn>();
+/** Профиль устройства (без создания нового). */
+const profileIdOf = (pid: string) => findProfile(pid)?.id ?? pid;
+
+/** Друзья со статусом: в сети, в лобби или за столом. Сначала играющие, потом в сети. */
+function friendsList(me: string): FriendRow[] {
+  const ids = findProfile(me)?.friends ?? [];
+  if (!ids.length) return [];
+  const want = new Set(ids);
+  const at = new Map<string, { online: boolean; where?: FriendRow['where']; seatName?: string }>();
+  for (const c of conns) {
+    if (!c.me) continue;
+    const id = profileIdOf(c.me);
+    if (!want.has(id)) continue;
+    const cur = at.get(id) ?? { online: true };
+    const r = c.room;
+    if (r && r.isSeated(c.me) && r.status !== 'finished' && !cur.where) {
+      cur.where = { pin: r.pin, state: r.status === 'lobby' ? 'lobby' : 'playing', era: r.settings.lore };
+      cur.seatName = r.seats.get(c.me)?.name;
+    }
+    at.set(id, cur);
+  }
+  const rank = (f: FriendRow) => (f.where?.state === 'playing' ? 0 : f.where ? 1 : f.online ? 2 : 3);
+  return ids
+    .map((id) => {
+      const p = getProfileById(id);
+      if (!p) return undefined;
+      const s = at.get(id);
+      // Профиль без своего имени («Игрок») — показываем имя, под которым сидит за столом
+      const name = p.name === 'Игрок' && s?.seatName ? s.seatName : p.name;
+      return { id, name, rating: Math.round(p.rating), online: !!s, ...(p.photo ? { photo: p.photo } : {}), ...(s?.where ? { where: s.where } : {}) };
+    })
+    .filter((x): x is FriendRow => !!x)
+    .sort((a, b) => rank(a) - rank(b) || b.rating - a.rating);
+}
+
+/** Сообщение профиля (одно на все места, где он отправляется). */
+const profileMsg = (me: string): ServerMsg => {
+  const p = profileOf(me);
+  return { t: 'profile', profile: view(p), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined, friends: p.friends ?? [] };
+};
+
+/** Кого кто звал недавно: не чаще раза в 30 секунд на друга. */
+const invitedAt = new Map<string, number>();
 // «Твой ход»: если через 8 с человек всё ещё не ответил и он не в сети или игра свёрнута — пуш
 Room.onWaiting = (room, pid) => {
   if (!hasPush(pid)) return;
@@ -202,10 +253,13 @@ wss.on('connection', (ws: WebSocket, req) => {
     send,
   };
 
+  const live: LiveConn = { send };
+  conns.add(live);
   const enter = (r: Room) => {
     if (room === r) return;
     room?.detach(client);
     room = r;
+    live.room = r;
     r.attach(client);
   };
 
@@ -217,6 +271,7 @@ wss.on('connection', (ws: WebSocket, req) => {
       }
       const first = !me;
       me = playerId(msg.secret);
+      live.me = me;
       if (first) logEvent('hello', me, undefined, ip);
       return send({ t: 'welcome', me, vapid: vapidPublicKey(), push: hasPush(me) });
     }
@@ -224,11 +279,11 @@ wss.on('connection', (ws: WebSocket, req) => {
 
     switch (msg.t) {
       case 'profile':
-        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
+        return send(profileMsg(me));
       case 'rename': {
         if (typeof msg.name !== 'string') throw new Error('Плохое имя');
         renameProfile(me, msg.name);
-        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
+        return send(profileMsg(me));
       }
       case 'pushSub':
         if (!addSubscription(me, msg.sub)) throw new Error('Не удалось включить уведомления');
@@ -257,14 +312,44 @@ wss.on('connection', (ws: WebSocket, req) => {
         room.takeBotSeat(me, msg.pid, msg.name);
         return;
       }
+      case 'friends':
+        return send({ t: 'friends', list: friendsList(me) });
+      case 'friend': {
+        if (typeof msg.id !== 'string' || msg.id.length > 64) throw new Error('Такого игрока нет');
+        setFriend(me, msg.id, !!msg.on);
+        send(profileMsg(me));
+        return send({ t: 'friends', list: friendsList(me) });
+      }
+      case 'invite': {
+        if (typeof msg.id !== 'string' || msg.id.length > 64) throw new Error('Такого игрока нет');
+        const r = room;
+        if (!r || !r.isSeated(me) || r.status === 'finished') throw new Error('Сначала сядь за стол');
+        const my = findProfile(me);
+        if (!my?.friends?.includes(msg.id)) throw new Error('Звать можно только друзей');
+        const key = `${my.id}>${msg.id}`;
+        if (Date.now() - (invitedAt.get(key) ?? 0) < 30_000) throw new Error('Уже позвали — подожди немного');
+        invitedAt.set(key, Date.now());
+        const from = my.name;
+        // Онлайн — всплывашка на главной; плюс пуш на все его устройства
+        for (const c of conns) if (c.me && profileIdOf(c.me) === msg.id) c.send({ t: 'invite', from, pin: r.pin, era: r.settings.lore });
+        for (const d of devicesOf(msg.id)) void sendPush(d, { title: `${from} зовёт в партию`, body: `HistoricalHex · комната ${r.pin}. Заходи!`, url: `${APP_URL}?pin=${r.pin}`, tag: `invite-${r.pin}` });
+        logEvent('invite', me, { pin: r.pin, to: msg.id }, ip);
+        return;
+      }
       case 'feed': {
         // Идущие партии: сначала мои, потом где больше людей в сети
-        const live = [...rooms.values()]
-          .map((x) => x.liveSummary(me))
+        const fr = new Set(findProfile(me)?.friends ?? []);
+        const games = [...rooms.values()]
+          .map((x) => {
+            const g = x.liveSummary(me);
+            if (!g || !fr.size) return g;
+            const names = [...x.seats.values()].filter((st) => !st.bot && x.isSeated(st.id) && fr.has(profileIdOf(st.id))).map((st) => st.name);
+            return names.length ? { ...g, friends: names } : g;
+          })
           .filter((x): x is NonNullable<typeof x> => !!x)
-          .sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || b.players.filter((p) => !p.bot && p.online).length - a.players.filter((p) => !p.bot && p.online).length)
+          .sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || Number(!!b.friends) - Number(!!a.friends) || b.players.filter((p) => !p.bot && p.online).length - a.players.filter((p) => !p.bot && p.online).length)
           .slice(0, 12);
-        return send({ t: 'feed', live, recent: recentGames(me, 8) });
+        return send({ t: 'feed', live: games, recent: recentGames(me, 8) });
       }
       case 'playerProfile': {
         if (typeof msg.pid !== 'string' || msg.pid.length > 64) throw new Error('Нет такого игрока');
@@ -278,7 +363,7 @@ wss.on('connection', (ws: WebSocket, req) => {
         const who = me;
         const url = bot.loginLink(who, (u) => {
           signInTelegram(who, u);
-          send({ t: 'profile', profile: view(profileOf(who)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
+          send(profileMsg(who));
         });
         return send({ t: 'tgLink', url });
       }
@@ -287,7 +372,7 @@ wss.on('connection', (ws: WebSocket, req) => {
         const u = verifyPortalTicket(String(msg.ticket ?? ''), PORTAL_SECRET);
         if (!u) throw new Error('Ссылка входа из AQL Portal устарела — открой игру из портала ещё раз');
         signInPortal(me, u);
-        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
+        return send(profileMsg(me));
       }
       case 'tgAuth': {
         if (!TG_TOKEN) throw new Error('Вход через Telegram ещё не настроен');
@@ -299,7 +384,7 @@ wss.on('connection', (ws: WebSocket, req) => {
               : null;
         if (!u || typeof u.id !== 'number') throw new Error('Telegram не подтвердил вход');
         signInTelegram(me, u);
-        return send({ t: 'profile', profile: view(profileOf(me)), leaders: leaderboard(30), tgBot: TG_BOT || undefined, portal: PORTAL_URL || undefined });
+        return send(profileMsg(me));
       }
       case 'create': {
         if (++created > CREATE_LIMIT) throw new Error('Слишком много новых комнат — подожди');
@@ -406,6 +491,7 @@ wss.on('connection', (ws: WebSocket, req) => {
   });
 
   ws.on('close', () => {
+    conns.delete(live);
     clearInterval(window);
     room?.detach(client);
   });

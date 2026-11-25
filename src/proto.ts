@@ -133,6 +133,10 @@ export type ClientMsg =
   | { t: 'playerProfile'; pid: string }
   /** Лента главной: идущие партии (смотреть) и недавние. */
   | { t: 'feed' }
+  /** Друзья: список со статусом, добавить/убрать (id — профиль), позвать в мою комнату. */
+  | { t: 'friends' }
+  | { t: 'friend'; id: string; on: boolean }
+  | { t: 'invite'; id: string }
   | { t: 'ping' };
 
 export interface ProfileView {
@@ -176,10 +180,13 @@ export type ServerMsg =
   | { t: 'react'; from: PlayerId; emoji: string; at: number; name?: string; watcher?: boolean }
   | { t: 'error'; message: string; fatal?: boolean }
   | { t: 'pong'; now: number }
-  | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; /** Адрес AQL Portal: есть — показываем вход через портал. */ portal?: string }
+  | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; /** Адрес AQL Portal: есть — показываем вход через портал. */ portal?: string; /** id профилей моих друзей. */ friends?: string[] }
   | { t: 'tgLink'; url: string }
   | { t: 'playerProfile'; pid: string; profile: ProfileView | null }
-  | { t: 'feed'; live: LiveGame[]; recent: RecentGame[] };
+  | { t: 'feed'; live: LiveGame[]; recent: RecentGame[] }
+  | { t: 'friends'; list: FriendRow[] }
+  /** Друг зовёт в партию. */
+  | { t: 'invite'; from: string; pin: string; era: string };
 
 /** Идущая партия в ленте главной — её можно открыть зрителем. */
 export interface LiveGame {
@@ -191,6 +198,8 @@ export interface LiveGame {
   watchers: number;
   /** Я сижу за этим столом. */
   mine?: boolean;
+  /** Имена моих друзей за этим столом. */
+  friends?: string[];
   players: { name: string; color: PlayerColor; points: number; bot?: boolean; online: boolean }[];
 }
 
@@ -203,6 +212,17 @@ export interface RecentGame {
   mine?: boolean;
   /** Места по порядку: победитель первым. profileId — открыть профиль по тапу. */
   players: { name: string; profileId?: string; bot?: boolean; ai?: boolean; vp: number; winner: boolean }[];
+}
+
+/** Друг на главной: в сети ли, где сейчас. */
+export interface FriendRow {
+  id: string;
+  name: string;
+  photo?: string;
+  rating: number;
+  online: boolean;
+  /** Сидит за столом: в лобби или в партии — PIN, чтобы зайти или смотреть. */
+  where?: { pin: string; state: 'lobby' | 'playing'; era: string };
 }
 
 export const REACTIONS = ['👍', '😂', '😱', '🔥', '😤', '🤝', '👀', '🙏', '💀', '🎉'] as const;

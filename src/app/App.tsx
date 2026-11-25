@@ -12,6 +12,7 @@ import { setFxPace } from '../fx';
 import { Tv } from './Tv';
 import { useEra } from './era';
 import { Icon } from './icons';
+import { InviteToast } from './Social';
 
 const params = new URLSearchParams(location.search);
 const urlPin = params.get('pin')?.replace(/\D/g, '') || undefined;
@@ -37,6 +38,7 @@ export function App() {
   return (
     <>
       {screen}
+      {!tvMode && <InviteToast />}
       {state.status === 'offline' && (
         <div className="toast glass bad" role="status" style={{ pointerEvents: 'none' }}>
           Нет связи — переподключаемся…

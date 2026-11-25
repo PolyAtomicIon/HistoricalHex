@@ -27,6 +27,8 @@ export interface Profile {
   created: number;
   /** Гостевой профиль влит в аккаунт (Telegram/AQL Portal) — в таблице лидеров не показывается. */
   mergedInto?: string;
+  /** Друзья — id профилей (односторонне, как подписка). */
+  friends?: string[];
   /** ИИ-персонаж (src: server/personas.ts). */
   ai?: { persona: string; style: string; bio: string; level: 'easy' | 'medium' | 'hard' };
 }
@@ -46,6 +48,8 @@ interface Store {
   putProfile(p: Profile): void;
   deviceProfile(pid: string): string | undefined;
   linkDevice(pid: string, profileId: string): void;
+  /** Все устройства профиля (для пушей). */
+  devicesOf(profileId: string): string[];
   hasGame(id: string): boolean;
   putGame(g: FinishedGame): void;
   /** Последние партии (без фоновой ИИ-лиги), свежие первыми. */
@@ -68,6 +72,7 @@ class MemoryStore implements Store {
   putProfile = (p: Profile) => void this.profiles.set(p.id, structuredClone(p));
   deviceProfile = (pid: string) => this.devices.get(pid);
   linkDevice = (pid: string, id: string) => void this.devices.set(pid, id);
+  devicesOf = (id: string) => [...this.devices].filter(([, p]) => p === id).map(([d]) => d);
   hasGame = (id: string) => this.games.has(id);
   putGame = (g: FinishedGame) => {
     this.games.add(g.id);
@@ -114,6 +119,7 @@ class SqliteStore implements Store {
       .prepare('INSERT INTO profiles (id, tg_id, portal_id, data, rating, games) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tg_id = excluded.tg_id, portal_id = excluded.portal_id, data = excluded.data, rating = excluded.rating, games = excluded.games')
       .run(p.id, p.tgId ?? null, p.portalId ?? null, JSON.stringify(p), p.rating, p.games);
   deviceProfile = (pid: string) => (this.db.prepare('SELECT profile_id FROM devices WHERE pid = ?').get(pid) as { profile_id: string } | undefined)?.profile_id;
+  devicesOf = (id: string) => (this.db.prepare('SELECT pid FROM devices WHERE profile_id = ?').all(id) as { pid: string }[]).map((r) => r.pid);
   linkDevice = (pid: string, id: string) =>
     void this.db.prepare('INSERT INTO devices (pid, profile_id) VALUES (?, ?) ON CONFLICT(pid) DO UPDATE SET profile_id = excluded.profile_id').run(pid, id);
   hasGame = (id: string) => !!this.db.prepare('SELECT 1 FROM games WHERE id = ?').get(id);
@@ -287,6 +293,29 @@ export function findProfile(pid: string, persona?: string): Profile | undefined 
   const p = (linked && store.getProfile(linked)) || store.getProfile(pid);
   // Гостевой профиль, слитый в основной, — показываем основной
   return p?.mergedInto ? (store.getProfile(p.mergedInto) ?? p) : p;
+}
+
+// ───────────────────────── друзья ─────────────────────────
+
+const MAX_FRIENDS = 100;
+
+/** Профиль по его id (для друзей: имя, фото, рейтинг). */
+export const getProfileById = (id: string): Profile | undefined => store.getProfile(id);
+export const devicesOf = (profileId: string): string[] => store.devicesOf(profileId);
+
+/** Добавить/убрать друга. Себя и ИИ добавить нельзя. */
+export function setFriend(me: string, id: string, on: boolean): string[] {
+  const p = findProfile(me) ?? profileOf(me);
+  const list = new Set(p.friends ?? []);
+  if (on) {
+    const t = store.getProfile(id);
+    if (!t || t.ai || t.id === p.id || t.mergedInto) throw new Error('Такого игрока нет');
+    if (list.size >= MAX_FRIENDS) throw new Error('Друзей уже 100 — убери кого-нибудь');
+    list.add(t.id);
+  } else list.delete(id);
+  const friends = [...list];
+  store.putProfile({ ...p, friends });
+  return friends;
 }
 
 /** Недавние партии с людьми — для ленты главной. mine — я был за столом. */

@@ -22,6 +22,8 @@ import {
   Crown,
   Dices,
   Eye,
+  UserPlus,
+  Users,
   Hand,
   House,
   Landmark,
@@ -68,6 +70,8 @@ export type IconName =
   | 'bulb'
   | 'tv'
   | 'eye'
+  | 'plus'
+  | 'users'
   | 'check'
   | 'skip'
   | 'ban'
@@ -106,6 +110,8 @@ const L: Record<IconName, LucideIcon> = {
   bulb: Lightbulb,
   tv: Tv,
   eye: Eye,
+  plus: UserPlus,
+  users: Users,
   check: Check,
   skip: SkipForward,
   ban: Ban,

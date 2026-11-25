@@ -241,6 +241,7 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
           </div>
         </>
       )}
+      {p && !p.ai && <FriendActions id={p.id} />}
       {onShow && (
         <button className="btn wide" onClick={onShow}>
           <Icon name="layers" /> Показать постройки на карте
@@ -261,5 +262,26 @@ export function ProfileSheet({ who, onClose }: { who: { pid: string; name: strin
     <Sheet open={!!who} onClose={onClose} title={last?.name ?? ''}>
       {last && <PlayerProfileCard key={last.pid} pid={last.pid} name={last.name} color="rgba(255,255,255,0.08)" />}
     </Sheet>
+  );
+}
+
+/** В друзья / из друзей; если друг сейчас за столом — зайти или смотреть. */
+function FriendActions({ id }: { id: string }) {
+  const { profile, friends, room } = useConn();
+  if (!profile || profile.profile.id === id) return null;
+  const on = (profile.friends ?? []).includes(id);
+  const where = friends?.find((f) => f.id === id)?.where;
+  const here = room?.pin === where?.pin;
+  return (
+    <div className="pf-friend">
+      {where && !here && (
+        <button className="btn primary wide" onClick={() => conn.open(where.pin)}>
+          <Icon name={where.state === 'playing' ? 'eye' : 'door'} size={18} /> {where.state === 'playing' ? 'Смотреть партию' : 'Зайти в лобби'}
+        </button>
+      )}
+      <button className={`btn wide ${on ? 'ghost' : ''}`} onClick={() => conn.send({ t: 'friend', id, on: !on })}>
+        <Icon name={on ? 'check' : 'plus'} size={18} /> {on ? 'В друзьях' : 'Добавить в друзья'}
+      </button>
+    </div>
   );
 }

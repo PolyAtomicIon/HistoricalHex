@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import { tgInitData } from '../app/tg';
 import type { Action, GameEvent, HostAction, PlayerId } from '../engine';
-import type { ClientMsg, DiceSource, LeaderRow, LiveGame, ProfileView, RecentGame, RoomSettings, RoomView, ServerMsg } from '../proto';
+import type { ClientMsg, DiceSource, FriendRow, LeaderRow, LiveGame, ProfileView, RecentGame, RoomSettings, RoomView, ServerMsg } from '../proto';
 
 const SECRET_KEY = 'hh.secret';
 const PIN_KEY = 'hh.pin';
@@ -56,7 +56,7 @@ export interface ConnState {
   /** Разница часов сервера и устройства. */
   clockSkew: number;
   /** Профиль, рейтинг (приходит по запросу 'profile'). */
-  profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; portal?: string };
+  profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; portal?: string; friends?: string[] };
   /** Ссылка на бота для входа (живёт 10 минут). */
   tgLink?: string;
   /** Web Push: публичный ключ сервера и включены ли уведомления для этого устройства. */
@@ -66,6 +66,10 @@ export interface ConnState {
   playerProfile?: { pid: string; profile: ProfileView | null };
   /** Лента главной: идущие партии и недавние (по запросу 'feed'). */
   feed?: { live: LiveGame[]; recent: RecentGame[] };
+  /** Друзья со статусом (по запросу 'friends'). */
+  friends?: FriendRow[];
+  /** Друг зовёт в партию (всплывашка). */
+  invite?: { from: string; pin: string; era: string; key: number };
 }
 
 export type EventListener = (events: GameEvent[], source?: DiceSource) => void;
@@ -136,8 +140,12 @@ class Connection {
         return this.patch({ playerProfile: { pid: m.pid, profile: m.profile } });
       case 'feed':
         return this.patch({ feed: { live: m.live, recent: m.recent } });
+      case 'friends':
+        return this.patch({ friends: m.list });
+      case 'invite':
+        return this.patch({ invite: { from: m.from, pin: m.pin, era: m.era, key: Date.now() } });
       case 'profile':
-        return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot, portal: m.portal } });
+        return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot, portal: m.portal, friends: m.friends } });
       case 'created':
         safeSet(PIN_KEY, m.pin);
         this.resume = { t: 'open', pin: m.pin };
@@ -222,6 +230,9 @@ class Connection {
   join(pin: string, name: string): void {
     this.patch({ fatal: undefined });
     this.send({ t: 'join', pin, name });
+  }
+  dismissInvite(): void {
+    this.patch({ invite: undefined });
   }
   /** Уйти из комнаты на главную (в партии место остаётся за ботом). */
   forget(): void {

@@ -13,7 +13,7 @@ import { haptic, sfx } from '../fx';
 import { LearnCard, useLearn } from './learn/Learn';
 import { LANGS, t3, useLang } from './learn/lang';
 import type { T3 } from './learn/lang';
-import { LiveGames, ProfileSheet, RecentGames, useFeed } from './Social';
+import { FriendsStrip, LiveGames, ProfileSheet, RecentGames, useFeed } from './Social';
 
 /** Тексты главной на трёх языках (названия эпох пока по-русски — это имена собственные из лор-паков). */
 const H: Record<string, T3> = {
@@ -64,7 +64,7 @@ const SOON = [
 ];
 
 export function Home({ initialPin }: { initialPin?: string }) {
-  const { status, fatal, profile } = useConn();
+  const { status, fatal, profile, friends } = useConn();
   const [era, setEra] = useState(LORE_PACKS[0].id);
   const startPin = initialPin ?? tgStartPin();
   const [pin, setPin] = useState(startPin ?? '');
@@ -158,6 +158,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
           </div>
           {status !== 'online' && <p className="faint small center">{T('connecting')}</p>}
           <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />
+          <FriendsStrip friends={friends} lang={lang} onOpen={setWho} />
           {feed && <LiveGames live={feed.live} lang={lang} />}
 
           <section className="hub-eras" aria-label={T('eras')}>

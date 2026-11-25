@@ -204,6 +204,55 @@ describe('зрители', () => {
   });
 });
 
+describe('друзья', () => {
+  it('добавить друга, видеть его статус и позвать в партию', async () => {
+    const a = new TestClient();
+    const b = new TestClient();
+    await Promise.all([a.ready(), b.ready()]);
+    a.send({ t: 'hello', secret: 'friend-a-secret-0123456789' });
+    b.send({ t: 'hello', secret: 'friend-b-secret-0123456789' });
+    a.send({ t: 'profile' });
+    b.send({ t: 'profile' });
+    const prof = (c: TestClient) => c.msgs.filter((m): m is Extract<ServerMsg, { t: 'profile' }> => m.t === 'profile').at(-1);
+    await a.until(() => !!prof(a));
+    await b.until(() => !!prof(b));
+    const bid = prof(b)!.profile.id;
+
+    // Звать не-друга нельзя
+    a.send({ t: 'create', settings: { dice: 'random' } });
+    await a.until(() => !!a.room);
+    a.send({ t: 'join', pin: a.room!.pin, name: 'Аня' });
+    await a.until(() => !!a.room!.seated);
+    a.send({ t: 'invite', id: bid });
+    await a.until(() => a.msgs.some((m) => m.t === 'error' && /друзей/.test(m.message)));
+
+    a.send({ t: 'friend', id: bid, on: true });
+    await a.until(() => (prof(a)!.friends ?? []).includes(bid));
+    a.send({ t: 'friends' });
+    const fl = () => a.msgs.filter((m): m is Extract<ServerMsg, { t: 'friends' }> => m.t === 'friends').at(-1)?.list ?? [];
+    await a.until(() => fl().some((f) => f.id === bid && f.online));
+
+    a.send({ t: 'invite', id: bid });
+    await b.until(() => b.msgs.some((m) => m.t === 'invite'));
+    const inv = b.msgs.find((m) => m.t === 'invite') as Extract<ServerMsg, { t: 'invite' }>;
+    expect(inv.pin).toBe(a.room!.pin);
+    // Повтор сразу — отказ (раз в 30 секунд)
+    a.send({ t: 'invite', id: bid });
+    await a.until(() => a.msgs.some((m) => m.t === 'error' && /Уже позвали/.test(m.message)));
+
+    // Друг сел за стол — в списке видно, где он
+    b.send({ t: 'join', pin: a.room!.pin, name: 'Боря' });
+    await b.until(() => !!b.room?.seated);
+    a.send({ t: 'friends' });
+    await a.until(() => fl().some((f) => f.id === bid && f.where?.pin === a.room!.pin && f.where.state === 'lobby'));
+
+    a.send({ t: 'friend', id: bid, on: false });
+    await a.until(() => !(prof(a)!.friends ?? []).includes(bid));
+    a.ws.close();
+    b.ws.close();
+  });
+});
+
 describe('темп ботов', () => {
   it('после налёта ждём сцену, после кубиков — анимацию, по максимуму из событий', () => {
     expect(paceAfter([{ type: 'robberMoved', player: 'a', hex: 'h' }])).toBeGreaterThanOrEqual(6000);

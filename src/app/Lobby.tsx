@@ -1,5 +1,6 @@
 // Лобби: PIN и QR, кто за столом, цвета, эпоха и настройки (у ведущего), старт.
 
+import { InviteFriends } from './Social';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import type { BotLevel, PlayerColor } from '../engine';
@@ -205,6 +206,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
           )}
         </section>
 
+        {!tv && <InviteFriends />}
         {!tv && <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />}
 
         {!tv && (
