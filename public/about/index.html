@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>HistoricalHex — настольная игра на гексах в исторических эпохах</title>
-    <meta name="description" content="Строй, торгуй и узнавай историю: мобильная настольная игра на гексах. Чингисхан, Япония самураев, Казахское ханство, Шёлковый путь, саки. Играй с телефона за одним столом или онлайн." />
-    <meta name="theme-color" content="#070b10" />
+    <title>HistoricalHex — настольная стратегия на гексах в исторических эпохах</title>
+    <meta name="description" content="Строй, торгуй и отбивай набеги: бесплатная настольная игра на гексах для 2–6 игроков. Чингисхан, Япония самураев, тыл 1941–1945, Казахское ханство, Шёлковый путь, саки. С телефона за одним столом или онлайн." />
+    <meta name="theme-color" content="#0a1017" />
     <link rel="canonical" href="https://bekzaty.abmco.kz/catan/about/" />
     <link rel="alternate" hreflang="ru" href="https://bekzaty.abmco.kz/catan/about/" />
     <link rel="alternate" hreflang="kk" href="https://bekzaty.abmco.kz/catan/about/?lang=kz" />
@@ -18,7 +18,7 @@
         "name": "HistoricalHex",
         "url": "https://bekzaty.abmco.kz/catan/",
         "image": "https://bekzaty.abmco.kz/catan/about/shots/og.jpg",
-        "description": "Мобильная настольная игра на гексах: строй, торгуй и узнавай историю. Каждая партия — в своей исторической эпохе.",
+        "description": "Мобильная настольная стратегия на гексах: строй, торгуй и отбивай набеги. Каждая партия — в своей исторической эпохе.",
         "inLanguage": ["ru", "kk", "en"],
         "genre": ["Board game", "Strategy"],
         "gamePlatform": ["Web browser", "iOS", "Android"],
@@ -32,8 +32,8 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="HistoricalHex" />
     <meta property="og:url" content="https://bekzaty.abmco.kz/catan/about/" />
-    <meta property="og:title" content="HistoricalHex — настольная игра на гексах в исторических эпохах" />
-    <meta property="og:description" content="Строй, торгуй и узнавай историю. Каждая партия — в своей эпохе. Играй с телефона за одним столом или онлайн." />
+    <meta property="og:title" content="HistoricalHex — настольная стратегия на гексах в исторических эпохах" />
+    <meta property="og:description" content="Строй, торгуй и отбивай набеги. Каждая партия — в своей эпохе. С телефона за одним столом или онлайн, бесплатно." />
     <!-- og:image обязан быть абсолютным URL -->
     <meta property="og:image" content="https://bekzaty.abmco.kz/catan/about/shots/og.jpg" />
     <meta property="og:image:width" content="1200" />
@@ -47,208 +47,316 @@
     <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png" />
     <link rel="preload" href="../fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="../fonts/unbounded-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./media/ww2-bombers-poster.webp" as="image" type="image/webp" fetchpriority="high" />
     <link rel="stylesheet" href="../fonts/fonts.css" />
     <link rel="stylesheet" href="./about.css" />
   </head>
   <body>
-    <header class="top wrap">
-      <a class="brand" href="../" aria-label="HistoricalHex">
-        <svg viewBox="-50 -50 100 100" aria-hidden="true">
-          <path stroke="#c8643c" d="M0,-44 L38,-22" />
-          <path stroke="#3f8c4a" d="M38,-22 L38,22" />
-          <path stroke="#9fd06a" d="M38,22 L0,44" />
-          <path stroke="#e8c14d" d="M0,44 L-38,22" />
-          <path stroke="#8d98ad" d="M-38,22 L-38,-22" />
-          <path stroke="#f2b544" d="M-38,-22 L0,-44" />
-        </svg>
-        HistoricalHex
-      </a>
-      <div class="lang" role="group" aria-label="Язык / Тіл / Language">
-        <button type="button" data-lang="ru" aria-pressed="true">RU</button>
-        <button type="button" data-lang="kz" aria-pressed="false">KZ</button>
-        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    <svg width="0" height="0" class="sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-plan" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4.5V3h6v1.5M9 10h6M9 14h6M9 18h3" /></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M10 9v6M14 9v6" /></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="2.8" /></symbol>
+      <symbol id="i-friends" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2" /><path d="M3 19.5c.5-3.4 2.8-5.2 6-5.2s5.5 1.8 6 5.200M16 5.600a3.2 3.2 0 010 5.800M18 14.800c1.7.700 2.7 2.3 3 4.7" /></symbol>
+      <symbol id="i-cup" viewBox="0 0 24 24"><path d="M7.5 4h9v5.500a4.5 4.5 0 01-9 0zM7.5 6H4.500c0 3 1.2 4.5 3.3 4.800M16.5 6h3c0 3-1.2 4.5-3.3 4.800M12 14v4M8.5 20.500h7" /></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.500C10.3 5.2 7.8 4.7 4 5v13c3.8-.300 6.3.200 8 1.5 1.7-1.3 4.2-1.8 8-1.500V5c-3.8-.300-6.3.200-8 1.500zM12 6.500v13" /></symbol>
+      <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.500v9L12 21l-8-4.500v-9zM4 7.500l8 4.5 8-4.500M12 12v9" /></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M12 8v6M9.5 11.800L12 14.300l2.5-2.5" /></symbol>
+    </svg>
+
+    <header class="top" id="top">
+      <div class="wrap top-in">
+        <a class="brand" href="../" aria-label="HistoricalHex">
+          <svg viewBox="-50 -50 100 100" width="26" height="26" aria-hidden="true">
+            <path stroke="#c8643c" d="M0,-44 L38,-22" />
+            <path stroke="#3f8c4a" d="M38,-22 L38,22" />
+            <path stroke="#9fd06a" d="M38,22 L0,44" />
+            <path stroke="#e8c14d" d="M0,44 L-38,22" />
+            <path stroke="#8d98ad" d="M-38,22 L-38,-22" />
+            <path stroke="#f2b544" d="M-38,-22 L0,-44" />
+          </svg>
+          <span>HistoricalHex</span>
+        </a>
+        <div class="lang" role="group" aria-label="Язык / Тіл / Language">
+          <button type="button" data-lang="ru" aria-pressed="true">RU</button>
+          <button type="button" data-lang="kz" aria-pressed="false">KZ</button>
+          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+        <a class="btn btn-sm" href="../" data-i="play">Играть</a>
       </div>
     </header>
 
     <main>
-      <!-- 1. Герой -->
+      <!-- Герой: живая запись авианалёта -->
       <section class="hero">
-        <div class="hero-bg" aria-hidden="true"></div>
-        <div class="hero-in wrap">
-          <div>
-            <h1>Historical<span>Hex</span></h1>
-            <p class="pitch" data-i="pitch">Настольная игра на гексах: строй, торгуй и узнавай историю. Каждая партия — в своей эпохе.</p>
-            <div class="cta">
-              <a class="btn btn-main" href="../">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2v13.6a.8.8 0 0 0 1.2.7l11-6.8a.8.8 0 0 0 0-1.4l-11-6.8a.8.8 0 0 0-1.2.7z" /></svg>
-                <span data-i="play">Играть</span>
-              </a>
-              <a class="btn btn-ghost" href="#eras" data-i="pickEra">Выбрать эпоху</a>
+        <img class="hero-art" src="../eras/ww2-md.webp" alt="" width="800" height="451" loading="lazy" decoding="async" />
+        <div class="wrap hero-grid">
+          <div class="hero-reel">
+            <img class="shot flank flank-l" src="./shots/sm/genghis-raid-b.webp" width="560" height="1212" loading="lazy" decoding="async" data-alt="altGenghis" alt="Конные лучники налетают на гекс в эпохе Чингисхана" />
+            <div class="ph hero-phone">
+              <img class="clip" id="heroClip" fetchpriority="high" decoding="async" src="./media/ww2-bombers-poster.webp" width="540" height="1168" data-clip="ww2-bombers" data-alt="altBombers" alt="Запись из игры: бомбардировщики летят над островом, взрыв на гексе" />
             </div>
-            <p class="hero-note" data-i="note">Открывается в браузере телефона. Можно установить как приложение.</p>
+            <img class="shot flank flank-r" src="./shots/sm/japan-ninja-a.webp" width="560" height="1212" loading="lazy" decoding="async" data-alt="altNinja" alt="Ниндзя занимают гекс в эпохе самурайской Японии" />
           </div>
-          <div class="hero-media">
-            <div class="phone">
-              <img src="./shots/sm/home.webp" srcset="./shots/sm/home.webp 560w, ./shots/home.webp 780w" sizes="(min-width: 760px) 296px, 276px" width="780" height="1688" alt="Главный экран HistoricalHex: обложка эпохи Чингисхана и кнопка новой партии" data-alt="altHome" fetchpriority="high" />
+          <div class="hero-copy">
+            <h1><span data-i="h1a">Строй.</span> <span data-i="h1b">Торгуй.</span> <span data-i="h1c">Отбей набег.</span></h1>
+            <p class="lead" data-i="lead">HistoricalHex — настольная стратегия на гексах. Каждая партия идёт в своей эпохе: орда Чингисхана, Япония самураев, тыл 1941-го. Бесплатно, прямо в браузере.</p>
+            <div class="cta-row">
+              <a class="btn" href="../" data-i="playFree">Играть бесплатно</a>
+              <a class="btn btn-ghost" href="#turn" data-i="howTurn">Как проходит ход</a>
             </div>
+            <ul class="facts">
+              <li data-i="f1">2–6 игроков</li>
+              <li data-i="f2">6 эпох</li>
+              <li data-i="f3">Обучение за 3 минуты</li>
+              <li data-i="f4">Без установки</li>
+            </ul>
           </div>
         </div>
       </section>
 
-      <!-- 2. Как это играется -->
-      <section class="feats wrap">
-        <h2 class="eyebrow" data-i="howEyebrow">Как это играется</h2>
-
-        <article class="feat" style="margin-top: 28px">
-          <div class="feat-media">
-            <div class="duo">
-              <figure class="phone">
-                <img src="./shots/sm/board-2d.webp" srcset="./shots/sm/board-2d.webp 560w, ./shots/board-2d.webp 780w" sizes="220px" width="780" height="1688" loading="lazy" decoding="async" alt="Рисованная 2D-карта острова в середине партии" data-alt="alt2d" />
-              </figure>
-              <figure class="phone">
-                <img src="./shots/sm/board-3d.webp" srcset="./shots/sm/board-3d.webp 560w, ./shots/board-3d.webp 780w" sizes="220px" width="780" height="1688" loading="lazy" decoding="async" alt="Тот же остров в 3D: низкополигональные горы, леса и корабли" data-alt="alt3d" />
-              </figure>
+      <!-- Семь! Набеги по эпохам -->
+      <section class="war" id="war">
+        <div class="war-flash" aria-hidden="true"></div>
+        <div class="wrap war-head">
+          <div class="dice" aria-hidden="true">
+            <svg viewBox="0 0 48 48" width="48" height="48"><rect x="2" y="2" width="44" height="44" rx="10" /><circle cx="15" cy="15" r="4" /><circle cx="33" cy="15" r="4" /><circle cx="15" cy="33" r="4" /><circle cx="33" cy="33" r="4" /></svg>
+            <svg viewBox="0 0 48 48" width="48" height="48"><rect x="2" y="2" width="44" height="44" rx="10" /><circle cx="14" cy="14" r="4" /><circle cx="24" cy="24" r="4" /><circle cx="34" cy="34" r="4" /></svg>
+          </div>
+          <h2 class="seven" data-i="seven">Семь!</h2>
+          <p class="war-sub" data-i="warSub">Выпала семёрка — на остров идёт набег.</p>
+          <p class="war-text" data-i="warText">Захватчики занимают гекс, и он перестаёт кормить хозяев. В каждой эпохе враг свой, и приходит он по-своему: эскадрилья, конница, тени на крышах. Карта воина гонит его прочь — тоже по законам эпохи.</p>
+        </div>
+        <div class="reels" id="reels" tabindex="0" role="group" data-al="reelsLabel" aria-label="Сцены набегов">
+          <article class="reel">
+            <div class="ph">
+              <img class="clip" loading="lazy" decoding="async" src="./media/ww2-bombers-poster.webp" width="540" height="1168" data-clip="ww2-bombers" data-alt="altBombers" alt="Запись из игры: бомбардировщики летят над островом, взрыв на гексе" />
             </div>
-          </div>
-          <div>
-            <h3 data-i="f1t">Одна карта — два вида</h3>
-            <p data-i="f1d">Рисованная 2D-карта читается с одного взгляда. 3D — низкополигональный остров посреди моря. Выбирай ту, что по душе.</p>
-          </div>
-        </article>
-
-        <article class="feat flip">
-          <div class="feat-media">
-            <div class="phone">
-              <img src="./shots/sm/trade.webp" srcset="./shots/sm/trade.webp 560w, ./shots/trade.webp 780w" sizes="276px" width="780" height="1688" loading="lazy" decoding="async" alt="Карточка входящего обмена с кнопкой встречного предложения" data-alt="altTrade" />
+            <p class="reel-era" data-i="eraWw2">Всё для фронта, 1941–1945</p>
+            <h3 data-i="r1T">Авианалёт</h3>
+            <p data-i="r1P">Звено бомбардировщиков проходит над островом. Взрыв, дым — и весь остров сереет.</p>
+          </article>
+          <article class="reel">
+            <div class="ph">
+              <img class="clip" loading="lazy" decoding="async" src="./media/ww2-tanks-poster.webp" width="540" height="1168" data-clip="ww2-tanks" data-alt="altTanks" alt="Запись из игры: танковая колонна выезжает на гекс и стреляет" />
             </div>
-          </div>
-          <div>
-            <h3 data-i="f2t">Торг в одно касание</h3>
-            <p data-i="f2d">Предложение обмена появляется прямо над твоими ресурсами. Не устраивает — кнопка «Встречное» отправит ответ одним нажатием.</p>
-          </div>
-        </article>
-
-        <article class="feat">
-          <div class="feat-media">
-            <div class="phone">
-              <img src="./shots/sm/stats.webp" srcset="./shots/sm/stats.webp 560w, ./shots/stats.webp 780w" sizes="276px" width="780" height="1688" loading="lazy" decoding="async" alt="Сводка стола: рынок ресурсов и кто что получает за бросок" data-alt="altStats" />
+            <p class="reel-era" data-i="eraWw2">Всё для фронта, 1941–1945</p>
+            <h3 data-i="r2T">Танковая колонна</h3>
+            <p data-i="r2P">Сыграл карту воина — колонна выбивает захватчиков и гонит их на чужой гекс.</p>
+          </article>
+          <article class="reel">
+            <div class="ph">
+              <img class="clip" loading="lazy" decoding="async" src="./media/genghis-raid-poster.webp" width="540" height="1168" data-clip="genghis-raid" data-alt="altGenghis" alt="Запись из игры: конные лучники налетают на гекс" />
             </div>
-          </div>
-          <div>
-            <h3 data-i="f3t">За одним столом или по сети</h3>
-            <p data-i="f3d">Каждый играет со своего телефона — рядом или онлайн по PIN из шести цифр. Включи режим экрана на телевизоре, и карту увидят все. А сводка стола покажет, у кого что копится.</p>
-          </div>
-        </article>
-
-        <div class="more">
-          <h2 class="eyebrow" data-i="moreEyebrow">Ещё в игре</h2>
-          <ul class="more-grid">
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="8" width="15" height="11" rx="3" /><path d="M12 8V4.5M9.5 13v1.5M14.5 13v1.5M2.5 13v2M21.5 13v2" /><circle cx="12" cy="3.6" r="1" /></svg>
-              <div><b data-i="m1t">Боты и ИИ-персонажи</b><span data-i="m1d">Три уровня сложности и персонажи с собственным рейтингом.</span></div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="16" rx="3" /><path d="M9.5 3h5v3h-5zM8.5 11l1.4 1.4 2.4-2.6M8.5 16h7M14.5 11h1" /></svg>
-              <div><b data-i="m2t">Планировщик хода</b><span data-i="m2d">Собери план, пока ходят другие, и выполни его в свой ход.</span></div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M10 9v6M14 9v6" /></svg>
-              <div><b data-i="m3t">Пауза на несколько дней</b><span data-i="m3d">Не успели доиграть — вернётесь к партии позже.</span></div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>
-              <div><b data-i="m4t">Зрители</b><span data-i="m4d">Живые партии можно смотреть и реагировать на ходы.</span></div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.5" /><path d="M2.8 19.5c.6-3.3 3-5 6.2-5s5.6 1.7 6.2 5M18.5 8v6M15.5 11h6" /></svg>
-              <div><b data-i="m5t">Друзья и приглашения</b><span data-i="m5d">Видно, кто в сети, — зови в партию.</span></div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0zM7.5 6H4.2c0 2.6 1.3 4.2 3.6 4.5M16.5 6h3.300c0 2.600-1.300 4.200-3.600 4.500M12 13.500V17M8.500 20h7M9.500 17h5v3h-5z" /></svg>
-              <div><b data-i="m6t">Рейтинг и лидеры</b><span data-i="m6d">Свой рейтинг и общая таблица лидеров.</span></div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.500C10.300 5.200 7.500 4.800 3.500 5v13c4-.2 6.800.2 8.500 1.500 1.700-1.300 4.500-1.700 8.500-1.500V5c-4-.2-6.800.2-8.500 1.500zM12 6.500v13" /></svg>
-              <div><b data-i="m7t">Правила и обучение</b><span data-i="m7d">Обучение за 3 минуты и справочник правил — на русском, казахском и английском.</span></div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.500" y="2.500" width="11" height="19" rx="3" /><path d="M12 8v6M9.500 11.800 12 14.300l2.500-2.500M10.500 18h3" /></svg>
-              <div><b data-i="m8t">Как приложение</b><span data-i="m8d">Ставится на главный экран телефона.</span></div>
-            </li>
-          </ul>
+            <p class="reel-era" data-i="eraGenghis">Эпоха Чингисхана, 1206–1269</p>
+            <h3 data-i="r3T">Барымта</h3>
+            <p data-i="r3P">Конные лучники налетают на гекс. Он остаётся без дохода, а у соседа пропадает карта.</p>
+          </article>
+          <article class="reel">
+            <div class="ph">
+              <img class="clip" loading="lazy" decoding="async" src="./media/japan-ninja-poster.webp" width="540" height="1168" data-clip="japan-ninja" data-alt="altNinja" alt="Запись из игры: ниндзя занимают гекс" />
+            </div>
+            <p class="reel-era" data-i="eraJapan">Япония самураев, 1467–1639</p>
+            <h3 data-i="r4T">Ниндзя</h3>
+            <p data-i="r4P">Тени приходят на рисовые поля. Гекс молчит, пока самураи не прогонят чужаков.</p>
+          </article>
+        </div>
+        <div class="wrap war-foot">
+          <p data-i="warNote">И да: у кого на руках больше семи карт — сбрасывает половину.</p>
+          <a class="btn" href="../" data-i="playFree">Играть бесплатно</a>
         </div>
       </section>
 
-      <!-- 3. Интерактив: эпохи и остров -->
-      <section class="lab" id="eras">
+      <!-- Ход по шагам -->
+      <section class="turn" id="turn">
         <div class="wrap">
-          <p class="eyebrow" data-i="labEyebrow">Эпохи</p>
-          <h2 class="h2" data-i="labTitle">Один остров — шесть эпох</h2>
-          <p class="lead" data-i="labLead">Правила те же, а мир вокруг меняется: названия земель, цвет моря, рассказчик и факты из истории. Выбери эпоху и нажми на любой гекс.</p>
+          <div class="sec-head">
+            <h2 data-i="turnH">Один ход — шесть шагов</h2>
+            <p data-i="turnP">Прочитай — и можно садиться за стол. Остальное покажет трёхминутное обучение в игре.</p>
+          </div>
+          <div class="turn-grid">
+            <div class="turn-stage" aria-hidden="true"><div class="ph" id="stage"></div></div>
+            <ol class="steps" id="steps">
+              <li class="step">
+                <span class="n" aria-hidden="true">1</span>
+                <div class="step-txt">
+                  <h3 data-i="s1T">Брось кубики</h3>
+                  <p data-i="s1P">Сумма двух кубиков решает, какие гексы кормят в этот ход.</p>
+                </div>
+                <div class="step-shot p1"><img src="./shots/sm/board3d-khanate.webp" srcset="./shots/sm/board3d-khanate.webp 560w, ./shots/board3d-khanate.webp 780w" sizes="(min-width: 900px) 320px, 92vw" width="560" height="1212" loading="lazy" decoding="async" data-alt="altS1" alt="3D-остров Казахского ханства и кнопка «Бросить кубики»" /></div>
+              </li>
+              <li class="step">
+                <span class="n" aria-hidden="true">2</span>
+                <div class="step-txt">
+                  <h3 data-i="s2T">Собери урожай</h3>
+                  <p data-i="s2P">Гекс с выпавшим числом платит всем, кто построился рядом: дерево, кирпич, шерсть, зерно, руда. Сводка стола покажет, кому что идёт.</p>
+                </div>
+                <div class="step-shot p2"><img src="./shots/sm/stats.webp" srcset="./shots/sm/stats.webp 560w, ./shots/stats.webp 780w" sizes="(min-width: 900px) 320px, 92vw" width="560" height="1212" loading="lazy" decoding="async" data-alt="altS2" alt="Сводка стола: какой ресурс кому приходит за бросок" /></div>
+              </li>
+              <li class="step">
+                <span class="n" aria-hidden="true">3</span>
+                <div class="step-txt">
+                  <h3 data-i="s3T">Торгуйся</h3>
+                  <p data-i="s3P">Меняйся с игроками и портами. Встречное предложение — в одно касание, а на оферту бота есть 8 секунд.</p>
+                </div>
+                <div class="step-shot p3"><img src="./shots/sm/trade.webp" srcset="./shots/sm/trade.webp 560w, ./shots/trade.webp 780w" sizes="(min-width: 900px) 320px, 92vw" width="560" height="1212" loading="lazy" decoding="async" data-alt="altS3" alt="Карточка входящего обмена с кнопкой встречного предложения" /></div>
+              </li>
+              <li class="step">
+                <span class="n" aria-hidden="true">4</span>
+                <div class="step-txt">
+                  <h3 data-i="s4T">Строй</h3>
+                  <p data-i="s4P">Дороги, поселения, города и карты развития. Игра сама подскажет, на что уже хватает ресурсов.</p>
+                </div>
+                <div class="step-shot p4"><img src="./shots/sm/board3d-japan.webp" srcset="./shots/sm/board3d-japan.webp 560w, ./shots/board3d-japan.webp 780w" sizes="(min-width: 900px) 320px, 92vw" width="560" height="1212" loading="lazy" decoding="async" data-alt="altS4" alt="3D-остров Японии, панель стройки и подсказка, чего не хватает до поселения" /></div>
+              </li>
+              <li class="step">
+                <span class="n" aria-hidden="true">5</span>
+                <div class="step-txt">
+                  <h3 data-i="s5T">Переживи семёрку</h3>
+                  <p data-i="s5P">Выпало семь — захватчики занимают гекс и отбирают карту. Прогнать их может карта воина.</p>
+                </div>
+                <div class="step-shot p5"><img src="./shots/sm/cine-seven.webp" srcset="./shots/sm/cine-seven.webp 560w, ./shots/cine-seven.webp 780w" sizes="(min-width: 900px) 320px, 92vw" width="560" height="1212" loading="lazy" decoding="async" data-alt="altS5" alt="Заставка «Семь!»: разбойники грабят степь" /></div>
+              </li>
+              <li class="step">
+                <span class="n" aria-hidden="true">6</span>
+                <div class="step-txt">
+                  <h3 data-i="s6T">Набери 10 очков</h3>
+                  <p data-i="s6P">Очки дают поселения, города и бонусы вроде сильнейшего войска. Первый, кто набрал десять, забирает партию.</p>
+                </div>
+                <div class="step-shot p6"><img src="./shots/sm/board2d-khanate.webp" srcset="./shots/sm/board2d-khanate.webp 560w, ./shots/board2d-khanate.webp 780w" sizes="(min-width: 900px) 320px, 92vw" width="560" height="1212" loading="lazy" decoding="async" data-alt="altS6" alt="Рисованное 2D-поле с поселениями, городами и дорогами игроков" /></div>
+              </li>
+            </ol>
+          </div>
 
-          <div class="chips" id="chips" role="group" aria-label="Эпохи"></div>
-
-          <div class="lab-grid">
-            <div class="era-card">
-              <img class="cover on" id="coverA" src="../eras/genghis.webp" width="1280" height="721" alt="" loading="lazy" decoding="async" />
-              <img class="cover" id="coverB" width="1280" height="721" alt="" decoding="async" />
-              <div class="era-body" aria-live="polite">
-                <span class="era-years" id="eraYears">1206–1269</span>
-                <h3 class="era-title" id="eraTitle">Эпоха Чингисхана</h3>
-                <p class="era-sub" id="eraSub">Великая степь, караваны Шёлкового пути и Улус Джучи</p>
+          <div class="odds">
+            <div class="odds-txt">
+              <h3 data-i="islH">Какой гекс кормит чаще</h3>
+              <p data-i="islP">Нажми на любой гекс и посмотри, как часто выпадает его число.</p>
+              <div class="read" aria-live="polite">
+                <div class="read-top">
+                  <span class="read-ic" id="readIc"></span>
+                  <div>
+                    <strong id="readName"></strong>
+                    <span id="readRes"></span>
+                  </div>
+                </div>
+                <div class="dots" id="dots" aria-hidden="true"></div>
+                <p id="readText"></p>
               </div>
             </div>
+            <svg id="island" class="island" viewBox="-140 -122 280 244" role="group" aria-label="Остров"></svg>
+          </div>
+        </div>
+      </section>
 
-            <div class="isle">
-              <div class="sea">
-                <svg id="island" viewBox="-142 -124 284 248" role="group" aria-label="Остров"></svg>
+      <!-- ТВ и способы собраться -->
+      <section class="tv" id="table">
+        <div class="wrap">
+          <div class="sec-head">
+            <h2 data-i="tvH">Один экран на всю комнату</h2>
+            <p data-i="tvP">Режим ТВ выводит поле, счёт, урожай и журнал ходов на большой экран. Ходят все со своих телефонов, а набег смотрят вместе.</p>
+          </div>
+          <div class="tv-set">
+            <img src="./shots/sm/tv-genghis.webp" srcset="./shots/sm/tv-genghis.webp 900w, ./shots/tv-genghis.webp 1600w" sizes="(min-width: 1200px) 1040px, 94vw" width="1600" height="900" loading="lazy" decoding="async" data-alt="altTv" alt="Режим ТВ: заставка «Семь! Барымта» с конными лучниками над полем, список игроков, таблица урожая, журнал ходов и QR для входа" />
+          </div>
+          <div class="tv-lower">
+            <div class="ways">
+              <div>
+                <h3 data-i="w1T">За одним столом</h3>
+                <p data-i="w1P">Карты — в телефоне у каждого. Ни коробки, ни потерянных фишек.</p>
               </div>
-              <div class="read" aria-live="polite">
-                <div class="read-ic" id="readIc"></div>
-                <div>
-                  <div class="read-name" id="readName"></div>
-                  <div class="read-res" id="readRes"></div>
-                </div>
+              <div>
+                <h3 data-i="w2T">Онлайн</h3>
+                <p data-i="w2P">Шестизначный PIN или QR-код — и друзья уже в партии, где бы они ни были.</p>
               </div>
-              <div class="read-more">
-                <div class="dots" id="dots" aria-hidden="true"></div>
-                <p class="read-text" id="readText"></p>
+              <div>
+                <h3 data-i="w3T">Один дома</h3>
+                <p data-i="w3P">Боты трёх уровней и ИИ-персонажи со своим рейтингом сядут за стол сразу.</p>
               </div>
+            </div>
+            <div class="ph tv-phone">
+              <img src="./shots/sm/lobby-japan.webp" width="560" height="1212" loading="lazy" decoding="async" data-alt="altLobby" alt="Лобби партии: QR-код, PIN для входа, кнопка «На ТВ» и места для ботов" />
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 4. Об авторе: показывается, только если в about.js заполнен ABOUT для текущего языка -->
-      <section class="author wrap" id="author" hidden>
-        <p class="eyebrow" data-i="authorEyebrow">Об авторе</p>
-        <div class="author-card">
-          <div class="author-name" id="authorName" hidden></div>
-          <div class="author-text" id="authorText"></div>
-          <div class="author-links" id="authorLinks" hidden></div>
+      <!-- Эпохи -->
+      <section class="eras" id="eras">
+        <div class="wrap">
+          <div class="sec-head">
+            <h2 data-i="erasH">Шесть эпох — шесть островов</h2>
+            <p data-i="erasP">Правила одни, а мир каждый раз новый: своя живопись, названия земель, музыка и свой враг на семёрке.</p>
+          </div>
+        </div>
+        <div class="era-tabs" id="eraTabs" role="tablist" aria-label="Эпохи"></div>
+        <div class="wrap">
+          <div class="era-panel" id="eraPanel" role="tabpanel">
+            <div class="era-cover">
+              <img id="eraCover" src="../eras/genghis-md.webp" srcset="../eras/genghis-md.webp 800w, ../eras/genghis.webp 1280w" sizes="(min-width: 900px) 760px, 94vw" width="1280" height="721" loading="lazy" decoding="async" alt="" />
+              <div class="era-info">
+                <p class="era-years" id="eraYears"></p>
+                <h3 id="eraTitle"></h3>
+                <p id="eraSub"></p>
+              </div>
+            </div>
+            <div class="ph era-board">
+              <img id="eraBoard" src="./shots/sm/board3d-genghis.webp" width="560" height="1212" loading="lazy" decoding="async" alt="" />
+            </div>
+            <ul class="lands" id="lands"></ul>
+          </div>
         </div>
       </section>
 
-      <section class="final wrap">
-        <svg viewBox="-50 -50 100 100" aria-hidden="true">
-          <path stroke="#c8643c" d="M0,-44 L38,-22" />
-          <path stroke="#3f8c4a" d="M38,-22 L38,22" />
-          <path stroke="#9fd06a" d="M38,22 L0,44" />
-          <path stroke="#e8c14d" d="M0,44 L-38,22" />
-          <path stroke="#8d98ad" d="M-38,22 L-38,-22" />
-          <path stroke="#f2b544" d="M-38,-22 L0,-44" />
-        </svg>
-        <h2 class="h2" data-i="finalTitle">Собери свою эпоху</h2>
-        <div>
-          <a class="btn btn-main" href="../">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2v13.6a.8.8 0 0 0 1.2.7l11-6.8a.8.8 0 0 0 0-1.4l-11-6.8a.8.8 0 0 0-1.2.7z" /></svg>
-            <span data-i="play">Играть</span>
-          </a>
+      <!-- Что ещё внутри -->
+      <section class="more" id="more">
+        <div class="wrap more-grid">
+          <div>
+            <h2 data-i="moreH">Всё, чтобы партия состоялась</h2>
+            <ul class="feats">
+              <li><svg aria-hidden="true"><use href="#i-plan" /></svg><div><h3 data-i="m1T">Планировщик хода</h3><p data-i="m1P">Продумай ход, пока ходят другие, и запусти его одним касанием.</p></div></li>
+              <li><svg aria-hidden="true"><use href="#i-pause" /></svg><div><h3 data-i="m2T">Пауза на несколько дней</h3><p data-i="m2P">Не доиграли сегодня — партия подождёт.</p></div></li>
+              <li><svg aria-hidden="true"><use href="#i-eye" /></svg><div><h3 data-i="m3T">Зрители</h3><p data-i="m3P">Смотри чужие партии вживую и кидай реакции.</p></div></li>
+              <li><svg aria-hidden="true"><use href="#i-friends" /></svg><div><h3 data-i="m4T">Друзья и приглашения</h3><p data-i="m4P">Видно, кто в сети. Зови в партию в пару касаний.</p></div></li>
+              <li><svg aria-hidden="true"><use href="#i-cup" /></svg><div><h3 data-i="m5T">Рейтинг и серии</h3><p data-i="m5P">Рейтинг, серия дней подряд и таблица лидеров.</p></div></li>
+              <li><svg aria-hidden="true"><use href="#i-book" /></svg><div><h3 data-i="m6T">Правила на трёх языках</h3><p data-i="m6P">Обучение за 3 минуты и полный справочник: русский, казахский, английский.</p></div></li>
+              <li><svg aria-hidden="true"><use href="#i-cube" /></svg><div><h3 data-i="m7T">2D и 3D</h3><p data-i="m7P">Рисованное поле или объёмный остров — переключай когда угодно.</p></div></li>
+              <li><svg aria-hidden="true"><use href="#i-phone" /></svg><div><h3 data-i="m8T">Как приложение</h3><p data-i="m8P">Добавь на главный экран и открывай как обычное приложение. Магазин не нужен.</p></div></li>
+            </ul>
+          </div>
+          <div class="more-shots">
+            <div class="ph ph-a"><img src="./shots/sm/home.webp" width="560" height="1212" loading="lazy" decoding="async" data-alt="altHome" alt="Главный экран: обложка эпохи Чингисхана, кнопки «Новая партия» и «По PIN», рейтинг и друзья" /></div>
+            <div class="ph ph-b"><img src="./shots/sm/ww2-tanks-b.webp" width="560" height="1212" loading="lazy" decoding="async" data-alt="altTanksShot" alt="Танковая колонна на гексе в эпохе «Всё для фронта»" /></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Об авторе: показывается, только если заполнен ABOUT в about.js -->
+      <section class="author" id="author" hidden>
+        <div class="wrap author-in">
+          <h2 data-i="authorH">Об авторе</h2>
+          <p class="author-name" id="authorName" hidden></p>
+          <div id="authorText"></div>
+          <p class="author-links" id="authorLinks" hidden></p>
+        </div>
+      </section>
+
+      <!-- Финал -->
+      <section class="final">
+        <img class="final-art" src="../eras/genghis-md.webp" srcset="../eras/genghis-md.webp 800w, ../eras/genghis.webp 1280w" sizes="100vw" width="1280" height="721" loading="lazy" decoding="async" alt="" />
+        <div class="wrap final-in">
+          <h2 data-i="finH">Собери стол. Семёрка уже близко.</h2>
+          <p data-i="finP">Бесплатно, без установки, прямо в браузере. Первая партия начнётся через минуту.</p>
+          <a class="btn btn-lg" href="../" data-i="playFree">Играть бесплатно</a>
         </div>
       </section>
     </main>
 
-    <footer class="foot wrap">HistoricalHex</footer>
+    <footer class="foot">
+      <div class="wrap foot-in">
+        <span>HistoricalHex</span>
+        <a href="../" data-i="footPlay">Открыть игру</a>
+      </div>
+    </footer>
 
     <script src="./about.js" defer></script>
   </body>

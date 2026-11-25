@@ -77,7 +77,7 @@ export function Lobby({ room, tv = false }: { room: RoomView; tv?: boolean }) {
 
   const dice = DICE.find((d) => d.id === room.settings.dice);
   const timer = room.settings.turnSeconds > 0 ? `${Math.round((room.settings.turnSeconds / 60) * 10) / 10} мин` : 'без таймера';
-  const summary = `${dice?.label} · до ${room.settings.vpToWin} очков · ${timer}${room.settings.autoRoll ? ' · автобросок' : ''}`;
+  const summary = `${dice?.label ?? 'Обычные кубики'} · до ${room.settings.vpToWin} очков · ${timer}${room.settings.autoRoll ? ' · автобросок' : ''}`;
   const slots = Array.from({ length: 6 }, (_, i) => room.lobby[i]);
 
   return (
