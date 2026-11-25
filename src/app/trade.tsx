@@ -12,6 +12,7 @@ import { ResIcon } from './ResIcon';
 import { incomingTradeHint } from './planner';
 import { Icon } from './icons';
 import { Sheet } from './Sheet';
+import { PLAYER_HEX } from '../ui/theme';
 
 type Send = (a: Action) => Promise<void>;
 
@@ -68,19 +69,22 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
           setWant(w);
         }}
       />
-      {/* Кому — маленькие фишки; у тех, кто добывает нужное, рядом иконка ресурса. Без лишних кнопок. */}
+      {/* Кому — аватарки игроков в одну строку (как в верхней панели): выбран — цветной, нет — приглушён.
+          Значок ресурса — он добывает то, что ты хочешь. Перечёркнутый — ты с ним не торгуешь (нажми — снять). */}
       <div className="trade-to" role="group" aria-label="Кому предложить">
         <span className="trade-to-l">Кому</span>
         {opponents.map((id) => {
           const on = to.includes(id);
           const banned = bans.includes(id);
           const has = producers.get(id) ?? [];
+          const pl = pub.players[id];
           return (
             <button
               key={id}
-              className={`trade-to-chip ${on ? 'on' : ''} ${banned ? 'banned' : ''}`}
+              className={`trade-to-ava ${on ? 'on' : ''} ${banned ? 'banned' : ''}`}
+              style={{ ['--pc' as string]: PLAYER_HEX[pl.color], ['--pt' as string]: pl.color === 'white' ? '#11161d' : '#fff' }}
               aria-pressed={on}
-              title={banned ? 'Ты с ним не торгуешь — нажми, чтобы снова торговать' : undefined}
+              aria-label={`${name(id)}${banned ? ', ты с ним не торгуешь' : ''}`}
               onClick={() => {
                 if (banned) {
                   conn.send({ t: 'ban', player: id, on: false });
@@ -90,11 +94,15 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
                 setTo((t) => (on ? t.filter((x) => x !== id) : [...t, id]));
               }}
             >
-              {banned && <Icon name="ban" size={13} />}
-              <span className="ttc-n">{name(id)}</span>
-              {has.map((r) => (
-                <ResIcon key={r} r={r} size={16} />
-              ))}
+              <span className="tta-c">
+                {banned ? <Icon name="ban" size={16} /> : name(id).charAt(0).toUpperCase()}
+                {has[0] && !banned && (
+                  <span className="tta-r">
+                    <ResIcon r={has[0]} size={16} />
+                  </span>
+                )}
+              </span>
+              <span className="tta-n">{name(id)}</span>
             </button>
           );
         })}
