@@ -1,5 +1,6 @@
 // Экран игрока: карта на весь экран, поверх — стеклянные панели и шторки.
 
+import { GoalTab, MeTab } from './MeTabs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, DevCardType, PlayerColor, PlayerId, PrivateView, PublicState, Resource, ResourceMap } from '../engine';
 import {
@@ -159,7 +160,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const shownMode = mode === '3d' && (!liteOn || chose3d()) ? '3d' : '2d';
   const { hi: gfxHi, pref: gfxPref, auto: gfxAuto } = useGfx();
   const [sheet, setSheet] = useState<SheetId>(null);
-  const [infoTab, setInfoTab] = useState<'market' | 'nums' | 'log'>('market');
+  const [infoTab, setInfoTab] = useState<'market' | 'nums' | 'log' | 'me' | 'goal'>('market');
   // Фокус на постройках игрока (тап по ячейке игрока сверху): подсветка + камера, 4 секунды
   const [focusPlayer, setFocusPlayer] = useState<{ id: PlayerId; key: number; idx?: number } | null>(null);
   const focusClusters = useMemo(() => (focusPlayer ? playerClusters(pub, focusPlayer.id) : []), [focusPlayer?.id, pub]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -807,13 +808,17 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         <div className="seg ti-tabs" role="tablist">
           {(
             [
-              ['market', 'Рынок'],
-              ['nums', 'Числа'],
-              ['log', 'Журнал'],
+              ['market', 'Рынок', 'bank'],
+              ['nums', 'Числа', 'dice'],
+              ['log', 'Журнал', 'book'],
+              ['me', 'Я', 'hand'],
+              ['goal', 'Цель', 'house'],
             ] as const
-          ).map(([id, label]) => (
-            <button key={id} role="tab" aria-pressed={infoTab === id} aria-selected={infoTab === id} onClick={() => setInfoTab(id)}>
-              {label}
+          ).map(([id, label, icon]) => (
+            // Пять вкладок не влезают словами — у неактивных только иконка, у активной иконка и подпись
+            <button key={id} role="tab" aria-label={label} aria-pressed={infoTab === id} aria-selected={infoTab === id} onClick={() => setInfoTab(id)}>
+              <Icon name={icon} size={18} />
+              <span className="ti-tab-l">{label}</span>
             </button>
           ))}
         </div>
@@ -825,6 +830,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         )}
         {infoTab === 'nums' && <NumbersTab pub={pub} me={me} />}
         {infoTab === 'log' && <GameLogList log={fx.log} pub={pub} />}
+        {infoTab === 'me' && <MeTab pub={pub} priv={priv} me={me} />}
+        {infoTab === 'goal' && <GoalTab pub={pub} priv={priv} me={me} vpToWin={room.settings.vpToWin} />}
       </Sheet>
 
       <Sheet open={sheet === 'plan'} onClose={() => setSheet(null)} title="План хода" description="Ходы заранее — в свой ход одной кнопкой">

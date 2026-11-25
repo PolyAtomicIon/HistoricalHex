@@ -6775,3 +6775,61 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* Сводка стола: 5 вкладок — у неактивных только иконка */
+.ti-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: flex-grow 220ms var(--ease-out);
+}
+.ti-tabs button .ti-tab-l { display: none; white-space: nowrap; }
+.ti-tabs button[aria-pressed='true'] { flex-grow: 2.4; }
+.ti-tabs button[aria-pressed='true'] .ti-tab-l { display: inline; }
+@media (min-width: 520px) {
+  .ti-tabs button .ti-tab-l { display: inline; }
+  .ti-tabs button[aria-pressed='true'] { flex-grow: 1; }
+}
+
+/* Вкладки «Я» и «Цель» */
+.me-tab { display: flex; flex-direction: column; gap: 10px; }
+.me-sum { display: flex; gap: 8px; }
+.me-sum > span {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.me-sum b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.me-sum small { font-size: 13px; color: var(--ink-2); }
+.me-list li { padding: 8px 12px; }
+.me-list li.idle .ti-m-txt small { color: var(--ink-3); }
+.me-have { flex: none; min-width: 28px; text-align: right; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.me-blocked { text-decoration: line-through; color: var(--bad); }
+.me-note { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+.goal-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.goal-next > small { font-size: 13px; color: var(--ink-2); }
+.goal-next > b { font-size: 17px; }
+.goal-miss { display: flex; flex-wrap: wrap; gap: 6px; }
+.goal-chip { display: inline-flex; align-items: center; gap: 2px; padding: 3px 10px 3px 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); font-weight: 800; font-size: 14px; }
+.goal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.goal-list li { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); font-size: 15px; font-weight: 600; }
+.goal-st { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.goal-st.ok { color: var(--good); font-weight: 700; }
+.goal-st.faint { color: var(--ink-3); }
+.goal-l { flex: 1; min-width: 0; }
+.goal-mi { display: inline-flex; align-items: center; }
+.goal-mi small { font-size: 12px; font-weight: 800; color: var(--ink-2); }
