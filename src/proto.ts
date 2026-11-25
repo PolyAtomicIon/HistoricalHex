@@ -80,6 +80,8 @@ export interface RoomView {
   serverNow: number;
   /** Мою последнюю постройку можно отменить — что это было. */
   canUndo?: 'road' | 'settlement' | 'city';
+  /** С кем я не торгую (тайно, видно только мне). */
+  bans?: PlayerId[];
 }
 
 export type ClientMsg =
@@ -102,6 +104,8 @@ export type ClientMsg =
   | { t: 'react'; emoji: string }
   /** Отменить свою последнюю постройку (пока после неё никто ничего не сделал). */
   | { t: 'undo' }
+  /** Тайный бан в обмене: не торговать с игроком (on: false — снять). */
+  | { t: 'ban'; player: PlayerId; on: boolean }
   /** Ошибка в браузере игрока — для журнала сервера. */
   | { t: 'clientError'; msg: string; ua?: string }
   /** Событие интерфейса для статистики (обучение, правила). */

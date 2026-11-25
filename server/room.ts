@@ -70,6 +70,8 @@ export interface SavedRoom {
   seats: Omit<Seat, 'online'>[];
   kicked: PlayerId[];
   state?: GameState;
+  /** Тайный бан в обмене: кто с кем не торгует (видит только сам игрок). */
+  bans?: Record<PlayerId, PlayerId[]>;
 }
 
 /** От кого игра сейчас ждёт действия. */
@@ -110,6 +112,7 @@ export class Room {
   private waitingSince = new Map<PlayerId, number>();
   private botMemory: Record<PlayerId, BotMemory> = {};
   private botTimer?: ReturnType<typeof setTimeout>;
+  private bans: Record<PlayerId, PlayerId[]> = {};
   /** Раньше этого момента бот не ходит: люди досматривают прошлое событие. */
   private paceUntil = 0;
   /** Состояние до последней постройки игрока — для «Отменить» (живёт до любого следующего действия). */
@@ -131,6 +134,7 @@ export class Room {
     this.settings = { ...DEFAULT_SETTINGS, ...data.settings };
     for (const s of data.seats) this.seats.set(s.id, s);
     for (const k of data.kicked) this.kicked.add(k);
+    this.bans = data.bans ?? {};
     if (data.state) {
       this.state = normalizeState(data.state);
       const now = Date.now();
@@ -152,6 +156,7 @@ export class Room {
       settings: this.settings,
       seats: [...this.seats.values()],
       kicked: [...this.kicked],
+      bans: this.bans,
       state: this.state,
     };
   }
@@ -483,6 +488,19 @@ export class Room {
   }
 
   private commit(state: GameState, events: GameEvent[]): void {
+    // Тайный бан: предложение от игрока, с которым ты не торгуешь, сразу получает твой отказ
+    if (state.trade && events.some((e) => e.type === 'tradeOffered')) {
+      const from = state.order[state.current];
+      for (const pid of state.order) {
+        if (pid === from || state.trade?.responses[pid] || (state.trade?.to && !state.trade.to.includes(pid))) continue;
+        if (!this.bans[pid]?.includes(from)) continue;
+        const r = applyAction(state, pid, { type: 'respondTrade', tradeId: state.trade!.id, kind: 'decline' }, cryptoRng);
+        if (r.ok) {
+          state = r.state;
+          events = [...events, ...r.events];
+        }
+      }
+    }
     this.undoSnap = undefined; // любое новое действие — отменить прошлую постройку уже нельзя
     this.state = state;
     if (state.phase === 'finished' && this.status !== 'finished') {
@@ -648,7 +666,19 @@ export class Room {
       diceSource: this.diceSource,
       serverNow: Date.now(),
       ...(this.undoSnap && this.undoSnap.player === me && state?.turn === this.undoSnap.turn ? { canUndo: this.undoSnap.kind } : {}),
+      ...(this.bans[me]?.length ? { bans: this.bans[me] } : {}),
     };
+  }
+
+  /** Тайный бан в обмене: включить/снять. Видит только сам игрок. */
+  setBan(me: PlayerId, player: PlayerId, on: boolean): void {
+    if (player === me || !this.seats.has(player)) throw new Error('Такого игрока нет');
+    const list = new Set(this.bans[me] ?? []);
+    if (on) list.add(player);
+    else list.delete(player);
+    this.bans[me] = [...list];
+    this.changed();
+    for (const c of this.clients) if (c.me === me) c.send({ t: 'room', room: this.view(me) });
   }
 
   private broadcast(): void {
@@ -684,7 +714,8 @@ export class Room {
           }
         }).catch((e) => console.error('bot queue failed', this.pin, e));
       },
-      delay ?? Math.max((isTurn ? BOT_DELAY_MS : BOT_REPLY_MS) * this.paceK, this.paceUntil - Date.now()),
+      // ответы ботов на обмен — сразу, без пауз «досмотреть событие»
+      delay ?? (pub.trade && !isTurn ? 300 : Math.max((isTurn ? BOT_DELAY_MS : BOT_REPLY_MS) * this.paceK, this.paceUntil - Date.now())),
     );
   }
 
@@ -693,6 +724,25 @@ export class Room {
     const state = this.state;
     if (!state || state.phase === 'finished') return;
     const pub = toPublicView(state);
+    // Все боты отвечают на обмен разом — одним обновлением
+    if (pub.phase === 'main' && pub.trade) {
+      const current = pub.order[pub.current];
+      const responders = botsToAct(pub, this.isBot).filter((id) => id !== current);
+      if (responders.length) {
+        let st = state;
+        let evs: GameEvent[] = [];
+        for (const id of responders) {
+          const p2 = toPublicView(st);
+          const action = decide({ level: st.players[id].bot!, pub: p2, priv: toPrivateView(st, id), me: id, rng: cryptoRng, memory: (this.botMemory[id] ??= {}), now: Date.now() });
+          const r = action ? applyAction(st, id, action, cryptoRng) : applyAction(st, id, { type: 'respondTrade', tradeId: p2.trade!.id, kind: 'decline' }, cryptoRng);
+          if (r.ok) {
+            st = r.state;
+            evs = [...evs, ...r.events];
+          }
+        }
+        if (evs.length) return this.commit(st, evs);
+      }
+    }
     for (const id of botsToAct(pub, this.isBot)) {
       const ctx = {
         level: state.players[id].bot!,

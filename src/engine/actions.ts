@@ -17,7 +17,8 @@ export type Action =
   | { type: 'playMonopoly'; resource: Resource }
   | { type: 'bankTrade'; give: Resource; receive: Resource; times?: number }
   /** give / want — с точки зрения активного игрока. */
-  | { type: 'offerTrade'; give: ResourceMap; want: ResourceMap }
+  /** to — кому предложение (по умолчанию всем). */
+  | { type: 'offerTrade'; give: ResourceMap; want: ResourceMap; to?: PlayerId[] }
   /** Для counter: give / want тоже с точки зрения активного игрока (что он отдаёт / получает). */
   | { type: 'respondTrade'; tradeId: number; kind: 'accept' | 'decline' }
   | { type: 'respondTrade'; tradeId: number; kind: 'counter'; give: ResourceMap; want: ResourceMap }

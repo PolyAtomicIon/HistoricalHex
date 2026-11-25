@@ -7,6 +7,7 @@ import { Home } from './Home';
 import { Lobby } from './Lobby';
 import { PhoneGame, setPieceNames } from './PhoneGame';
 import { EraIntro, useIntroOnce } from './EraIntro';
+import { useFacts } from './prefs';
 import { Tv } from './Tv';
 import { useEra } from './era';
 import { Icon } from './icons';
@@ -50,7 +51,8 @@ function InGame({ room }: { room: RoomView }) {
   const pack = useEra(room.settings.lore);
   setPieceNames(pack.pieces);
   // Заставка эпохи — один раз на комнату, пока партия не закончилась
-  const [intro, closeIntro] = useIntroOnce(room.pin, room.public?.phase !== 'finished');
+  const factsShown = useFacts();
+  const [intro, closeIntro] = useIntroOnce(room.pin, factsShown && room.public?.phase !== 'finished');
   const screen =
     tvMode || !room.private ? (
       <Tv room={room} pack={pack} screen={tvMode} />

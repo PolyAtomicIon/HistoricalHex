@@ -102,7 +102,8 @@ function Particles({ kind, k, rain }: { kind: CinematicKind; k: number; rain?: s
 /** Сколько держится кино-карточка события (мс). */
 export const CINE_MS = (tv: boolean) => (tv ? 4000 : 4800);
 
-export function Cinematic({ event, tv = false }: { event: CinematicEvent | null; tv?: boolean }) {
+/** mini — компактная плашка сверху вместо заставки на весь экран (невысокие телефоны, настройка). */
+export function Cinematic({ event, tv = false, mini = false }: { event: CinematicEvent | null; tv?: boolean; mini?: boolean }) {
   const [active, setActive] = useState<CinematicEvent | null>(null);
   const lastKey = useRef<number | null>(null);
   const timers = useRef<number[]>([]);
@@ -115,13 +116,13 @@ export function Cinematic({ event, tv = false }: { event: CinematicEvent | null;
     const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
     setActive(event);
     sounds(event.kind, later);
-    if ((event.kind === 'seven' || event.kind === 'knight') && !prefersReducedMotion()) {
+    if ((event.kind === 'seven' || event.kind === 'knight') && !prefersReducedMotion() && !mini) {
       document.body.classList.add('fx-shake');
       later(() => document.body.classList.remove('fx-shake'), 650);
     }
     // держим столько, чтобы успеть прочитать; на телефоне можно закрыть касанием
     later(() => setActive(null), CINE_MS(tv));
-  }, [event, tv]);
+  }, [event, tv, mini]);
 
   useEffect(() => () => {
     timers.current.forEach(clearTimeout);
@@ -131,6 +132,20 @@ export function Cinematic({ event, tv = false }: { event: CinematicEvent | null;
   if (!active) return null;
   const color = active.color ?? DEFAULT_COLOR[active.kind];
   const style = { '--fx-c': color, '--fx-dur': `${CINE_MS(tv) / 1000}s` } as CSSProperties;
+  if (mini && !tv)
+    return (
+      <FxPortal>
+        <div key={active.key} className={`fx-cin-mini fx-cin-${active.kind}`} style={style} role="status">
+          <button className="fx-mini-card" onClick={() => setActive(null)} aria-label="Закрыть">
+            <span className="fx-mini-ic">{active.img ? <img src={active.img} alt="" /> : active.emoji}</span>
+            <span className="fx-mini-txt">
+              <b>{active.title}</b>
+              {active.explain && <small>{active.explain}</small>}
+            </span>
+          </button>
+        </div>
+      </FxPortal>
+    );
   return (
     <FxPortal>
       <div

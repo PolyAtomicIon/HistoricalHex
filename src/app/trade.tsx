@@ -12,7 +12,7 @@ import { Icon } from './icons';
 
 type Send = (a: Action) => Promise<void>;
 
-export function TradeSheet({ pub, priv, me, send, busy }: { pub: PublicState; priv: PrivateView; me: string; send: Send; busy: boolean }) {
+export function TradeSheet({ pub, priv, me, send, busy, bans = [] }: { pub: PublicState; priv: PrivateView; me: string; send: Send; busy: boolean; bans?: string[] }) {
   const [tab, setTab] = useState<'players' | 'bank'>(pub.trade ? 'players' : 'players');
   return (
     <div className="trade-sheet stack">
@@ -25,12 +25,15 @@ export function TradeSheet({ pub, priv, me, send, busy }: { pub: PublicState; pr
           С банком
         </button>
       </div>
-      {tab === 'players' ? <PlayersTrade pub={pub} priv={priv} me={me} send={send} busy={busy} /> : <BankTrade pub={pub} priv={priv} send={send} busy={busy} />}
+      {tab === 'players' ? <PlayersTrade pub={pub} priv={priv} me={me} send={send} busy={busy} bans={bans} /> : <BankTrade pub={pub} priv={priv} send={send} busy={busy} />}
     </div>
   );
 }
 
-function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: PrivateView; me: string; send: Send; busy: boolean }) {
+function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; priv: PrivateView; me: string; send: Send; busy: boolean; bans: string[] }) {
+  const opponents = pub.order.filter((id) => id !== me && !pub.players[id].kicked);
+  // Кому предложить: по умолчанию всем, кроме тех, с кем ты не торгуешь
+  const [to, setTo] = useState<string[]>(() => opponents.filter((id) => !bans.includes(id)));
   const [give, setGive] = useState<ResourceMap>(emptyResources());
   const [want, setWant] = useState<ResourceMap>(emptyResources());
   const [editing, setEditing] = useState(false);
@@ -38,7 +41,8 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
   const trade = pub.trade;
 
   if (trade && !editing) {
-    const others = pub.order.filter((id) => id !== me);
+    // Видны ответы только адресатов; тех, с кем ты не торгуешь, — не показываем
+    const others = pub.order.filter((id) => id !== me && (!trade.to || trade.to.includes(id)) && !bans.includes(id));
     return (
       <div className="stack">
         <div className="terms-card">
@@ -100,9 +104,21 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
     );
   }
 
-  const valid = sum(give) > 0 && sum(want) > 0;
+  const valid = sum(give) > 0 && sum(want) > 0 && to.length > 0;
+  const all = to.length === opponents.length;
   return (
     <div className="stack">
+      <div className="trade-to" role="group" aria-label="Кому предложить">
+        <span className="trade-to-l">Кому</span>
+        {opponents.map((id) => {
+          const on = to.includes(id);
+          return (
+            <button key={id} className={`trade-to-chip ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => setTo((t) => (on ? t.filter((x) => x !== id) : [...t, id]))}>
+              {name(id)}
+            </button>
+          );
+        })}
+      </div>
       <TradeGrid
         give={give}
         want={want}
@@ -116,13 +132,13 @@ function PlayersTrade({ pub, priv, me, send, busy }: { pub: PublicState; priv: P
         className="btn primary big wide"
         disabled={!valid || busy}
         onClick={async () => {
-          await send({ type: 'offerTrade', give, want });
+          await send({ type: 'offerTrade', give, want, ...(all ? {} : { to }) });
           setEditing(false);
         }}
       >
-        Предложить всем
+        {all ? 'Предложить всем' : to.length ? `Предложить: ${to.map((id) => name(id)).join(', ')}` : 'Выбери, кому предложить'}
       </button>
-      {!valid && <p className="faint small center">Выбери, что отдаёшь и что хочешь получить</p>}
+      {!valid && to.length > 0 && <p className="faint small center">Выбери, что отдаёшь и что хочешь получить</p>}
     </div>
   );
 }

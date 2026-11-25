@@ -47,6 +47,8 @@ import type { LogEntry } from './gameLog';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 import { useLearn } from './learn/Learn';
+import { setFacts, setFxStyle, useFacts, useFxStyle } from './prefs';
+import type { FxStyle } from './prefs';
 
 type BuildMode = 'road' | 'settlement' | 'city';
 type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
@@ -74,6 +76,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const priv = room.private!;
   const me = room.me;
   const learn = useLearn();
+  const factsShown = useFacts();
+  const { style: fxStyle, mini: miniFx } = useFxStyle();
   const meP = pub.players[me];
   const current = pub.order[pub.current];
   const myTurn = current === me && pub.phase !== 'finished';
@@ -82,6 +86,15 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   if (import.meta.env.DEV) (window as unknown as { __awards: (r?: string, a?: string) => void }).__awards = (r, a) => setAwardDbg({ r, a });
   const pubShown = awardDbg ? { ...pub, longestRoad: awardDbg.r, largestArmy: awardDbg.a } : pub;
   const fx = useGameFx(pub, pack, me);
+  // Лента событий: последнее действие другого игрока (постройка, обмен, покупка) — коротко в верхней подсказке
+  const [tick, setTick] = useState<{ key: number; text: string; who?: string } | null>(null);
+  const lastLog = fx.log[fx.log.length - 1];
+  useEffect(() => {
+    if (!lastLog || lastLog.turn || lastLog.who === me) return;
+    setTick({ key: lastLog.key, text: lastLog.text, who: lastLog.who });
+    const t = setTimeout(() => setTick((x) => (x?.key === lastLog.key ? null : x)), 3500);
+    return () => clearTimeout(t);
+  }, [lastLog?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // пока идёт сцена атаки, кубики не бросаем — сначала досмотреть
   const attacking = useAttacking(fx.attackUntil);
   // Сообщения сервера/игры — внутри колонки сверху, а не поверх полосы игроков
@@ -222,7 +235,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     (window as unknown as { __offer: (w?: Partial<ResourceMap>, g?: Partial<ResourceMap>) => void }).__offer = (w, g) =>
       setOfferDbg(w ? { id: Date.now(), want: { ...emptyResources(), ...w }, give: { ...emptyResources(), ...g }, responses: {} } : null);
   const offerPub = offerDbg ? { ...pub, trade: offerDbg } : pub;
-  const showOffer = !!offerPub.trade && (offerDbg ? true : !myTurn && pub.phase === 'main') && !planPick && sheet === null;
+  // Предложение мне: адресовано мне (или всем) и не от того, с кем я тайно не торгую
+  const bans = room.bans ?? [];
+  const offerForMe = !!pub.trade && (!pub.trade.to || pub.trade.to.includes(me)) && !bans.includes(pub.order[pub.current]);
+  const showOffer = !!offerPub.trade && (offerDbg ? true : !myTurn && pub.phase === 'main' && offerForMe) && !planPick && sheet === null;
   const offerProps = { pub: offerPub, priv, me, pack, busy, send: offerDbg ? async () => setOfferDbg(null) : sendVoid, counter: () => setSheet('incoming') };
 
   // Новая фаза / ход — сбрасываем выбор
@@ -472,10 +488,18 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             part={{ idx: focusPlayer.idx ?? 0, total: focusClusters.length, step: stepFocus }}
           />
         ) : (
-          <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
-            {status}
-            {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
-          </div>
+          tick ? (
+            // Лента событий: что сделал другой игрок — на 3,5 с вместо подсказки фазы, потом подсказка возвращается
+            <div key={`t${tick.key}`} className="status-pill glass ticker" aria-live="polite">
+              <i style={{ background: tick.who && pub.players[tick.who] ? PLAYER_HEX[pub.players[tick.who].color] : 'var(--accent)' }} />
+              <span>{tick.text}</span>
+            </div>
+          ) : (
+            <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
+              {status}
+              {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
+            </div>
+          )
         )}
         {connStatus !== 'online' && <div className="reconnect glass">Переподключаемся…</div>}
 
@@ -648,7 +672,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           onClose={() => setNudgeOff(true)}
         />
       )}
-      <FactPopup pack={pack} allowed={showFact && !sheet && !showNudge && !notice} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />
+      <FactPopup pack={pack} allowed={factsShown && showFact && !sheet && !showNudge && !notice} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />
 
       {planReady && !build && !selected && !planPick && (
         <button className="plan-run glass" disabled={busy} onClick={() => void runPlan()}>
@@ -686,14 +710,26 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       {/* ─── шторки ─── */}
       <Sheet open={sheet === 'trade'} onClose={() => setSheet(null)} title="Обмен">
         {myTurn && pub.phase === 'main' ? (
-          <TradeSheet pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} />
+          <TradeSheet pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} bans={bans} />
         ) : (
           <p className="muted">Торговать можно в свой ход после броска. А пока — заготовь обмен в «Плане»</p>
         )}
       </Sheet>
 
-      <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn} onClose={() => setSheet(null)} title={`${pub.players[current]?.name ?? 'Игрок'} предлагает обмен`}>
+      <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn && offerForMe} onClose={() => setSheet(null)} title={`${pub.players[current]?.name ?? 'Игрок'} предлагает обмен`}>
         {pub.trade && <IncomingTrade key={pub.trade.id} pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} />}
+        {pub.trade && (
+          <button
+            className="btn ghost wide ban-btn"
+            onClick={() => {
+              conn.send({ t: 'ban', player: current, on: true });
+              setSheet(null);
+              setGameToast({ text: `Ты больше не торгуешь с игроком ${pub.players[current]?.name}. Он об этом не узнает. Снять — в «Игроки».`, key: Date.now() });
+            }}
+          >
+            <Icon name="ban" size={16} /> Не торговать с {pub.players[current]?.name}
+          </button>
+        )}
       </Sheet>
 
       <Sheet open={sheet === 'dev'} onClose={() => setSheet(null)} title="Карты развития">
@@ -867,6 +903,17 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             }}
           />
         )}
+        {profileOf && profileOf !== me && pub.players[profileOf] && (
+          <div className="ban-row">
+            <span className="grow">
+              <b>{bans.includes(profileOf) ? 'Ты с ним не торгуешь' : 'Обмен с этим игроком'}</b>
+              <small>{bans.includes(profileOf) ? 'Его предложения тебе сразу отклоняются. Он об этом не знает.' : 'Можно тайно запретить: его предложения будут сразу отклоняться.'}</small>
+            </span>
+            <button className="btn" onClick={() => conn.send({ t: 'ban', player: profileOf, on: !bans.includes(profileOf) })}>
+              {bans.includes(profileOf) ? 'Снять запрет' : 'Не торговать'}
+            </button>
+          </div>
+        )}
       </Sheet>
 
       <Sheet open={sheet === 'fact'} onClose={() => setSheet(null)} title={pack.title} description={pack.years}>
@@ -939,6 +986,23 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                 {TRADE_UI_LABEL[v]}
               </button>
             ))}
+          </div>
+          <div className="label">Заставки событий (семёрка, рыцарь, бонусы)</div>
+          <div className="seg">
+            {(['auto', 'full', 'mini'] as FxStyle[]).map((v) => (
+              <button key={v} aria-pressed={fxStyle === v} onClick={() => setFxStyle(v)}>
+                {v === 'auto' ? `Авто${miniFx ? ' · мини' : ''}` : v === 'full' ? 'Крупно' : 'Мини-плашки'}
+              </button>
+            ))}
+          </div>
+          <div className="label">Факты истории</div>
+          <div className="seg">
+            <button aria-pressed={factsShown} onClick={() => setFacts(true)}>
+              Показывать
+            </button>
+            <button aria-pressed={!factsShown} onClick={() => setFacts(false)}>
+              Скрыть
+            </button>
           </div>
           <div className="label">Графика карты</div>
           <div className="seg">
@@ -1039,7 +1103,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       <NewCard cards={priv.devCards} pack={pack} />
       <Threat t={threatInfo(fx, pub, pack, me)} />
       <Raid event={fx.raid} skipBomber={shownMode === '3d'} />
-      <Cinematic event={fx.cinematic} />
+      <Cinematic event={fx.cinematic} mini={miniFx} />
       <StealReveal ev={fx.steal} pub={pub} me={me} />
       <DevCardReveal cards={priv.devCards} pack={pack} />
       <GainToast gains={fx.gains.list} keyId={fx.gains.key} />
@@ -1560,7 +1624,7 @@ function Actions(props: {
           <small>План</small>
           {props.planCount > 0 && <span className={`cnt dot ${props.planBroken ? 'bad' : ''}`}>{props.planBroken || props.planCount}</span>}
         </button>
-        <button className="tool" onClick={() => openSheet(pub.trade ? 'incoming' : 'trade')}>
+        <button className="tool" onClick={() => openSheet(pub.trade && !myTurn ? 'incoming' : 'trade')}>
           <Icon name="trade" />
           <small>Обмен</small>
           {pub.trade && <span className="cnt dot hot">1</span>}

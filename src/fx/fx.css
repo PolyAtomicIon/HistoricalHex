@@ -704,3 +704,72 @@ body.fx-shake > *:not([data-fx-portal]):not(script):not(style) {
 .fx-cin-tv .fx-cin-explain + .fx-cin-sub { font-size: clamp(16px, 2.6vmin, 26px); }
 @keyframes fx-explain-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } }
 @media (prefers-reduced-motion: reduce) { .fx-cin-explain { animation: none; } }
+
+/* Мини-плашка события: сверху, под строкой игроков, не закрывает карту и док */
+.fx-cin-mini {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(env(safe-area-inset-top, 0px) + 64px);
+  display: flex;
+  justify-content: center;
+  padding: 0 12px;
+  pointer-events: none;
+  animation: fx-cin-life var(--fx-dur, 4s) linear both;
+}
+.fx-mini-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, 100%);
+  padding: 8px 12px 8px 8px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(14, 20, 28, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1.5px color-mix(in srgb, var(--fx-c) 55%, transparent);
+  color: #f6f3ec;
+  font: inherit;
+  text-align: left;
+  animation: fx-mini-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fx-mini-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--fx-c) 22%, transparent);
+  font-size: 24px;
+}
+.fx-mini-ic img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+.fx-mini-txt {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fx-mini-txt b {
+  font-size: 16px;
+  line-height: 1.2;
+}
+.fx-mini-txt small {
+  font-size: 13.5px;
+  line-height: 1.3;
+  color: rgba(246, 243, 236, 0.78);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@keyframes fx-mini-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}

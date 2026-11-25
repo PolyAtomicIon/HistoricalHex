@@ -187,6 +187,8 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       // DEV: кораблик гавани уходит в рейс — window.__sail('any' | 'wood' | …)
       (window as unknown as { __sail: (t: HarborType) => void }).__sail = (type) => setFx((f) => ({ ...f, sail: { type, key: k.current++ } }));
       (window as unknown as { __pub: () => unknown }).__pub = () => pubRef.current;
+      (window as unknown as { __cine: (t: string, x: string) => void }).__cine = (title, explain) =>
+        cine({ kind: 'seven', title, explain, subtitle: 'Семь! Сторожевые псы лают', emoji: '', img: eraIcon(packRef.current.id, 'robber-unit') });
       (window as unknown as { __notice: (t: string, x: string) => void }).__notice = (title, text) => setFx((f) => ({ ...f, notices: [...f.notices, { title, text, key: k.current++ }] }));
       (window as unknown as { __say: (t: string) => void }).__say = (t) => say(t);
     }

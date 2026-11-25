@@ -94,7 +94,7 @@ function randomDiscard(hand: ResourceMap, n: number, rng: Rng): ResourceMap {
 function pendingTradeResponse(ctx: BotContext): Action | null {
   const { pub, me } = ctx;
   const trade = pub.trade;
-  if (pub.phase !== 'main' || !trade || isMyTurn(ctx) || trade.responses?.[me]) return null;
+  if (pub.phase !== 'main' || !trade || isMyTurn(ctx) || trade.responses?.[me] || (trade.to && !trade.to.includes(me))) return null;
   const accept = ctx.level === 'easy' ? easyAccepts(ctx) : smartAccepts(ctx);
   return { type: 'respondTrade', tradeId: trade.id, kind: accept ? 'accept' : 'decline' };
 }
@@ -431,7 +431,7 @@ function smartMain(ctx: BotContext, mine: ResourceMap, pieces: { roads: number; 
       return false;
     });
     if (yes) return { type: 'confirmTrade', tradeId: trade.id, with: yes };
-    const allAnswered = others.every((p) => trade.responses?.[p]);
+    const allAnswered = others.filter((p) => !trade.to || trade.to.includes(p)).every((p) => trade.responses?.[p]);
     const waited = memory.offeredAt !== undefined && ctx.now - memory.offeredAt > TRADE_WAIT_MS;
     return allAnswered || waited ? { type: 'cancelTrade' } : null;
   }

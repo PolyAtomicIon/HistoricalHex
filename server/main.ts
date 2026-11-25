@@ -357,6 +357,9 @@ wss.on('connection', (ws: WebSocket, req) => {
       }
       case 'react':
         return r.react(me, msg.emoji);
+      case 'ban':
+        if (typeof msg.player !== 'string') throw new Error('Плохой запрос');
+        return r.setBan(me, msg.player, !!msg.on);
       case 'undo': {
         const res = await r.undo(me);
         if (!res.ok) send({ t: 'error', message: res.error ?? 'Отменить нельзя' });

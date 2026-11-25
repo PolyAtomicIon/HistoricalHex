@@ -70,8 +70,15 @@ export function logText(e: GameEvent, c: LogCtx): Omit<LogEntry, 'key'> | null {
       return { text: `${n(e.player)} забирает весь ${res(e.resource)} у всех (${e.total})`, who: e.player };
     case 'bankTrade':
       return { text: `${n(e.player)} меняет с банком ${e.giveCount} ${res(e.give)} → ${e.receiveCount} ${res(e.receive)}`, who: e.player };
-    case 'tradeCompleted':
-      return { text: `${n(e.from)} и ${n(e.to)} меняются картами`, who: e.from };
+    case 'tradeCompleted': {
+      // Кто что отдал: «Аскар ↔ Тимур: 2 кирпич за 1 руда»
+      const list = (m: Partial<Record<Resource, number>>) =>
+        (Object.entries(m) as [Resource, number][])
+          .filter(([, k]) => k > 0)
+          .map(([r, k]) => `${k} ${res(r)}`)
+          .join(' + ');
+      return { text: `${n(e.from)} ↔ ${n(e.to)}: ${list(e.give)} за ${list(e.want)}`, who: e.from };
+    }
     case 'longestRoad':
       return e.player
         ? { text: `${c.pack.bonuses.longestRoad} (дорога ${e.length}) — у ${n(e.player)}, +2 очка`, who: e.player }

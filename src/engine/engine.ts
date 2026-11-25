@@ -340,9 +340,17 @@ const HANDLERS: Handlers = {
     const { s, actor } = c;
     const { give, want } = validateTradeTerms(a.give, a.want);
     if (!hasResources(s.players[actor].resources, give)) fail('У тебя нет этих карт');
+    const others = s.order.filter((p) => p !== actor);
+    let to: PlayerId[] | undefined;
+    if (a.to !== undefined) {
+      if (!Array.isArray(a.to) || !a.to.length) fail('Выбери, кому предложить');
+      to = [...new Set(a.to)];
+      if (to.some((p) => !others.includes(p))) fail('Такого игрока нет');
+      if (to.length === others.length) to = undefined; // всем — то же, что без адреса
+    }
     s.tradeSeq += 1;
-    s.trade = { id: s.tradeSeq, give, want, responses: {} };
-    c.events.push({ type: 'tradeOffered', player: actor, tradeId: s.trade.id, give, want });
+    s.trade = { id: s.tradeSeq, give, want, responses: {}, ...(to ? { to } : {}) };
+    c.events.push({ type: 'tradeOffered', player: actor, tradeId: s.trade.id, give, want, ...(to ? { to } : {}) });
   },
 
   respondTrade(c, a) {
@@ -351,6 +359,7 @@ const HANDLERS: Handlers = {
     const trade = s.trade;
     if (!trade || trade.id !== a.tradeId) fail('Это предложение уже неактуально');
     if (actor === currentPlayerId(s)) fail('Нельзя отвечать на своё предложение');
+    if (trade.to && !trade.to.includes(actor)) fail('Это предложение не тебе');
     const mine = s.players[actor].resources;
     let response: TradeResponse;
     if (a.kind === 'accept') {

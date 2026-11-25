@@ -6297,3 +6297,144 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   background: var(--ink);
   color: #0b1016;
 }
+
+/* Обмен: кому предложить */
+.trade-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.trade-to-l {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(246, 243, 236, 0.6);
+  margin-right: 2px;
+}
+.trade-to-chip {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(246, 243, 236, 0.55);
+}
+.trade-to-chip.on {
+  background: var(--ink);
+  color: #0b1016;
+}
+/* Тайный запрет на обмен */
+.ban-btn {
+  margin-top: 6px;
+  color: rgba(246, 243, 236, 0.6);
+}
+.ban-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.05);
+}
+.ban-row b {
+  display: block;
+  font-size: 15px;
+}
+.ban-row small {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(246, 243, 236, 0.62);
+}
+
+/* ═══ Невысокий телефон (iPhone 12/13/SE, Android с панелями браузера): всё компактнее,
+   чтобы карта не пряталась за доком и плашками. На высоких экранах ничего не меняется. ═══ */
+@media (max-height: 720px) and (pointer: coarse) {
+  :root {
+    --dock-h: 128px;
+  }
+  .dock {
+    gap: 6px;
+    padding-top: 8px;
+    padding-bottom: calc(var(--safe-b) + 8px);
+  }
+  .hand {
+    gap: 5px;
+  }
+  .rcard {
+    height: 48px;
+  }
+  .rcard .e {
+    width: 24px;
+    height: 24px;
+  }
+  .rcard .lbl {
+    font-size: 10.5px;
+  }
+  .actions .btn {
+    min-height: 42px;
+  }
+  .actions.builds .act {
+    min-height: 44px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  /* итог кражи — одна строка над доком */
+  .steal-pop.dock-pop .sp-card {
+    padding: 8px 14px 8px 8px;
+    gap: 10px;
+  }
+  .steal-pop.dock-pop .sp-art svg,
+  .steal-pop.dock-pop .sp-art img {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .steal-pop.dock-pop .sp-kicker {
+    display: none;
+  }
+  .steal-pop.dock-pop .sp-title {
+    font-size: 17px;
+  }
+  .steal-pop.dock-pop .sp-sub {
+    font-size: 13px;
+  }
+  /* «твой гекс захвачен» — одной строкой */
+  .blocked-chip {
+    top: calc(var(--safe-t) + 104px);
+    padding: 5px 10px 5px 5px;
+    min-width: 0;
+  }
+  .blocked-chip .bc-ic {
+    width: 28px;
+    height: 28px;
+  }
+  .blocked-chip .bc-text small {
+    display: none;
+  }
+}
+
+/* Лента событий в верхней подсказке: одна строка, цвет игрока точкой */
+.status-pill.ticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 96px);
+  font-weight: 600;
+  animation: pill-in 260ms var(--ease-out);
+}
+.status-pill.ticker i {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.status-pill.ticker span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

@@ -18,7 +18,7 @@ export type GameEvent =
   | { type: 'yearOfPlenty'; player: PlayerId; resources: Resource[] }
   | { type: 'monopoly'; player: PlayerId; resource: Resource; total: number }
   | { type: 'bankTrade'; player: PlayerId; give: Resource; giveCount: number; receive: Resource; receiveCount: number }
-  | { type: 'tradeOffered'; player: PlayerId; tradeId: number; give: ResourceMap; want: ResourceMap }
+  | { type: 'tradeOffered'; player: PlayerId; tradeId: number; give: ResourceMap; want: ResourceMap; to?: PlayerId[] }
   | { type: 'tradeResponded'; player: PlayerId; tradeId: number; kind: 'accept' | 'decline' | 'counter' }
   | { type: 'tradeCompleted'; from: PlayerId; to: PlayerId; give: ResourceMap; want: ResourceMap }
   | { type: 'tradeCancelled'; player: PlayerId }

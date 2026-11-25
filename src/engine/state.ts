@@ -61,6 +61,8 @@ export interface TradeOffer {
   /** Что хочет получить активный игрок. */
   want: ResourceMap;
   responses: Record<PlayerId, TradeResponse>;
+  /** Кому адресовано (нет — всем). Остальные не видят и не отвечают. */
+  to?: PlayerId[];
 }
 
 export interface SetupState {

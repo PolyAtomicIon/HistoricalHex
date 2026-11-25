@@ -100,3 +100,23 @@ describe('обмен между игроками', () => {
     expect(actFail(s, 'a', { type: 'confirmTrade', tradeId: s.trade!.id, with: 'b' })).toBe('У игрока уже нет нужных карт');
   });
 });
+
+describe('адресное предложение', () => {
+  it('отвечать может только адресат; «всем» — без адреса', () => {
+    let s = mainPhase(newGame(3));
+    setHand(s, 'a', { brick: 2 });
+    setHand(s, 'b', { ore: 1 });
+    setHand(s, 'c', { ore: 1 });
+    s = act(s, 'a', { type: 'offerTrade', give: R({ brick: 1 }), want: R({ ore: 1 }), to: ['b'] });
+    expect(s.trade!.to).toEqual(['b']);
+    expect(actFail(s, 'c', { type: 'respondTrade', tradeId: s.trade!.id, kind: 'accept' })).toBe('Это предложение не тебе');
+    s = act(s, 'b', { type: 'respondTrade', tradeId: s.trade!.id, kind: 'accept' });
+    s = act(s, 'a', { type: 'confirmTrade', tradeId: s.trade!.id, with: 'b' });
+    expect(s.players.b.resources).toMatchObject({ brick: 1, ore: 0 });
+
+    s = act(s, 'a', { type: 'offerTrade', give: R({ brick: 1 }), want: R({ ore: 1 }), to: ['b', 'c'] });
+    expect(s.trade!.to).toBeUndefined();
+    expect(actFail(s, 'a', { type: 'offerTrade', give: R({ brick: 1 }), want: R({ ore: 1 }), to: [] })).toBe('Выбери, кому предложить');
+    expect(actFail(s, 'a', { type: 'offerTrade', give: R({ brick: 1 }), want: R({ ore: 1 }), to: ['a'] })).toBe('Такого игрока нет');
+  });
+});
