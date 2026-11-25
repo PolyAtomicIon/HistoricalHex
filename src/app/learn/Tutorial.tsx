@@ -2,7 +2,8 @@
 // Каждый шаг ждёт действия игрока (нажать гекс, угол, кнопку) — как обучение в онлайн-играх.
 // Партия локальная: сервер не нужен, проверки ходов — те же функции движка, что и в игре.
 
-import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useEffect, useMemo, useRef, useState } from 'react';
+import { Board3DWithLoader } from '../Loading3D';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { EdgeId, HexId, PlayerColor, PlayerId, Resource, ResourceMap, VertexId } from '../../engine';
@@ -32,7 +33,6 @@ import { LANGS, markTutorialDone, t3, useLang } from './lang';
 import { RES_NAME, STEPS, STEP_ORDER, TERRAIN_NAME, UI, WRONG, fill, type StepId } from './tutorialText';
 import './tutorial.css';
 
-const Board3D = lazy(() => import('../../board3d/Board3D'));
 
 /** 3D не запустился (нет WebGL, ошибка) — учимся на 2D. */
 class Fallback3D extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
@@ -442,9 +442,21 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
           if (mode === '2d') return flat;
           return (
             <Fallback3D fallback={flat}>
-              <Suspense fallback={<div className="board-loading"><div className="spinner" /></div>}>
-                <Board3D view={view} colors={COLORS} mode="3d" era={currentEra} me="me" highlight={highlight} onHex={onHex} onVertex={onVertex} onEdge={onEdge} flash={flash} focus={focus3d} />
-              </Suspense>
+              <Board3DWithLoader
+                lang={lang}
+                onFlat={() => setMode('2d')}
+                view={view}
+                colors={COLORS}
+                mode="3d"
+                era={currentEra}
+                me="me"
+                highlight={highlight}
+                onHex={onHex}
+                onVertex={onVertex}
+                onEdge={onEdge}
+                flash={flash}
+                focus={focus3d}
+              />
             </Fallback3D>
           );
         })()}

@@ -25,6 +25,8 @@ export type BoardMode = '2d' | '25d' | '3d';
 
 export interface Board3DProps extends BoardProps {
   mode: BoardMode;
+  /** Первые кадры сцены нарисованы (шейдеры собраны) — можно убирать экран загрузки. */
+  onReady?: () => void;
   palette?: Palette;
   /** Полёт камеры к цели: смена `key` запускает полёт и возврат (3d/25d); в 2d — мягкий наезд. */
   focus?: { hex?: string; vertex?: string; edge?: string; key: number; hold?: number; zoom?: number; free?: boolean };
@@ -691,6 +693,18 @@ function FpsWatch({ onSlow }: { onSlow: () => void }) {
   return null;
 }
 
+/** Сообщает, что сцена отрисовала несколько кадров: самый долгий первый кадр (сборка шейдеров) позади. */
+function ReadySignal({ onReady }: { onReady: () => void }) {
+  const n = useRef(0);
+  const cb = useRef(onReady);
+  cb.current = onReady;
+  useFrame(() => {
+    n.current++;
+    if (n.current === 3) cb.current();
+  });
+  return null;
+}
+
 export default function Board3D(props: Board3DProps) {
   const rig = useMemo<Rig>(() => ({ az: 0, pol: 0, tilt: 0, amp: 0 }), []);
   const [tier, setTier] = useState(() => (props.lowPower ? 2 : props.hifi ? 0 : Math.max(storedTier(), inTelegram() ? 1 : 0)));
@@ -744,6 +758,7 @@ export default function Board3D(props: Board3DProps) {
         }}
       >
         {!props.hifi && tier < 2 && <FpsWatch onSlow={slower} />}
+        {props.onReady && <ReadySignal onReady={props.onReady} />}
         <Scene {...props} lowPower={lowPower} noShadow={tier >= 1} rig={rig} />
       </Canvas>
     </div>

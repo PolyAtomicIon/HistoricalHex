@@ -1,6 +1,7 @@
 // Карта партии: 2D (нарисованные тайлы, SVG — работает везде) или 3D (WebGL). Без WebGL и в лёгком режиме — 2D.
 
-import { Component, Suspense, lazy, useMemo, useState } from 'react';
+import { Component, useMemo, useState } from 'react';
+import { Board3DWithLoader } from './Loading3D';
 import type { ReactNode } from 'react';
 import type { PlayerColor, PlayerId, PublicState } from '../engine';
 import { longestRoadPath, topologyFor } from '../engine';
@@ -8,7 +9,6 @@ import { Board2D } from '../board2d/Board2D';
 import type { GameFx } from './useGameFx';
 import { useLite } from './lite';
 
-const Board3D = lazy(() => import('../board3d/Board3D'));
 
 const MODE_KEY = 'hh.boardMode';
 export type BoardMode = '2d' | '3d';
@@ -167,8 +167,7 @@ export function GameBoard({
   if (!gl || mode === '2d' || (lite && !chose3d())) return svg;
   return (
     <Fallback fallback={svg}>
-      <Suspense fallback={<div className="board-loading"><div className="spinner" /></div>}>
-        <Board3D
+      <Board3DWithLoader
           view={pub}
           colors={colors}
           highlight={hl}
@@ -193,7 +192,6 @@ export function GameBoard({
           longest={longest}
           spot={spotlight?.id}
         />
-      </Suspense>
     </Fallback>
   );
 }

@@ -6891,3 +6891,77 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 }
 .trade-to-ava.on .tta-c { color: var(--pt, #fff); }
 .trade-to { padding-top: 5px; padding-bottom: 2px; }
+
+/* ═══ Загрузка 3D-карты: остров из гексов «поднимается», процент и фраза ═══ */
+.load3d {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 42%, var(--sea, #1e6f8f), var(--sea-deep, #072433));
+  transition: opacity 420ms var(--ease-out);
+}
+.load3d.done { opacity: 0; pointer-events: none; }
+.l3-island {
+  position: relative;
+  width: 96px;
+  height: 84px;
+  margin-bottom: 6px;
+}
+.l3-island i {
+  position: absolute;
+  width: 30px;
+  height: 34px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  animation: l3-rise 2.4s var(--ease-out) infinite;
+  opacity: 0;
+}
+/* соты: центр и шесть вокруг; цвета — земли острова */
+.l3-island i:nth-child(1) { left: 33px; top: 25px; background: #e7d29a; animation-delay: 0s; }
+.l3-island i:nth-child(2) { left: 17px; top: 0; background: #5aa547; animation-delay: 0.12s; }
+.l3-island i:nth-child(3) { left: 49px; top: 0; background: #e0b437; animation-delay: 0.24s; }
+.l3-island i:nth-child(4) { left: 65px; top: 25px; background: #8a94a6; animation-delay: 0.36s; }
+.l3-island i:nth-child(5) { left: 49px; top: 50px; background: #c8643a; animation-delay: 0.48s; }
+.l3-island i:nth-child(6) { left: 17px; top: 50px; background: #2f7d3f; animation-delay: 0.6s; }
+.l3-island i:nth-child(7) { left: 1px; top: 25px; background: #8cc35a; animation-delay: 0.72s; }
+@keyframes l3-rise {
+  0% { opacity: 0; transform: translateY(10px) scale(0.7); }
+  25%, 75% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.96); }
+}
+.l3-pct {
+  font: 800 34px/1 Unbounded, Manrope, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.l3-bar {
+  width: min(220px, 60%);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.l3-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  transition: transform 160ms linear;
+}
+.l3-phrase {
+  font-size: 15px;
+  font-weight: 650;
+  color: #fff;
+  animation: hud-in 280ms var(--ease-out);
+}
+.l3-note { font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.l3-flat { margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .l3-island i { animation: none; opacity: 1; }
+}
