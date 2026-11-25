@@ -117,3 +117,30 @@ describe('вход через AQL Portal', () => {
     expect(profileByPortal('u77')?.portalId).toBe('u77');
   });
 });
+
+describe('объединение устройств в один аккаунт', () => {
+  beforeEach(() => useMemoryAccounts());
+  const play = (id: string, pid: string, win: boolean) =>
+    recordGame({ id, era: 'genghis', finishedAt: Date.now(), players: [{ pid, name: 'Гость', vp: win ? 10 : 4, winner: win }, { pid: 'bot1', name: 'Бот', bot: 'easy', vp: win ? 4 : 10, winner: !win }] });
+
+  it('гостевые партии со второго и третьего устройства переходят в аккаунт портала', () => {
+    play('g1', 'phone', true);
+    play('g2', 'laptop', true);
+    play('g3', 'laptop', false);
+    play('g4', 'tablet', false);
+    const u = { uid: '777', name: 'Bekzat Y.' };
+    const a = signInPortal('phone', u); // первое устройство: гостевой профиль становится аккаунтом
+    expect(a.games).toBe(1);
+    signInPortal('laptop', u);
+    const b = signInPortal('tablet', u);
+    expect(b.id).toBe(a.id);
+    expect(b.games).toBe(4);
+    expect(b.wins).toBe(2);
+    expect(b.eras.genghis).toEqual({ games: 4, wins: 2 });
+    // гостевые профили больше не в таблице лидеров, второй вход не удваивает
+    signInPortal('laptop', u);
+    expect(profileByPortal('777')!.games).toBe(4);
+    const rows = leaderboard(50).filter((r) => r.name === 'Гость');
+    expect(rows).toHaveLength(0);
+  });
+});

@@ -25,6 +25,8 @@ export interface Profile {
   lastDay?: string;
   eras: Record<string, { games: number; wins: number }>;
   created: number;
+  /** Гостевой профиль влит в аккаунт (Telegram/AQL Portal) — в таблице лидеров не показывается. */
+  mergedInto?: string;
   /** ИИ-персонаж (src: server/personas.ts). */
   ai?: { persona: string; style: string; bio: string; level: 'easy' | 'medium' | 'hard' };
 }
@@ -65,7 +67,7 @@ class MemoryStore implements Store {
   linkDevice = (pid: string, id: string) => void this.devices.set(pid, id);
   hasGame = (id: string) => this.games.has(id);
   putGame = (g: FinishedGame) => void this.games.add(g.id);
-  top = (n: number) => [...this.profiles.values()].filter((p) => p.games > 0).sort((a, b) => b.rating - a.rating).slice(0, n);
+  top = (n: number) => [...this.profiles.values()].filter((p) => p.games > 0 && !p.mergedInto).sort((a, b) => b.rating - a.rating).slice(0, n);
   aiGames = () => [...this.profiles.values()].filter((p) => p.ai).reduce((a, p) => a + p.games, 0);
   logEvent = () => {};
 }
@@ -350,6 +352,40 @@ function safeEq(a: string, b: string): boolean {
 }
 
 /** Войти через Telegram: устройство привязывается к профилю с этим tg_id. */
+
+/**
+ * Гостевую статистику устройства — в аккаунт: человек играл с 2–4 устройств гостем,
+ * потом вошёл через Telegram или AQL Portal — все партии собираются в одном профиле.
+ * Рейтинг переносится приростом гостя (рейтинг − 1000), остальное суммируется.
+ */
+export function mergeGuest(into: Profile, guest: Profile): void {
+  if (guest.id === into.id || guest.tgId || guest.portalId || guest.ai || guest.mergedInto) return;
+  if (!guest.games && !guest.rated) return;
+  into.games += guest.games;
+  into.wins += guest.wins;
+  into.rated += guest.rated;
+  into.rating = Math.round((into.rating + (guest.rating - 1000)) * 10) / 10;
+  into.streakBest = Math.max(into.streakBest, guest.streakBest);
+  if ((guest.lastDay ?? '') > (into.lastDay ?? '')) {
+    into.lastDay = guest.lastDay;
+    into.streakCur = guest.streakCur;
+  }
+  for (const [era, e] of Object.entries(guest.eras ?? {})) {
+    const t = (into.eras[era] ??= { games: 0, wins: 0 });
+    t.games += e.games;
+    t.wins += e.wins;
+  }
+  into.created = Math.min(into.created, guest.created);
+  store.putProfile({ ...guest, mergedInto: into.id, games: 0, wins: 0, rated: 0 });
+}
+
+/** Гостевой профиль, к которому сейчас привязано устройство (если это не аккаунт). */
+function guestOf(pid: string): Profile | undefined {
+  const id = store.deviceProfile(pid) ?? pid;
+  const g = store.getProfile(id);
+  return g && !g.tgId && !g.portalId && !g.ai ? g : undefined;
+}
+
 export function signInTelegram(pid: string, u: TgUser): Profile {
   const tg = String(u.id);
   const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.username || 'Игрок';
@@ -359,6 +395,10 @@ export function signInTelegram(pid: string, u: TgUser): Profile {
     const own = profileOf(pid, name);
     p = own.tgId ? { ...newProfile('t' + tg, name) } : own;
     p.tgId = tg;
+  } else {
+    // Аккаунт уже есть — партии этого устройства (гостем) переносим в него
+    const g = guestOf(pid);
+    if (g) mergeGuest(p, g);
   }
   p.name = name.slice(0, 40);
   p.username = u.username;
@@ -431,6 +471,9 @@ export function signInPortal(pid: string, u: PortalUser): Profile {
     const own = profileOf(pid, u.name);
     p = own.portalId ? { ...newProfile('p' + u.uid, u.name) } : own;
     p.portalId = u.uid;
+  } else {
+    const g = guestOf(pid);
+    if (g) mergeGuest(p, g);
   }
   p.name = u.name;
   if (u.photo) p.photo = u.photo;
