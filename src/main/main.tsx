@@ -29,7 +29,8 @@ registerPwa();
   let sent = 0;
   const seen = new Set<string>();
   const report = (msg: string) => {
-    if (sent >= 15 || seen.has(msg)) return;
+    // iOS не даёт запустить звук до касания — это не поломка, в журнал не шлём
+    if (sent >= 15 || seen.has(msg) || /audio device|NotAllowedError/i.test(msg)) return;
     seen.add(msg);
     sent++;
     void import('../client/conn').then(({ conn }) => conn.send({ t: 'clientError', msg, ua: navigator.userAgent }));

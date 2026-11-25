@@ -27,6 +27,7 @@ import type { IconName } from '../icons';
 import { ResIcon } from '../ResIcon';
 import { RES_COLOR } from '../widgets';
 import { haptic, sfx } from '../../fx';
+import { conn } from '../../client/conn';
 import { LANGS, markTutorialDone, t3, useLang } from './lang';
 import { RES_NAME, STEPS, STEP_ORDER, TERRAIN_NAME, UI, WRONG, fill, type StepId } from './tutorialText';
 import './tutorial.css';
@@ -386,6 +387,7 @@ export function Tutorial({ onClose, onRules }: { onClose: () => void; onRules?: 
 
   const close = () => {
     markTutorialDone();
+    conn.send(step === 'finish' ? { t: 'track', event: 'tutorialDone', data: { lang } } : { t: 'track', event: 'tutorialSkip', data: { step, lang } });
     onClose();
   };
 

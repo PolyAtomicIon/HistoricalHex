@@ -104,6 +104,8 @@ export type ClientMsg =
   | { t: 'undo' }
   /** Ошибка в браузере игрока — для журнала сервера. */
   | { t: 'clientError'; msg: string; ua?: string }
+  /** Событие интерфейса для статистики (обучение, правила). */
+  | { t: 'track'; event: string; data?: unknown }
   | { t: 'close' }
   /** Профиль и рейтинг. */
   | { t: 'profile' }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Icon } from '../icons';
+import { conn } from '../../client/conn';
 import { RulesSheet } from './RulesSheet';
 import { Tutorial } from './Tutorial';
 import { t3, tutorialDone, useLang } from './lang';
@@ -35,7 +36,17 @@ export function useLearn() {
       <RulesSheet open={rules} onClose={() => setRules(false)} />
     </>
   );
-  return { openTutorial: () => setTut(true), openRules: () => setRules(true), ui };
+  return {
+    openTutorial: () => {
+      setTut(true);
+      conn.send({ t: 'track', event: 'tutorialStart' });
+    },
+    openRules: () => {
+      setRules(true);
+      conn.send({ t: 'track', event: 'rulesOpen' });
+    },
+    ui,
+  };
 }
 
 /** Карточка «Как играть»: новичку — крупное приглашение в обучение, остальным — две тихие кнопки. */

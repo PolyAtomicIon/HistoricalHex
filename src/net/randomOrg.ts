@@ -33,6 +33,9 @@ export class RandomOrgDice {
   private pool: number[] = [];
   private loading?: Promise<void>;
   private retryAt = 0;
+  /** Сколько бросков пришло с random.org и сколько — из запасного генератора (для /health). */
+  stats = { randomOrg: 0, fallback: 0 };
+  failures = 0;
 
   constructor(
     private readonly fetcher: Fetcher = (url, init) => fetch(url, { ...init, cache: 'no-store' }),
@@ -58,8 +61,10 @@ export class RandomOrgDice {
       const res = await this.fetcher(RANDOM_ORG_URL, { signal: ctrl.signal });
       if (!res.ok) throw new Error(`random.org ответил ${res.status}`);
       this.pool.push(...parseDice(await res.text()));
-    } catch {
+    } catch (e) {
       this.retryAt = this.now() + BACKOFF_MS;
+      this.failures++;
+      console.warn(`random.org недоступен (${e instanceof Error ? e.message : e}) — броски из системного генератора, повтор через ${BACKOFF_MS / 1000} с`);
     } finally {
       clearTimeout(timer);
     }
@@ -74,7 +79,11 @@ export class RandomOrgDice {
   rollRng(): { rng: Rng; source: DiceSource } {
     const take = this.pool.length >= 2 ? this.pool.splice(0, 2) : [];
     void this.refill();
-    if (take.length < 2) return { rng: cryptoRng, source: 'fallback' };
+    if (take.length < 2) {
+      this.stats.fallback++;
+      return { rng: cryptoRng, source: 'fallback' };
+    }
+    this.stats.randomOrg++;
     let i = 0;
     const rng: Rng = () => (i < take.length ? (take[i++] - 0.5) / 6 : cryptoRng());
     return { rng, source: 'randomOrg' };

@@ -10,10 +10,10 @@ import type { ClientMsg, ServerMsg } from '../src/proto';
 import { DEFAULT_SETTINGS } from '../src/proto';
 import { cryptoRng, victoryPoints } from '../src/engine';
 import type { Client, SavedRoom } from './room';
-import { Room } from './room';
+import { Room, randomOrg } from './room';
 import { TgBot } from './tgbot';
 import { addSubscription, hasPush, initPush, removeSubscriptions, sendPush, vapidPublicKey } from './push';
-import { findProfile, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
+import { findProfile, ipHash, logEvent, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
 const TG_BOT = process.env.TG_BOT_NAME ?? '';
@@ -164,7 +164,7 @@ const http = createServer((req, res) => {
   }
   if (req.url?.endsWith('/health')) {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
+    res.end(JSON.stringify({ ok: true, rooms: rooms.size, dice: { ...randomOrg.stats, pool: randomOrg.size, failures: randomOrg.failures } }));
     return;
   }
   res.writeHead(404).end();
@@ -175,10 +175,13 @@ const wss = new WebSocketServer({ server: http, maxPayload: 64 * 1024 });
 wss.on('error', (e) => console.error('wss error', e));
 
 const alive = new WeakMap<WebSocket, boolean>();
+/** События интерфейса, которые клиент может прислать в журнал. */
+const TRACK = new Set(['tutorialStart', 'tutorialDone', 'tutorialSkip', 'rulesOpen', 'rulesSearch']);
 /** Сколько комнат создало соединение (защита от спама комнатами). */
 const CREATE_LIMIT = 5;
 
-wss.on('connection', (ws: WebSocket) => {
+wss.on('connection', (ws: WebSocket, req) => {
+  const ip = ipHash(String(req.headers['x-real-ip'] ?? req.socket.remoteAddress ?? ''));
   let me: string | undefined;
   let created = 0;
   let errs = 0;
@@ -212,7 +215,9 @@ wss.on('connection', (ws: WebSocket) => {
       if (typeof msg.secret !== 'string' || msg.secret.length < 16 || msg.secret.length > 128) {
         throw new Error('Плохой ключ клиента');
       }
+      const first = !me;
       me = playerId(msg.secret);
+      if (first) logEvent('hello', me, undefined, ip);
       return send({ t: 'welcome', me, vapid: vapidPublicKey(), push: hasPush(me) });
     }
     if (!me) throw new Error('Сначала hello');
@@ -233,7 +238,14 @@ wss.on('connection', (ws: WebSocket) => {
         return send({ t: 'welcome', me, vapid: vapidPublicKey(), push: false });
       case 'clientError':
         // Ошибки браузера игрока — в журнал сервера (не больше 20 за соединение), чтобы видеть, что ломается у людей.
-        if (++errs <= 20) console.warn(`client error [${me}] ${String(msg.ua ?? '').slice(0, 160)} :: ${String(msg.msg ?? '').slice(0, 600)}`);
+        if (++errs <= 20) {
+          console.warn(`client error [${me}] ${String(msg.ua ?? '').slice(0, 160)} :: ${String(msg.msg ?? '').slice(0, 600)}`);
+          logEvent('clientError', me, { msg: String(msg.msg ?? '').slice(0, 600), ua: String(msg.ua ?? '').slice(0, 200) }, ip);
+        }
+        return;
+      case 'track':
+        // Небольшая статистика интерфейса: прошёл ли обучение, открывал ли правила
+        if (TRACK.has(String(msg.event)) && ++errs <= 40) logEvent(String(msg.event), me, msg.data, ip);
         return;
       case 'vis':
         if (msg.hidden) hiddenTabs.add(me);
@@ -301,6 +313,7 @@ wss.on('connection', (ws: WebSocket) => {
         rooms.set(pin, r);
         save(r);
         send({ t: 'created', pin });
+        logEvent('create', me, { pin, era: r.settings.lore }, ip);
         return enter(r);
       }
       case 'open': {
@@ -329,8 +342,11 @@ wss.on('connection', (ws: WebSocket) => {
         return r.addBot(me, msg.level);
       case 'kick':
         return r.kick(me, msg.player, msg.level);
-      case 'start':
-        return r.start(me);
+      case 'start': {
+        const res = r.start(me);
+        logEvent('start', me, { pin: r.pin, era: r.settings.lore, seats: r.seats.size, bots: [...r.seats.values()].filter((x) => x.bot).length, settings: r.settings }, ip);
+        return res;
+      }
       case 'act': {
         const res = await r.act(me, msg.action, msg.dice);
         return send({ t: 'result', id: msg.id, ok: res.ok, ...(res.ok ? {} : { error: res.error }) });

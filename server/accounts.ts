@@ -48,6 +48,7 @@ interface Store {
   putGame(g: FinishedGame): void;
   top(n: number): Profile[];
   aiGames(): number;
+  logEvent(kind: string, pid: string | undefined, data?: unknown, ipHash?: string): void;
 }
 
 // ───────────────────────── хранилища ─────────────────────────
@@ -66,6 +67,7 @@ class MemoryStore implements Store {
   putGame = (g: FinishedGame) => void this.games.add(g.id);
   top = (n: number) => [...this.profiles.values()].filter((p) => p.games > 0).sort((a, b) => b.rating - a.rating).slice(0, n);
   aiGames = () => [...this.profiles.values()].filter((p) => p.ai).reduce((a, p) => a + p.games, 0);
+  logEvent = () => {};
 }
 
 type Db = {
@@ -81,6 +83,9 @@ class SqliteStore implements Store {
       CREATE TABLE IF NOT EXISTS devices (pid TEXT PRIMARY KEY, profile_id TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, data TEXT NOT NULL, finished_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS profiles_rating ON profiles(rating DESC);
+      CREATE TABLE IF NOT EXISTS events (ts INTEGER NOT NULL, kind TEXT NOT NULL, pid TEXT, ip TEXT, data TEXT);
+      CREATE INDEX IF NOT EXISTS events_ts ON events(ts);
+      CREATE INDEX IF NOT EXISTS events_pid ON events(pid);
     `);
     // AQL Portal: колонка добавляется к старой базе один раз
     try {
@@ -105,6 +110,8 @@ class SqliteStore implements Store {
   putGame = (g: FinishedGame) => void this.db.prepare('INSERT OR IGNORE INTO games (id, data, finished_at) VALUES (?, ?, ?)').run(g.id, JSON.stringify(g), g.finishedAt);
   top = (n: number) => this.db.prepare('SELECT data FROM profiles WHERE games > 0 ORDER BY rating DESC LIMIT ?').all(n).map((r) => this.row(r)!);
   aiGames = () => (this.db.prepare("SELECT COALESCE(SUM(games), 0) AS g FROM profiles WHERE id LIKE 'ai-%'").get() as { g: number }).g;
+  logEvent = (kind: string, pid: string | undefined, data?: unknown, ip?: string) =>
+    void this.db.prepare('INSERT INTO events (ts, kind, pid, ip, data) VALUES (?, ?, ?, ?, ?)').run(Date.now(), kind, pid ?? null, ip ?? null, data === undefined ? null : JSON.stringify(data).slice(0, 2000));
 }
 
 let store: Store = new MemoryStore();
@@ -434,4 +441,21 @@ export function signInPortal(pid: string, u: PortalUser): Profile {
 
 export function profileByPortal(uid: string): Profile | undefined {
   return store.getByPortal(uid);
+}
+
+// ───────────────────────── журнал событий ─────────────────────────
+// Что происходит в игре (подключения, партии, обучение, ошибки) — в таблицу events, для статистики.
+// IP не храним: только короткий хэш с солью — чтобы видеть, что несколько устройств одного человека.
+
+const IP_SALT = process.env.HH_IP_SALT || 'historicalhex';
+export function ipHash(ip: string | undefined): string | undefined {
+  if (!ip) return undefined;
+  return createHash('sha256').update(IP_SALT + ip).digest('hex').slice(0, 16);
+}
+export function logEvent(kind: string, pid?: string, data?: unknown, ip?: string): void {
+  try {
+    store.logEvent(kind, pid, data, ip);
+  } catch (e) {
+    console.warn('events: не записалось', e);
+  }
 }

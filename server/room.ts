@@ -53,7 +53,7 @@ export function paceAfter(events: GameEvent[], k = 1): number {
 export const NAME_MAX = 20;
 
 /** Общий запас бросков random.org на весь сервер. */
-const randomOrg = new RandomOrgDice();
+export const randomOrg = new RandomOrgDice();
 
 export interface Client {
   me: PlayerId;
