@@ -23,7 +23,7 @@ function tagText(s: Supply): { text: string; tone: 'bad' | 'good' | 'faint' } | 
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function MarketTab({ pub }: { pub: PublicState }) {
+export function MarketTab({ pub, me }: { pub: PublicState; me?: PlayerId }) {
   const { supply } = useMemo(() => tableHarvest(pub), [pub.buildings, pub.robberHex, pub.bank]); // eslint-disable-line react-hooks/exhaustive-deps
   const list = [...supply].sort((a, b) => ORDER[a.tag ?? 'ok'] - ORDER[b.tag ?? 'ok']);
   return (
@@ -40,6 +40,17 @@ export function MarketTab({ pub }: { pub: PublicState }) {
               </small>
             </span>
             {t && <span className={`ti-tag ${t.tone}`}>{t.text}</span>}
+            {s.by.length > 0 && (
+              // Кто добывает — у них и проси при обмене
+              <span className="ti-by">
+                {s.by.map((b) => (
+                  <span key={b.who} className={`ti-by-p ${b.who === me ? 'me' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[pub.players[b.who]?.color] }}>
+                    <i />
+                    {b.who === me ? 'Ты' : pub.players[b.who]?.name} <small>{b.perRoll.toFixed(1).replace('.', ',')}</small>
+                  </span>
+                ))}
+              </span>
+            )}
           </li>
         );
       })}

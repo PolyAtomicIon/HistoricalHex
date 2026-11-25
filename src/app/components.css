@@ -6464,3 +6464,38 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   height: 32px;
   accent-color: var(--accent);
 }
+
+/* Рынок: кто добывает ресурс — строка игроков под ресурсом */
+.ti-market li {
+  flex-wrap: wrap;
+}
+.ti-by {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 48px;
+}
+.ti-by-p {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ti-by-p i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pc);
+}
+.ti-by-p small {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.ti-by-p.me {
+  background: rgba(255, 255, 255, 0.12);
+}

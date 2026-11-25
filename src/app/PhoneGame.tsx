@@ -799,7 +799,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         {infoTab === 'market' && (
           <>
             <ArmyRace pub={pub} me={me} title={pack.bonuses.largestArmy} />
-            <MarketTab pub={pub} />
+            <MarketTab pub={pub} me={me} />
           </>
         )}
         {infoTab === 'nums' && <NumbersTab pub={pub} me={me} />}

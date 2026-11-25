@@ -54,22 +54,36 @@ export interface Supply {
   perRoll: number;
   bank: number;
   tag?: 'plenty' | 'scarce' | 'none';
+  /** Кто этот ресурс добывает (по постройкам у гексов) и сколько в среднем за бросок — для торгов. */
+  by: { who: PlayerId; perRoll: number }[];
 }
 
 /** Урожай всего стола по числам (для ТВ): кто что получит на каждом числе + что в достатке, что в дефиците. */
 export function tableHarvest(pub: Pick<PublicState, 'board' | 'buildings' | 'robberHex' | 'order' | 'bank'>): { rows: HarvestRow[]; supply: Supply[] } {
   const byN = new Map<number, HarvestRow>();
   const per: Record<Resource, number> = { brick: 0, wood: 0, sheep: 0, wheat: 0, ore: 0 };
+  const perWho: Record<Resource, Record<PlayerId, number>> = { brick: {}, wood: {}, sheep: {}, wheat: {}, ore: {} };
   for (const pid of pub.order) {
     for (const r of incomeByNumber(pub, pid).rows) {
       const row = byN.get(r.n) ?? { n: r.n, ways: r.ways, gets: [], blocked: false };
       if (Object.keys(r.res).length) row.gets.push({ who: pid, res: r.res });
       if (Object.keys(r.blocked).length) row.blocked = true;
-      for (const [res, c] of Object.entries(r.res) as [Resource, number][]) per[res] += (r.ways / 36) * c;
+      for (const [res, c] of Object.entries(r.res) as [Resource, number][]) {
+        per[res] += (r.ways / 36) * c;
+        const m = (perWho[res][pid] ??= 0);
+        perWho[res][pid] = m + (r.ways / 36) * c;
+      }
       byN.set(r.n, row);
     }
   }
-  const supply: Supply[] = RESOURCES.map((r) => ({ r, perRoll: per[r], bank: pub.bank[r] }));
+  const supply: Supply[] = RESOURCES.map((r) => ({
+    r,
+    perRoll: per[r],
+    bank: pub.bank[r],
+    by: Object.entries(perWho[r])
+      .map(([who, v]) => ({ who, perRoll: v }))
+      .sort((a, b) => b.perRoll - a.perRoll),
+  }));
   const live = supply.filter((s) => s.perRoll > 0);
   for (const s of supply) if (s.perRoll === 0) s.tag = 'none';
   if (live.length > 1) {
