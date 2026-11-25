@@ -47,11 +47,11 @@ import type { LogEntry } from './gameLog';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 import { useLearn } from './learn/Learn';
-import { setFacts, setFxStyle, useFacts, useFxStyle } from './prefs';
+import { LOOK_DEFAULT, setBoardLook, setFacts, setFxStyle, useBoardLook, useFacts, useFxStyle } from './prefs';
 import type { FxStyle } from './prefs';
 
 type BuildMode = 'road' | 'settlement' | 'city';
-type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
+type SheetId = null | 'host' | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
 type PlanPick = null | 'road' | 'settlement' | 'city';
 
 interface Targets {
@@ -270,9 +270,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     }
     if (room.settings.autoRoll) return; // бросает сервер
     if (!autoRoll || attacking) return;
-    // Есть карта, которую можно сыграть до броска (рыцарь) — не бросаем сами, ждём решения
-    if (playable.some((c) => c.type === 'knight')) return;
-    setCountdown(2);
+    // Рыцаря до броска играть нельзя (правило стола), ждать нечего — бросаем сразу
+    void send({ type: 'rollDice' });
   }, [myTurn, pub.phase, pub.turn, physical, autoRoll, attacking]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (countdown === null) return;
@@ -952,6 +951,16 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <Icon name="crown" />
             <span className="grow t">Игроки и очки</span>
           </button>
+          {room.isHost && pub.phase !== 'finished' && (
+            <button className="item" onClick={() => setSheet('host')}>
+              <Icon name="crown" />
+              <span className="grow">
+                <span className="t">Ведущий</span>
+                <span className="s" style={{ display: 'block' }}>Темп, таймер хода, пропуск хода, замена ботом</span>
+              </span>
+              <Icon name="next" size={16} />
+            </button>
+          )}
           <button className="item" onClick={() => { setSheet(null); learn.openRules(); }}>
             <Icon name="book" />
             <span className="grow">
@@ -1004,6 +1013,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               Скрыть
             </button>
           </div>
+          <div className="label">Объекты на карте — на твой вкус</div>
+          <LookSliders />
           <div className="label">Графика карты</div>
           <div className="seg">
             {(['auto', 'hi', 'normal'] as GfxPref[]).map((v) => (
@@ -1077,8 +1088,21 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               На главную
             </button>
           )}
-          {room.isHost && <HostTools room={room} pub={pub} />}
         </div>
+      </Sheet>
+
+      <Sheet
+        open={sheet === 'host'}
+        onClose={() => setSheet(null)}
+        title="Ведущий"
+        description="Настройки партии для всех игроков"
+        right={
+          <button className="btn ghost small-act" onClick={() => setSheet('menu')}>
+            <Icon name="next" size={16} style={{ transform: 'scaleX(-1)' }} /> Меню
+          </button>
+        }
+      >
+        <HostTools room={room} pub={pub} />
       </Sheet>
 
       <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title="Кто доиграет за тебя?" description="Вернёшься — место снова твоё">
@@ -2332,15 +2356,9 @@ function Costs() {
 }
 
 function HostTools({ room, pub }: { room: RoomView; pub: PublicState }) {
-  const [open, setOpen] = useState(false);
   if (pub.phase === 'finished') return null;
   return (
     <div className="stack">
-      <button className="btn ghost wide" onClick={() => setOpen(!open)}>
-        <Icon name="crown" /> Ведущий {open ? '▴' : '▾'}
-      </button>
-      {open && (
-        <>
           <TurnSettings settings={room.settings} editable />
           <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
             <Icon name="skip" /> Пропустить ход {pub.players[pub.order[pub.current]].name}
@@ -2352,8 +2370,6 @@ function HostTools({ room, pub }: { room: RoomView; pub: PublicState }) {
                 <Icon name="ban" /> Заменить ботом: {pub.players[id].name}
               </button>
             ))}
-        </>
-      )}
     </div>
   );
 }
@@ -2399,6 +2415,34 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
           На главную
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Ползунки вида карты: размер и густота объектов на гексах, размер жетонов. Сохраняются на этом устройстве. */
+function LookSliders() {
+  const look = useBoardLook();
+  const rows: { key: 'decor' | 'density' | 'tokens'; label: string; min: number; max: number }[] = [
+    { key: 'decor', label: 'Размер деревьев, гор, овец', min: 0.5, max: 1.3 },
+    { key: 'density', label: 'Сколько объектов на гексах', min: 0.3, max: 1 },
+    { key: 'tokens', label: 'Размер жетонов с числами', min: 0.6, max: 1.4 },
+  ];
+  const changed = rows.some((r) => look[r.key] !== LOOK_DEFAULT[r.key]);
+  return (
+    <div className="look-sliders">
+      {rows.map((r) => (
+        <label key={r.key} className="look-row">
+          <span className="look-l">
+            {r.label} <b>{Math.round(look[r.key] * 100)}%</b>
+          </span>
+          <input type="range" min={r.min} max={r.max} step={0.05} value={look[r.key]} onChange={(e) => setBoardLook({ [r.key]: Number(e.target.value) })} />
+        </label>
+      ))}
+      {changed && (
+        <button className="btn ghost small-act" onClick={() => setBoardLook(LOOK_DEFAULT)}>
+          Как было
+        </button>
+      )}
     </div>
   );
 }

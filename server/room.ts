@@ -518,7 +518,7 @@ export class Room {
     this.sendEvents(events);
     // бот ждёт, пока люди досмотрят событие (налёт, кубики…), — по одному действию за раз
     this.paceUntil = Math.max(this.paceUntil, now + paceAfter(events, this.paceK));
-    if (events.some((e) => e.type === 'robberMoved')) this.attackUntil = now + Math.round(ATTACK_SCENE_MS * PACE_SCALE);
+    if (events.some((e) => e.type === 'robberMoved')) this.attackUntil = now + Math.round(ATTACK_SCENE_MS * PACE_SCALE * Math.min(1, this.paceK));
     this.scheduleBots();
   }
 

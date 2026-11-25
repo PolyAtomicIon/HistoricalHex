@@ -27,9 +27,9 @@ export interface RoomSettings {
   pace?: Pace;
 }
 
-export type Pace = 'calm' | 'normal' | 'fast';
+export type Pace = 'calm' | 'normal' | 'fast' | 'turbo';
 /** Множитель пауз для каждого темпа. */
-export const PACE_K: Record<Pace, number> = { calm: 1.6, normal: 1, fast: 0.7 };
+export const PACE_K: Record<Pace, number> = { calm: 1.6, normal: 1, fast: 0.7, turbo: 0.12 };
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   reconnectSeconds: 90,

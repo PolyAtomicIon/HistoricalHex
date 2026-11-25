@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { useBoardLook } from '../app/prefs';
 import { dimmable } from './dim';
 import { useFrame } from '@react-three/fiber';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -486,7 +487,7 @@ let propMat: THREE.MeshStandardMaterial | null = null;
 const getPropMat = () =>
   (propMat ??= dimmable(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85, metalness: 0 })));
 
-function PropField({ kind, insts }: { kind: PropKind; insts: Inst[] }) {
+function PropField({ kind, insts, size = 1 }: { kind: PropKind; insts: Inst[]; size?: number }) {
   const { reduced, lowPower } = useEnv();
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -515,7 +516,7 @@ function PropField({ kind, insts }: { kind: PropKind; insts: Inst[] }) {
       }
       dummy.position.set(o.x, y, o.z);
       dummy.rotation.set(rx, ry, rz);
-      dummy.scale.set(o.s, o.sy ?? o.s, o.s);
+      dummy.scale.set(o.s * size, (o.sy ?? o.s) * size, o.s * size);
       dummy.updateMatrix();
       m.setMatrixAt(i, dummy.matrix);
     }
@@ -631,7 +632,15 @@ function clearAround(props: Record<PropKind, Inst[]>, spots: [number, number][])
 export default function Tiles({ tiles, clear, rich }: { tiles: TileInfo[]; clear?: [number, number][]; rich?: boolean }) {
   const raw = useMemo(() => genProps(tiles, rich), [tiles, rich]);
   const clearKey = (clear ?? []).map((c) => c.join(',')).join(';');
-  const props = useMemo(() => clearAround(raw, clear ?? []), [raw, clearKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cleared = useMemo(() => clearAround(raw, clear ?? []), [raw, clearKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Настройка игрока: густота (оставляем ровную долю объектов) и размер
+  const look = useBoardLook();
+  const props = useMemo(() => {
+    if (look.density >= 0.99) return cleared;
+    const out = {} as typeof cleared;
+    for (const k of Object.keys(cleared) as PropKind[]) out[k] = cleared[k].filter((_, i) => ((i * 0.6180339) % 1) < look.density);
+    return out;
+  }, [cleared, look.density]);
   const byTerrain = useMemo(() => {
     const m = {} as Record<Terrain, TileInfo[]>;
     for (const t of TERRAINS) m[t] = tiles.filter((x) => x.terrain === t);
@@ -644,7 +653,7 @@ export default function Tiles({ tiles, clear, rich }: { tiles: TileInfo[]; clear
         <TileGroup key={t} terrain={t} tiles={byTerrain[t]} />
       ))}
       {(Object.keys(props) as PropKind[]).map((k) => (
-        <PropField key={k} kind={k} insts={props[k]} />
+        <PropField key={k} kind={k} insts={props[k]} size={look.decor} />
       ))}
     </group>
   );

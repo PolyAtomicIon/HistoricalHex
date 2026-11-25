@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { useBoardLook } from '../app/prefs';
 import { dimmable } from './dim';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { HarborType } from '../engine';
@@ -256,15 +257,18 @@ function Token({ tile, number }: { tile: TileInfo; number: number }) {
   const lift = TOKEN_LIFT[tile.terrain] ?? 0.45;
   useBillboard(g, h + lift, TOKEN_R);
   const tex = useMemo(() => tokenTexture(number), [number]);
+  const tokScale = useBoardLook().tokens;
   return (
     <group position={[tile.x, 0, tile.z]}>
       <mesh geometry={blobGeo} material={getBlobMat()} position={[0, h + 0.014, 0]} scale={0.78} renderOrder={1} />
       <mesh geometry={pinGeo} material={pinMat} position={[0, h, 0]} scale={[1, lift + 0.04, 1]} />
       <group ref={g}>
-        <mesh geometry={discGeo} material={discMat} castShadow />
-        <mesh geometry={tokFaceGeo} position={[0, 0.029, 0]}>
-          <meshStandardMaterial map={tex} roughness={0.5} emissive="#ffffff" emissiveMap={tex} emissiveIntensity={0.16} />
-        </mesh>
+        <group scale={tokScale}>
+          <mesh geometry={discGeo} material={discMat} castShadow />
+          <mesh geometry={tokFaceGeo} position={[0, 0.029, 0]}>
+            <meshStandardMaterial map={tex} roughness={0.5} emissive="#ffffff" emissiveMap={tex} emissiveIntensity={0.16} />
+          </mesh>
+        </group>
       </group>
     </group>
   );

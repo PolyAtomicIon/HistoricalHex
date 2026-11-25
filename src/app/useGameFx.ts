@@ -7,7 +7,7 @@ import type { LorePack } from '../lore';
 import { narrate } from '../lore';
 import { conn } from '../client/conn';
 import type { CinematicEvent, DiceRoll, Gain, RaidEvent, ReactionItem, ThreatInfo } from '../fx';
-import { haptic, rollDurationMs, sfx } from '../fx';
+import { fxMs, haptic, isTurbo, rollDurationMs, sfx } from '../fx';
 import { PLAYER_HEX } from '../ui/theme';
 import { eraIcon } from './era';
 import { RESOURCE_NAME } from '../i18n/ru';
@@ -154,6 +154,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     };
     const timers: ReturnType<typeof setTimeout>[] = [];
     const raid = (kind: 'robber' | 'knight', target?: string, eraOverride?: string) => {
+      if (isTurbo()) return; // «Турбо»: без сцены налёта — сразу к делу
       const era = eraOverride ?? packRef.current.id;
       const sprite = kind === 'robber' ? eraIcon(era, 'attack') : era === 'ww2' ? eraIcon(era, 'tank') : eraIcon(era, 'dev-knight');
       const hex = target ? pubRef.current?.board.hexes.find((h) => h.id === target) : undefined;
@@ -228,7 +229,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       for (const e of events) {
         switch (e.type) {
           case 'diceRolled': {
-            delay = rollDurationMs;
+            delay = rollDurationMs();
             setFx((f) => ({
               ...f,
               roll: { dice: e.dice, key: k.current++, source, player: name(e.player), color: color(e.player) },
@@ -237,7 +238,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
               setTimeout(() => {
                 cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, explain: `У кого больше 7 карт — сбрасывают половину. Потом ${me === e.player ? 'ты ставишь' : `${name(e.player)} ставит`} захватчиков на гекс и ${me === e.player ? 'забираешь' : 'забирает'} карту у соседа`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber-unit') });
                 setFx((f) => ({ ...f, shake: f.shake + 1 }));
-              }, rollDurationMs);
+              }, rollDurationMs());
             }
             break;
           }
@@ -288,7 +289,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
               if (me === st.victim) haptic('error');
               if (me === st.thief) haptic('success');
               setFx((f) => ({ ...f, steal: { ...st, key: k.current++ } }));
-            }, 2600));
+            }, fxMs(2600)));
             say(
               narrate(p, 'stole', { player: name(e.thief), victim: name(e.victim) }) +
                 (e.resource && (me === e.thief || me === e.victim) ? ` (${RESOURCE_NAME[e.resource as Resource]})` : ''),

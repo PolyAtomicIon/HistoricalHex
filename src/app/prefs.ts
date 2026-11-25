@@ -52,3 +52,30 @@ export function useFxStyle(): { style: FxStyle; mini: boolean } {
 export function useFacts(): boolean {
   return useSyncExternalStore(subscribe, () => facts) === 'on';
 }
+
+// ─── Графика карты на вкус игрока: размер и густота объектов на гексах, размер жетонов ───
+export interface BoardLook {
+  /** Масштаб деревьев, гор, овец, колосьев (0.5–1.3). */
+  decor: number;
+  /** Доля объектов (0.3–1): меньше — карта чище. */
+  density: number;
+  /** Масштаб жетонов с числами (0.6–1.4). */
+  tokens: number;
+}
+const LOOK_KEY = 'hh.boardLook';
+export const LOOK_DEFAULT: BoardLook = { decor: 1, density: 1, tokens: 1 };
+let look: BoardLook = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(LOOK_KEY) ?? 'null') as Partial<BoardLook> | null;
+    return { ...LOOK_DEFAULT, ...(v ?? {}) };
+  } catch {
+    return LOOK_DEFAULT;
+  }
+})();
+export function setBoardLook(patch: Partial<BoardLook>): void {
+  look = { ...look, ...patch };
+  save(LOOK_KEY, JSON.stringify(look));
+}
+export function useBoardLook(): BoardLook {
+  return useSyncExternalStore(subscribe, () => look);
+}

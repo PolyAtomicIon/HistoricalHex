@@ -6438,3 +6438,29 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* Ползунки вида карты */
+.look-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.look-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.look-l {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 600;
+}
+.look-l b {
+  color: var(--accent);
+}
+.look-row input[type='range'] {
+  width: 100%;
+  height: 32px;
+  accent-color: var(--accent);
+}

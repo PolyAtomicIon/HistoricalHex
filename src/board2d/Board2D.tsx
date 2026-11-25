@@ -9,6 +9,7 @@ import { HEX_CORNERS, TERRAIN_RESOURCE, topologyFor } from '../engine';
 import { PLAYER_HEX, PLAYER_STROKE } from '../ui/theme';
 import { eraIcon } from '../app/era';
 import { usePanZoom } from './usePanZoom';
+import { useBoardLook } from '../app/prefs';
 import { boardLocator } from '../fx/util';
 import './board2d.css';
 
@@ -84,6 +85,7 @@ export function Board2D(props: Board2DProps) {
   const id = (s: string) => `b2-${uid}-${s}`;
   // Поворот карты свайпом влево-вправо (шаг 60° — сетка гексов совпадает сама с собой)
   const [rot, setRot] = useState(0);
+  const look = useBoardLook();
   const pz = usePanZoom(!props.static, (d) => setRot((r) => r + d * 60));
   const tiles = useImages(TERRAINS.map((t) => eraIcon(era, `tile-${t}`)));
   const unit = useImages([eraIcon(era, 'camp'), eraIcon(era, 'robber-unit')]);
@@ -398,7 +400,7 @@ export function Board2D(props: Board2DProps) {
               const pips = 6 - Math.abs(7 - h.number);
               const robbed = h.id === view.robberHex && !idleRobber;
               return (
-                <g key={h.id} transform={`translate(${c.x} ${c.y})`} className={`token ${red ? 'red' : ''} ${robbed ? 'off' : ''}`}>
+                <g key={h.id} transform={`translate(${c.x} ${c.y}) scale(${look.tokens})`} className={`token ${red ? 'red' : ''} ${robbed ? 'off' : ''}`}>
                   <Up>
                   <circle className="tk-shadow" cx={0} cy={5} r={S * 0.29} />
                   <circle className="tk-face" r={S * 0.29} fill={`url(#${id('token')})`} />

@@ -8,6 +8,7 @@ import { Lobby } from './Lobby';
 import { PhoneGame, setPieceNames } from './PhoneGame';
 import { EraIntro, useIntroOnce } from './EraIntro';
 import { useFacts } from './prefs';
+import { setFxPace } from '../fx';
 import { Tv } from './Tv';
 import { useEra } from './era';
 import { Icon } from './icons';
@@ -52,6 +53,7 @@ function InGame({ room }: { room: RoomView }) {
   setPieceNames(pack.pieces);
   // Заставка эпохи — один раз на комнату, пока партия не закончилась
   const factsShown = useFacts();
+  setFxPace(room.settings.pace); // скорость анимаций — по темпу комнаты
   const [intro, closeIntro] = useIntroOnce(room.pin, factsShown && room.public?.phase !== 'finished');
   const screen =
     tvMode || !room.private ? (

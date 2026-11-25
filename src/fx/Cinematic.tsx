@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { sfx, haptic } from './sfx';
 import { FxPortal, prefersReducedMotion, rand } from './util';
+import { fxMs, isTurbo } from './speed';
 
 export type CinematicKind =
   | 'seven' | 'knight' | 'monopoly' | 'yearOfPlenty' | 'roadBuilding'
@@ -100,7 +101,7 @@ function Particles({ kind, k, rain }: { kind: CinematicKind; k: number; rain?: s
 }
 
 /** Сколько держится кино-карточка события (мс). */
-export const CINE_MS = (tv: boolean) => (tv ? 4000 : 4800);
+export const CINE_MS = (tv: boolean) => fxMs(tv ? 4000 : 4800);
 
 /** mini — компактная плашка сверху вместо заставки на весь экран (невысокие телефоны, настройка). */
 export function Cinematic({ event, tv = false, mini = false }: { event: CinematicEvent | null; tv?: boolean; mini?: boolean }) {
@@ -132,7 +133,7 @@ export function Cinematic({ event, tv = false, mini = false }: { event: Cinemati
   if (!active) return null;
   const color = active.color ?? DEFAULT_COLOR[active.kind];
   const style = { '--fx-c': color, '--fx-dur': `${CINE_MS(tv) / 1000}s` } as CSSProperties;
-  if (mini && !tv)
+  if ((mini || isTurbo()) && !tv)
     return (
       <FxPortal>
         <div key={active.key} className={`fx-cin-mini fx-cin-${active.kind}`} style={style} role="status">

@@ -16,3 +16,4 @@ export { boardLocator } from './util';
 export { playEraMusic, setMusicOn, useMusicOn } from './music';
 export { Threat } from './Threat';
 export type { ThreatInfo } from './Threat';
+export { fxMs, isTurbo, setFxPace } from './speed';

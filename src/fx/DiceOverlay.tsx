@@ -11,7 +11,9 @@ export interface DiceRoll {
 }
 
 /** Time (ms) from roll start until both dice have landed. */
-export const rollDurationMs = 1250;
+import { fxMs } from './speed';
+/** Сколько катятся кубики (быстро: игроки ждут результат, а не анимацию). */
+export const rollDurationMs = () => fxMs(700);
 
 const PIPS: Record<number, number[]> = {
   1: [4], 2: [2, 6], 3: [2, 4, 6], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8],
@@ -72,7 +74,7 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
 
     sfx.play('diceShake');
     haptic([12, 30, 12, 30, 12]);
-    const landAt = reduced ? 150 : rollDurationMs;
+    const landAt = reduced ? 150 : rollDurationMs();
     later(() => {
       sfx.play('diceLand');
       later(() => setLanded(true), 40);
@@ -113,7 +115,7 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
               { transform: `rotateX(${tx + spinsX * 0.85}deg) rotateY(${ty + spinsY * 0.85}deg) rotateZ(0deg)`, offset: 0.7, easing: 'cubic-bezier(.3,.9,.5,1)' },
               { transform: `rotateX(${tx + spinsX}deg) rotateY(${ty + spinsY}deg) rotateZ(0deg)` },
             ],
-            { duration: rollDurationMs - 100 + i * 60, fill: 'forwards' },
+            { duration: rollDurationMs() - 100 + i * 60, fill: 'forwards' },
           ),
         );
         const D = 'cubic-bezier(.2,.7,.4,1)';
@@ -128,7 +130,7 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
               { transform: 'translate3d(0, -12px, 0)', offset: 0.9, easing: 'cubic-bezier(.5,0,.9,.6)' },
               { transform: 'translate3d(0, 0, 0)', opacity: 1, offset: 1 },
             ],
-            { duration: rollDurationMs + i * 60, delay: i * 70, fill: 'both' },
+            { duration: rollDurationMs() + i * 60, delay: i * 70, fill: 'both' },
           ),
         );
       });
