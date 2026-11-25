@@ -148,6 +148,7 @@ export function checkWinner(s: GameState, events: GameEvent[]): void {
   if (points >= s.settings.vpToWin) {
     s.phase = 'finished';
     s.winner = pid;
+    s.trades = [];
     delete s.trade;
     events.push({ type: 'gameWon', player: pid, points });
   }

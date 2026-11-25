@@ -76,7 +76,7 @@ describe('обмен между игроками', () => {
     );
   });
 
-  it('новое предложение сбрасывает старые ответы; конец хода убирает предложение', () => {
+  it('несколько предложений сразу: стопка, отмена одного, конец хода убирает все', () => {
     let s = mainPhase(newGame(3));
     setHand(s, 'a', { brick: 2 });
     setHand(s, 'b', { ore: 2 });
@@ -84,10 +84,19 @@ describe('обмен между игроками', () => {
     const oldId = s.trade!.id;
     s = act(s, 'b', { type: 'respondTrade', tradeId: oldId, kind: 'accept' });
     s = act(s, 'a', { type: 'offerTrade', give: R({ brick: 2 }), want: R({ ore: 1 }) });
-    expect(s.trade!.responses).toEqual({});
-    expect(actFail(s, 'b', { type: 'respondTrade', tradeId: oldId, kind: 'accept' })).toBe('Это предложение уже неактуально');
+    expect(s.trades).toHaveLength(2);
+    expect(s.trade!.responses).toEqual({}); // зеркало — последнее предложение
+    expect(s.trades![0].responses.b).toEqual({ kind: 'accept' }); // старое осталось со своим ответом
+    // обмен по старому предложению — оно уходит из стопки, новое остаётся
+    s = act(s, 'a', { type: 'confirmTrade', tradeId: oldId, with: 'b' });
+    expect(s.trades!.map((t) => t.id)).not.toContain(oldId);
+    expect(s.trades).toHaveLength(1);
+    s = act(s, 'a', { type: 'offerTrade', give: R({ brick: 1 }), want: R({ ore: 1 }) });
+    s = act(s, 'a', { type: 'cancelTrade', tradeId: s.trade!.id });
+    expect(s.trades).toHaveLength(1);
     s = act(s, 'a', { type: 'endTurn' });
     expect(s.trade).toBeUndefined();
+    expect(s.trades).toEqual([]);
   });
 
   it('если у партнёра карт уже нет — обмен не проходит', () => {

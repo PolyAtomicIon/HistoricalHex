@@ -23,8 +23,9 @@ export function botsToAct(pub: PublicState, isBot: (id: PlayerId) => boolean): P
   if (pub.phase === 'discard') return Object.keys(pub.pendingDiscards ?? {}).filter(isBot);
   const out: PlayerId[] = [];
   if (pub.phase === 'main' && pub.trade) {
-    const to = pub.trade.to;
-    for (const p of pub.order) if (p !== current && isBot(p) && !pub.trade.responses?.[p] && (!to || to.includes(p))) out.push(p);
+    const offers = pub.trades ?? [pub.trade];
+    for (const p of pub.order)
+      if (p !== current && isBot(p) && offers.some((t) => !t.responses?.[p] && (!t.to || t.to.includes(p)))) out.push(p);
   }
   if (isBot(current)) out.push(current);
   return out;

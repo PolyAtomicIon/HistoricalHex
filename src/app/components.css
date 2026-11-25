@@ -6499,3 +6499,86 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 .ti-by-p.me {
   background: rgba(255, 255, 255, 0.12);
 }
+
+/* Обмен: стопка своих предложений */
+.my-offers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.offer-card {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.06);
+}
+.offer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.offer-x {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  display: grid;
+  place-items: center;
+}
+.offer-resp {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.offer-resp li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.offer-resp li small {
+  color: var(--ink-2);
+}
+.offer-resp li.accept small,
+.offer-resp li.counter small {
+  color: var(--good);
+}
+.offer-resp li.decline small {
+  color: var(--ink-3);
+}
+.trade-to-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.trade-ban {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: rgba(246, 243, 236, 0.35);
+  display: grid;
+  place-items: center;
+}
+.trade-ban.on {
+  color: var(--bad);
+}
+.trade-to-item.banned .trade-to-chip {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.trade-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: rgba(var(--accent-rgb), 0.1);
+  font-size: 14px;
+}

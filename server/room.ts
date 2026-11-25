@@ -489,12 +489,14 @@ export class Room {
 
   private commit(state: GameState, events: GameEvent[]): void {
     // Тайный бан: предложение от игрока, с которым ты не торгуешь, сразу получает твой отказ
-    if (state.trade && events.some((e) => e.type === 'tradeOffered')) {
+    const offered = events.find((e) => e.type === 'tradeOffered');
+    const newOffer = offered && state.trades?.find((t) => t.id === (offered as { tradeId: number }).tradeId);
+    if (newOffer) {
       const from = state.order[state.current];
       for (const pid of state.order) {
-        if (pid === from || state.trade?.responses[pid] || (state.trade?.to && !state.trade.to.includes(pid))) continue;
+        if (pid === from || newOffer.responses[pid] || (newOffer.to && !newOffer.to.includes(pid))) continue;
         if (!this.bans[pid]?.includes(from)) continue;
-        const r = applyAction(state, pid, { type: 'respondTrade', tradeId: state.trade!.id, kind: 'decline' }, cryptoRng);
+        const r = applyAction(state, pid, { type: 'respondTrade', tradeId: newOffer.id, kind: 'decline' }, cryptoRng);
         if (r.ok) {
           state = r.state;
           events = [...events, ...r.events];
@@ -731,14 +733,21 @@ export class Room {
       if (responders.length) {
         let st = state;
         let evs: GameEvent[] = [];
-        for (const id of responders) {
-          const p2 = toPublicView(st);
-          const action = decide({ level: st.players[id].bot!, pub: p2, priv: toPrivateView(st, id), me: id, rng: cryptoRng, memory: (this.botMemory[id] ??= {}), now: Date.now() });
-          const r = action ? applyAction(st, id, action, cryptoRng) : applyAction(st, id, { type: 'respondTrade', tradeId: p2.trade!.id, kind: 'decline' }, cryptoRng);
-          if (r.ok) {
-            st = r.state;
-            evs = [...evs, ...r.events];
+        for (let pass = 0; pass < 6; pass++) {
+          let any = false;
+          for (const id of responders) {
+            const p2 = toPublicView(st);
+            if (!botsToAct(p2, this.isBot).includes(id)) continue;
+            const action = decide({ level: st.players[id].bot!, pub: p2, priv: toPrivateView(st, id), me: id, rng: cryptoRng, memory: (this.botMemory[id] ??= {}), now: Date.now() });
+            if (!action || action.type !== 'respondTrade') continue;
+            const r = applyAction(st, id, action, cryptoRng);
+            if (r.ok) {
+              st = r.state;
+              evs = [...evs, ...r.events];
+              any = true;
+            }
           }
+          if (!any) break;
         }
         if (evs.length) return this.commit(st, evs);
       }

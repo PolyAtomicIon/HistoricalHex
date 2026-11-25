@@ -79,3 +79,14 @@ export function setBoardLook(patch: Partial<BoardLook>): void {
 export function useBoardLook(): BoardLook {
   return useSyncExternalStore(subscribe, () => look);
 }
+
+// ─── Плашка «Пока ждёшь — наметь ход» (кому-то помогает, кого-то раздражает) ───
+const NUDGE_KEY = 'hh.planNudge';
+let nudge: 'on' | 'off' = read(NUDGE_KEY, ['on', 'off'] as const, 'on');
+export function setPlanNudge(on: boolean): void {
+  nudge = on ? 'on' : 'off';
+  save(NUDGE_KEY, nudge);
+}
+export function usePlanNudge(): boolean {
+  return useSyncExternalStore(subscribe, () => nudge) === 'on';
+}

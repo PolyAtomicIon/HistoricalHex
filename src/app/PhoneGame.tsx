@@ -47,7 +47,7 @@ import type { LogEntry } from './gameLog';
 import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 import { useLearn } from './learn/Learn';
-import { LOOK_DEFAULT, setBoardLook, setFacts, setFxStyle, useBoardLook, useFacts, useFxStyle } from './prefs';
+import { LOOK_DEFAULT, setBoardLook, setFacts, setFxStyle, setPlanNudge, useBoardLook, useFacts, useFxStyle, usePlanNudge } from './prefs';
 import type { FxStyle } from './prefs';
 
 type BuildMode = 'road' | 'settlement' | 'city';
@@ -234,10 +234,14 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   if (import.meta.env.DEV)
     (window as unknown as { __offer: (w?: Partial<ResourceMap>, g?: Partial<ResourceMap>) => void }).__offer = (w, g) =>
       setOfferDbg(w ? { id: Date.now(), want: { ...emptyResources(), ...w }, give: { ...emptyResources(), ...g }, responses: {} } : null);
-  const offerPub = offerDbg ? { ...pub, trade: offerDbg } : pub;
   // Предложение мне: адресовано мне (или всем) и не от того, с кем я тайно не торгую
   const bans = room.bans ?? [];
-  const offerForMe = !!pub.trade && (!pub.trade.to || pub.trade.to.includes(me)) && !bans.includes(pub.order[pub.current]);
+  // Несколько открытых предложений: мне показываем первое, на которое я ещё не ответил
+  const offersToMe = (pub.trades ?? (pub.trade ? [pub.trade] : [])).filter((t) => !t.to || t.to.includes(me));
+  const incomingOffer = offersToMe.find((t) => !t.responses?.[me]) ?? offersToMe[offersToMe.length - 1];
+  const pubIn = { ...pub, trade: incomingOffer };
+  const offerForMe = !!incomingOffer && !bans.includes(pub.order[pub.current]);
+  const offerPub = offerDbg ? { ...pub, trade: offerDbg } : pubIn;
   const showOffer = !!offerPub.trade && (offerDbg ? true : !myTurn && pub.phase === 'main' && offerForMe) && !planPick && sheet === null;
   const offerProps = { pub: offerPub, priv, me, pack, busy, send: offerDbg ? async () => setOfferDbg(null) : sendVoid, counter: () => setSheet('incoming') };
 
@@ -397,7 +401,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     const t = setTimeout(() => setNudgeDue(true), 1200);
     return () => clearTimeout(t);
   }, [nudgeWanted]);
-  const showNudge = nudgeWanted && nudgeDue;
+  const nudgeOn = usePlanNudge();
+  const showNudge = nudgeOn && nudgeWanted && nudgeDue;
   const planHead = myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status !== 'ready' ? checked[0] : null;
   // Мои постройки у захваченного гекса — показать явно и подсказать, как убрать
   const blocked = useMemo(() => {
@@ -489,7 +494,16 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         ) : (
           tick ? (
             // Лента событий: что сделал другой игрок — на 3,5 с вместо подсказки фазы, потом подсказка возвращается
-            <div key={`t${tick.key}`} className="status-pill glass ticker" aria-live="polite">
+            <div
+              key={`t${tick.key}`}
+              className="status-pill glass ticker"
+              aria-live="polite"
+              role="button"
+              onClick={() => {
+                setInfoTab('log');
+                setSheet('info');
+              }}
+            >
               <i style={{ background: tick.who && pub.players[tick.who] ? PLAYER_HEX[pub.players[tick.who].color] : 'var(--accent)' }} />
               <span>{tick.text}</span>
             </div>
@@ -716,7 +730,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       </Sheet>
 
       <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn && offerForMe} onClose={() => setSheet(null)} title={`${pub.players[current]?.name ?? 'Игрок'} предлагает обмен`}>
-        {pub.trade && <IncomingTrade key={pub.trade.id} pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} />}
+        {incomingOffer && <IncomingTrade key={incomingOffer.id} pub={pubIn} priv={priv} me={me} send={sendVoid} busy={busy} />}
         {pub.trade && (
           <button
             className="btn ghost wide ban-btn"
@@ -1003,6 +1017,15 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                 {v === 'auto' ? `Авто${miniFx ? ' · мини' : ''}` : v === 'full' ? 'Крупно' : 'Мини-плашки'}
               </button>
             ))}
+          </div>
+          <div className="label">Подсказка «Пока ждёшь — наметь ход»</div>
+          <div className="seg">
+            <button aria-pressed={nudgeOn} onClick={() => setPlanNudge(true)}>
+              Показывать
+            </button>
+            <button aria-pressed={!nudgeOn} onClick={() => setPlanNudge(false)}>
+              Скрыть
+            </button>
           </div>
           <div className="label">Факты истории</div>
           <div className="seg">

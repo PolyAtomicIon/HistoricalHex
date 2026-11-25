@@ -5,7 +5,7 @@
 
 import type { Action, HostAction } from './actions';
 import type { GameEvent } from './events';
-import type { GameState, Phase, TradeResponse } from './state';
+import type { GameState, Phase, TradeOffer, TradeResponse } from './state';
 import { currentPlayerId } from './state';
 import type { HexId, PlayerId, Resource, ResourceMap } from './types';
 import type { BotLevel } from './types';
@@ -349,15 +349,18 @@ const HANDLERS: Handlers = {
       if (to.length === others.length) to = undefined; // всем — то же, что без адреса
     }
     s.tradeSeq += 1;
-    s.trade = { id: s.tradeSeq, give, want, responses: {}, ...(to ? { to } : {}) };
-    c.events.push({ type: 'tradeOffered', player: actor, tradeId: s.trade.id, give, want, ...(to ? { to } : {}) });
+    const offer = { id: s.tradeSeq, give, want, responses: {}, ...(to ? { to } : {}) };
+    // Новое предложение — в стопку; старые остаются открытыми (не больше пяти)
+    s.trades = [...(s.trades ?? []), offer].slice(-MAX_OPEN_TRADES);
+    syncTrade(s);
+    c.events.push({ type: 'tradeOffered', player: actor, tradeId: offer.id, give, want, ...(to ? { to } : {}) });
   },
 
   respondTrade(c, a) {
     requirePhase(c, 'main');
     const { s, actor } = c;
-    const trade = s.trade;
-    if (!trade || trade.id !== a.tradeId) fail('Это предложение уже неактуально');
+    const trade = findTrade(s, a.tradeId);
+    if (!trade) fail('Это предложение уже неактуально');
     if (actor === currentPlayerId(s)) fail('Нельзя отвечать на своё предложение');
     if (trade.to && !trade.to.includes(actor)) fail('Это предложение не тебе');
     const mine = s.players[actor].resources;
@@ -375,6 +378,7 @@ const HANDLERS: Handlers = {
       fail('Неверный ответ');
     }
     trade.responses[actor] = response;
+    syncTrade(s);
     c.events.push({ type: 'tradeResponded', player: actor, tradeId: trade.id, kind: response.kind });
   },
 
@@ -382,8 +386,8 @@ const HANDLERS: Handlers = {
     requireTurn(c);
     requirePhase(c, 'main');
     const { s, actor } = c;
-    const trade = s.trade;
-    if (!trade || trade.id !== a.tradeId) fail('Это предложение уже неактуально');
+    const trade = findTrade(s, a.tradeId);
+    if (!trade) fail('Это предложение уже неактуально');
     const response = trade.responses[a.with];
     if (!response || response.kind === 'decline') fail('Этот игрок не согласился на обмен');
     const terms = response.kind === 'counter' ? response : trade;
@@ -396,7 +400,8 @@ const HANDLERS: Handlers = {
     addResources(partner.resources, terms.want, -1);
     addResources(me.resources, terms.want, 1);
     c.events.push({ type: 'tradeCompleted', from: actor, to: a.with, give: terms.give, want: terms.want });
-    delete s.trade;
+    s.trades = (s.trades ?? []).filter((t) => t.id !== trade.id);
+    syncTrade(s);
   },
 
   handToBot(c, a) {
@@ -412,10 +417,12 @@ const HANDLERS: Handlers = {
     c.events.push({ type: 'playerReturned', player: c.actor });
   },
 
-  cancelTrade(c) {
+  cancelTrade(c, a) {
     requireTurn(c);
-    if (!c.s.trade) fail('Нет активного предложения');
-    delete c.s.trade;
+    if (!c.s.trades?.length) fail('Нет активного предложения');
+    if (a.tradeId !== undefined && !findTrade(c.s, a.tradeId)) fail('Это предложение уже неактуально');
+    c.s.trades = a.tradeId === undefined ? [] : c.s.trades.filter((t) => t.id !== a.tradeId);
+    syncTrade(c.s);
     c.events.push({ type: 'tradeCancelled', player: c.actor });
   },
 
@@ -423,7 +430,7 @@ const HANDLERS: Handlers = {
     requireTurn(c);
     requirePhase(c, 'main');
     // Незакрытое предложение обмена сгорает с концом хода — сообщаем всем
-    if (c.s.trade) c.events.push({ type: 'tradeCancelled', player: c.actor });
+    if (c.s.trades?.length) c.events.push({ type: 'tradeCancelled', player: c.actor });
     passTurn(c.s, c.events);
   },
 };
@@ -451,7 +458,7 @@ function advanceSetup(c: Ctx): void {
 }
 
 function passTurn(s: GameState, events: GameEvent[]): void {
-  delete s.trade;
+  clearTrades(s);
   delete s.resumePhase;
   delete s.roadBuildingLeft;
   delete s.pendingDiscards;
@@ -588,8 +595,8 @@ function kick(s: GameState, pid: PlayerId, level: BotLevel, events: GameEvent[])
 
 /** Предложение обмена от ушедшего игрока снимаем — бот начнёт свой ход с чистого листа. */
 function dropTradeOf(s: GameState, pid: PlayerId, events: GameEvent[]): void {
-  if (s.trade && currentPlayerId(s) === pid) {
-    delete s.trade;
+  if (s.trades?.length && currentPlayerId(s) === pid) {
+    clearTrades(s);
     events.push({ type: 'tradeCancelled', player: pid });
   }
 }
@@ -639,4 +646,20 @@ function plural(n: number, one: string, few: string, many: string): string {
   if (m10 === 1 && m100 !== 11) return one;
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many;
+}
+
+// ─── несколько открытых предложений обмена ───
+const MAX_OPEN_TRADES = 5;
+function findTrade(s: GameState, id: number): TradeOffer | undefined {
+  return (s.trades ?? (s.trade ? [s.trade] : [])).find((t) => t.id === id);
+}
+/** s.trade — зеркало последнего открытого предложения (так его видит старый код и боты). */
+export function syncTrade(s: GameState): void {
+  const last = s.trades?.[s.trades.length - 1];
+  if (last) s.trade = last;
+  else delete s.trade;
+}
+export function clearTrades(s: GameState): void {
+  s.trades = [];
+  delete s.trade;
 }

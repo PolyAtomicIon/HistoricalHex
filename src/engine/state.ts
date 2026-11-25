@@ -105,7 +105,10 @@ export interface GameState {
   /** Куда вернуться после разбойника / бесплатных дорог. */
   resumePhase?: 'roll' | 'main';
   roadBuildingLeft?: number;
+  /** Последнее открытое предложение (зеркало trades[последний] — для старого кода). */
   trade?: TradeOffer;
+  /** Все открытые предложения активного игрока (можно кинуть несколько подряд). */
+  trades?: TradeOffer[];
   tradeSeq: number;
   longestRoad?: PlayerId;
   largestArmy?: PlayerId;
@@ -201,18 +204,24 @@ export function normalizeState(raw: GameState): GameState {
     p.devCards ??= [];
     p.knightsPlayed ??= 0;
   }
-  if (s.trade) s.trade.responses ??= {};
-  if (s.trade) {
-    s.trade.give = { ...emptyResources(), ...(s.trade.give ?? {}) };
-    s.trade.want = { ...emptyResources(), ...(s.trade.want ?? {}) };
-    for (const resp of Object.values(s.trade.responses)) {
-      if (resp.kind === 'counter') {
-        resp.give = { ...emptyResources(), ...(resp.give ?? {}) };
-        resp.want = { ...emptyResources(), ...(resp.want ?? {}) };
-      }
+  // Стопка предложений: пустые поля восстанавливаем, s.trade — снова тот же объект, что последний в стопке
+  s.trades = (s.trades ?? (s.trade ? [s.trade] : [])).map(fixOffer);
+  if (s.trades.length) s.trade = s.trades[s.trades.length - 1];
+  else delete s.trade;
+  return s;
+}
+
+export function fixOffer(t: TradeOffer): TradeOffer {
+  t.responses ??= {};
+  t.give = { ...emptyResources(), ...(t.give ?? {}) };
+  t.want = { ...emptyResources(), ...(t.want ?? {}) };
+  for (const resp of Object.values(t.responses)) {
+    if (resp.kind === 'counter') {
+      resp.give = { ...emptyResources(), ...(resp.give ?? {}) };
+      resp.want = { ...emptyResources(), ...(resp.want ?? {}) };
     }
   }
-  return s;
+  return t;
 }
 
 export function currentPlayerId(s: Pick<GameState, 'order' | 'current'>): PlayerId {

@@ -8,6 +8,7 @@ import { currentPlayerId } from './state';
 import type { LogEntry } from './events';
 import { hiddenVictoryPoints, longestRoadLength, publicVictoryPoints, victoryPoints } from './rules/scoring';
 import { tradeRatios } from './rules/placement';
+import { fixOffer } from './state';
 
 export interface PublicPlayer {
   id: PlayerId;
@@ -98,11 +99,9 @@ export function normalizePublicView(raw: PublicState): PublicState {
   s.devCardPlayed ??= false;
   s.bank = { ...emptyResources(), ...(s.bank ?? {}) };
   s.board.harbors ??= [];
-  if (s.trade) {
-    s.trade.responses ??= {};
-    s.trade.give = { ...emptyResources(), ...(s.trade.give ?? {}) };
-    s.trade.want = { ...emptyResources(), ...(s.trade.want ?? {}) };
-  }
+  s.trades = (s.trades ?? (s.trade ? [s.trade] : [])).map(fixOffer);
+  if (s.trades.length) s.trade = s.trades[s.trades.length - 1];
+  else delete s.trade;
   return s;
 }
 

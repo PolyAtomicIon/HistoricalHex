@@ -23,7 +23,8 @@ export type Action =
   | { type: 'respondTrade'; tradeId: number; kind: 'accept' | 'decline' }
   | { type: 'respondTrade'; tradeId: number; kind: 'counter'; give: ResourceMap; want: ResourceMap }
   | { type: 'confirmTrade'; tradeId: number; with: PlayerId }
-  | { type: 'cancelTrade' }
+  /** tradeId — снять одно предложение; без него — все. */
+  | { type: 'cancelTrade'; tradeId?: number }
   | { type: 'endTurn' }
   /** Выйти из партии: дальше за игрока играет бот выбранного уровня. */
   | { type: 'handToBot'; level: BotLevel }

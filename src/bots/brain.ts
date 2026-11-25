@@ -93,9 +93,12 @@ function randomDiscard(hand: ResourceMap, n: number, rng: Rng): ResourceMap {
 /** Ответ на чужое предложение обмена, если он нужен. */
 function pendingTradeResponse(ctx: BotContext): Action | null {
   const { pub, me } = ctx;
-  const trade = pub.trade;
-  if (pub.phase !== 'main' || !trade || isMyTurn(ctx) || trade.responses?.[me] || (trade.to && !trade.to.includes(me))) return null;
-  const accept = ctx.level === 'easy' ? easyAccepts(ctx) : smartAccepts(ctx);
+  if (pub.phase !== 'main' || isMyTurn(ctx)) return null;
+  // Несколько открытых предложений — отвечаем на первое, на которое ещё не ответили
+  const trade = (pub.trades ?? (pub.trade ? [pub.trade] : [])).find((t) => !t.responses?.[me] && (!t.to || t.to.includes(me)));
+  if (!trade) return null;
+  const one = { ...ctx, pub: { ...pub, trade } };
+  const accept = ctx.level === 'easy' ? easyAccepts(one) : smartAccepts(one);
   return { type: 'respondTrade', tradeId: trade.id, kind: accept ? 'accept' : 'decline' };
 }
 
