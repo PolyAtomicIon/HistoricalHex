@@ -13,6 +13,7 @@ import { haptic, sfx } from '../fx';
 import { LearnCard, useLearn } from './learn/Learn';
 import { LANGS, t3, useLang } from './learn/lang';
 import type { T3 } from './learn/lang';
+import { LiveGames, ProfileSheet, RecentGames, useFeed } from './Social';
 
 /** Тексты главной на трёх языках (названия эпох пока по-русски — это имена собственные из лор-паков). */
 const H: Record<string, T3> = {
@@ -76,6 +77,8 @@ export function Home({ initialPin }: { initialPin?: string }) {
   const learn = useLearn();
   const [lang, setLang] = useLang();
   const T = (k: string) => t3(H[k], lang);
+  const feed = useFeed();
+  const [who, setWho] = useState<{ pid: string; name: string } | null>(null);
   useEffect(() => {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
@@ -104,6 +107,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
       <Sheet open={!!profileOpen} onClose={() => setProfileOpen(null)} title={profileOpen === 'top' ? T('leaders') : T('profile')}>
         <ProfileView key={profileOpen ?? 'x'} initialTab={profileOpen ?? 'me'} />
       </Sheet>
+      <ProfileSheet who={who} onClose={() => setWho(null)} />
 
       {mode === 'home' ? (
         <div className="hub-col">
@@ -154,6 +158,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
           </div>
           {status !== 'online' && <p className="faint small center">{T('connecting')}</p>}
           <LearnCard onTutorial={learn.openTutorial} onRules={learn.openRules} />
+          {feed && <LiveGames live={feed.live} lang={lang} />}
 
           <section className="hub-eras" aria-label={T('eras')}>
             <div className="hub-sec-h">
@@ -208,7 +213,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
               <div className="hub-pod">
                 {[top3[1], top3[0], top3[2]].map((l, i) =>
                   l ? (
-                    <div key={l.id} className={`p${l.place}`}>
+                    <button key={l.id} className={`p${l.place}`} onClick={() => setWho({ pid: l.id, name: l.name })}>
                       {l.place === 1 && <Icon name="crown" size={16} />}
                       <span className="pf-ava sm">{l.photo ? <img src={l.photo} alt="" /> : l.name.charAt(0).toUpperCase()}</span>
                       <b>
@@ -217,7 +222,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
                       </b>
                       <small className="hub-rating">{l.rating}</small>
                       <span className="hub-step display">{l.place}</span>
-                    </div>
+                    </button>
                   ) : (
                     <div key={`e${i}`} />
                   ),
@@ -233,6 +238,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
               )}
             </section>
           )}
+          {feed && <RecentGames recent={feed.recent} lang={lang} onPlayer={setWho} />}
         </div>
       ) : (
         <div className="center-col">

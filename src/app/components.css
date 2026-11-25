@@ -6965,3 +6965,173 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 @media (prefers-reduced-motion: reduce) {
   .l3-island i { animation: none; opacity: 1; }
 }
+
+/* ─── Лента главной: «Сейчас играют» и «Недавние партии» ─── */
+.hub-pod > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.hub-pod > button:active .pf-ava { transform: scale(0.94); }
+.hub-pod .pf-ava { transition: transform 120ms var(--ease-out); }
+.leaders > li { list-style: none; }
+.leaders button.item { color: inherit; font: inherit; -webkit-tap-highlight-color: transparent; }
+.leaders button.item:active { background: rgba(255, 255, 255, 0.1); }
+
+.hub-feed { display: flex; flex-direction: column; gap: 10px; flex: none; }
+.hub-live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hub-live-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #58d68d;
+  animation: hub-live 2s ease-in-out infinite;
+}
+@keyframes hub-live { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .hub-live-dot::before { animation: none; } }
+.feed-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.feed-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 120ms;
+}
+.feed-row:active { background: rgba(255, 255, 255, 0.06); }
+.feed-row > :first-child { flex: none; }
+.feed-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.feed-main > b { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-main > b small { font-weight: 600; color: var(--ink-3); font-size: 13px; }
+.feed-sub { font-size: 13px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-players { display: flex; gap: 10px; overflow: hidden; white-space: nowrap; font-size: 13px; color: var(--ink-2); }
+.fp { display: inline-flex; align-items: center; gap: 5px; flex: none; }
+.fp i { width: 8px; height: 8px; border-radius: 50%; background: var(--pc); flex: none; }
+.fp small { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.fp.now { color: var(--ink); font-weight: 700; }
+.fp.now i { box-shadow: 0 0 0 2px #070b10, 0 0 0 3.5px var(--pc); }
+.fp.bot { color: var(--ink-3); }
+.fp.off { opacity: 0.55; }
+.feed-act { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.feed-act small { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.feed-cta {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 13px;
+  font-weight: 700;
+}
+.feed-eyes { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.feed-you { color: var(--ink-2) !important; font-weight: 700; }
+
+/* итог партии в шторке: места, очки, тап — профиль */
+.feed-result { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.feed-res-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.feed-res-row:disabled { cursor: default; opacity: 1; }
+.feed-res-row:not(:disabled):active { background: rgba(255, 255, 255, 0.1); }
+.feed-res-row .n { width: 18px; font-weight: 800; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.feed-res-row .nm { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-res-row .nm svg { color: var(--accent); flex: none; }
+.feed-res-row b { font-variant-numeric: tabular-nums; }
+.feed-res-row b small { color: var(--ink-3); font-weight: 600; }
+.feed-res-row .chev { color: var(--ink-3); font-size: 20px; line-height: 1; }
+
+/* ─── Зритель: одна плавающая панель снизу ─── */
+.tv-watch {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  bottom: calc(var(--safe-b) + 16px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(18, 26, 36, 0.92);
+  border: 0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  max-width: calc(100vw - 32px);
+}
+.tv-watch::before { display: none; }
+.tw-eyes {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.tw-react,
+.tw-home {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  cursor: pointer;
+  flex: none;
+}
+.tw-home { background: none; color: var(--ink-2); }
+.tw-react.cool { color: var(--ink-3); cursor: default; }
+.tw-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(rgba(255, 255, 255, 0.7) var(--tw, 0%), transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 18.5px, #000 19.5px);
+  mask: radial-gradient(circle, transparent 18.5px, #000 19.5px);
+  animation: tw-cool 4s linear forwards;
+}
+@property --tw { syntax: '<percentage>'; inherits: false; initial-value: 100%; }
+@keyframes tw-cool { from { --tw: 100%; } to { --tw: 0%; } }
+.tv-watch .btn.small-act { min-height: 44px; border-radius: 999px; padding: 0 16px; }
+.feed-players { flex-wrap: wrap; row-gap: 2px; white-space: normal; }
+.fp { max-width: 100%; white-space: nowrap; }

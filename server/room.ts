@@ -17,9 +17,13 @@ import type { ActionResult } from '../src/engine';
 import type { BotMemory } from '../src/bots';
 import { BOT_NAMES, botsToAct, decide } from '../src/bots';
 import { pickPersona } from './personas';
-import type { DiceSource, RoomSettings, RoomStatus, RoomView, Seat, ServerMsg } from '../src/proto';
-import { DEFAULT_SETTINGS, OFFLINE_BOT_LEVEL, PACE_K } from '../src/proto';
+import type { DiceSource, LiveGame, RoomSettings, RoomStatus, RoomView, Seat, ServerMsg } from '../src/proto';
+import { DEFAULT_SETTINGS, OFFLINE_BOT_LEVEL, PACE_K, REACTIONS } from '../src/proto';
 import { RandomOrgDice } from '../src/net/randomOrg';
+
+/** Реакции: игроку — не чаще раза в 0,7 с, зрителю — раз в 4 с (зрителей может быть много). */
+export const REACT_GAP_PLAYER_MS = 700;
+export const REACT_GAP_WATCHER_MS = 4000;
 
 const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS ?? 1300);
 const BOT_REPLY_MS = Number(process.env.BOT_REPLY_MS ?? 900);
@@ -120,6 +124,8 @@ export class Room {
   /** До какого момента идёт сцена атаки: кубики (и людям, и автоброску) — только после неё. */
   private attackUntil = 0;
   private queue: Promise<unknown> = Promise.resolve();
+  /** Когда кто последний раз реагировал (троттлинг). */
+  private lastReact = new Map<PlayerId, number>();
   private disposed = false;
 
   constructor(
@@ -182,6 +188,37 @@ export class Room {
 
   get clientCount(): number {
     return this.clients.size;
+  }
+
+  /** За столом (и не выгнан) — игрок; иначе зритель. */
+  isSeated(pid: PlayerId): boolean {
+    return this.seats.has(pid) && !this.kicked.has(pid);
+  }
+
+  /** Сколько разных зрителей подключено (не за столом). */
+  get watchers(): number {
+    return new Set([...this.clients].filter((c) => !this.isSeated(c.me)).map((c) => c.me)).size;
+  }
+
+  /** Сводка для ленты «Сейчас играют»: только идущая партия, где есть живой человек. */
+  liveSummary(me?: PlayerId): LiveGame | undefined {
+    const st = this.state;
+    if (this.status !== 'playing' || !st || st.phase === 'finished') return undefined;
+    const pub = toPublicView(st);
+    const humans = st.order.filter((id) => !this.seats.get(id)?.bot && !pub.players[id].kicked);
+    if (!humans.length) return undefined;
+    return {
+      pin: this.pin,
+      era: this.settings.lore,
+      turn: st.turn,
+      current: st.current,
+      watchers: this.watchers,
+      ...(me && this.isSeated(me) ? { mine: true } : {}),
+      players: st.order.map((id) => {
+        const p = pub.players[id];
+        return { name: p.name, color: p.color, points: p.points, ...(p.bot ? { bot: true } : {}), online: p.bot ? true : this.isOnline(id) };
+      }),
+    };
   }
 
   // ───────────────────────── лобби ─────────────────────────
@@ -418,11 +455,18 @@ export class Room {
     this.dispose();
   }
 
-  react(me: PlayerId, emoji: string): void {
-    if (!this.seats.has(me) && me !== this.hostId) return;
-    if (typeof emoji !== 'string' || emoji.length > 8) return;
+  /** Реакция игрока или зрителя. Зрителю — реже и с подписью «зритель». false — слишком часто. */
+  react(me: PlayerId, emoji: string, watcherName?: string): boolean {
+    if (!(REACTIONS as readonly string[]).includes(emoji)) return false;
+    const player = this.isSeated(me) || me === this.hostId;
     const at = Date.now();
-    for (const c of this.clients) c.send({ t: 'react', from: me, emoji, at });
+    if (at - (this.lastReact.get(me) ?? 0) < (player ? REACT_GAP_PLAYER_MS : REACT_GAP_WATCHER_MS)) return false;
+    this.lastReact.set(me, at);
+    const msg: ServerMsg = player
+      ? { t: 'react', from: me, emoji, at }
+      : { t: 'react', from: me, emoji, at, watcher: true, name: (watcherName || 'Зритель').slice(0, 24) };
+    for (const c of this.clients) c.send(msg);
+    return true;
   }
 
   dispose(): void {
@@ -667,6 +711,7 @@ export class Room {
       online,
       diceSource: this.diceSource,
       serverNow: Date.now(),
+      ...(this.status === 'playing' ? { watchers: this.watchers } : {}),
       ...(this.undoSnap && this.undoSnap.player === me && state?.turn === this.undoSnap.turn ? { canUndo: this.undoSnap.kind } : {}),
       ...(this.bans[me]?.length ? { bans: this.bans[me] } : {}),
     };

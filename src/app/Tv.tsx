@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PlayerColor, PlayerId } from '../engine';
 import type { RoomView } from '../proto';
+import { REACTIONS } from '../proto';
 import type { LorePack } from '../lore';
 import { PLAYER_HEX } from '../ui/theme';
 import { namesFrom } from '../i18n/ru';
-import { Cinematic, DiceOverlay, Raid, ReactionsLayer, sfx, Threat, useMuted } from '../fx';
+import { Cinematic, DiceOverlay, Raid, ReactionBar, ReactionsLayer, sfx, Threat, useMuted } from '../fx';
 import { GameBoard, MODE_LABEL, chose3d, useBoardMode } from './GameBoard';
 import { threatInfo, useGameFx } from './useGameFx';
 import { Fact, useRotatingFact } from './Facts';
@@ -117,7 +118,16 @@ function Res({ list }: { list: FeedRes[] }) {
 }
 
 export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePack; screen?: boolean }) {
-  const [panel, setPanel] = useState<null | 'host' | 'claim'>(null);
+  const [panel, setPanel] = useState<null | 'host' | 'claim' | 'react'>(null);
+  // Зритель реагирует не чаще раза в 4 секунды (сервер тоже следит)
+  const [coolUntil, setCoolUntil] = useState(0);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (coolUntil <= Date.now()) return;
+    const t = setTimeout(() => tick((x) => x + 1), coolUntil - Date.now() + 30);
+    return () => clearTimeout(t);
+  }, [coolUntil]);
+  const cooling = coolUntil > Date.now();
   // Тап по игроку — подсветить его постройки на 4 секунды
   const [spot, setSpot] = useState<{ id: string; key: number } | null>(null);
   useEffect(() => {
@@ -299,18 +309,45 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         )}
       </div>
 
-      <div className="tv-actions">
-        {!screen && !room.seated && pub.phase !== 'finished' && (
-          <button className="btn primary" onClick={() => setPanel('claim')}>
-            Я играю в этой партии
+      {!screen && !room.seated ? (
+        <div className="tv-watch glass">
+          <span className="tw-eyes" title="Зрители">
+            <Icon name="eye" size={16} />
+            {room.watchers ?? 1}
+          </span>
+          <button className={`tw-react ${cooling ? 'cool' : ''}`} disabled={cooling} onClick={() => setPanel('react')} aria-label="Реакция">
+            <Icon name="smile" size={20} />
+            {cooling && <i key={coolUntil} className="tw-ring" />}
           </button>
-        )}
-        {!screen && (
-          <button className="btn glass" onClick={() => conn.forget()}>
-            На главную
+          {pub.phase !== 'finished' && (
+            <button className="btn small-act" onClick={() => setPanel('claim')}>
+              Я играю
+            </button>
+          )}
+          <button className="tw-home" onClick={() => conn.forget()} aria-label="На главную">
+            <Icon name="close" size={18} />
           </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        !screen && (
+          <div className="tv-actions">
+            <button className="btn glass" onClick={() => conn.forget()}>
+              На главную
+            </button>
+          </div>
+        )
+      )}
+
+      <Sheet open={panel === 'react'} onClose={() => setPanel(null)} title="Реакция" description="Её увидят игроки и зрители · раз в 4 секунды">
+        <ReactionBar
+          emojis={REACTIONS}
+          onReact={(e) => {
+            conn.send({ t: 'react', emoji: e });
+            setCoolUntil(Date.now() + 4000);
+            setPanel(null);
+          }}
+        />
+      </Sheet>
 
       <Sheet open={panel === 'host'} onClose={() => setPanel(null)} title="Ведущий">
         <div className="stack">

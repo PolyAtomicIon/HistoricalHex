@@ -21,6 +21,7 @@ import {
   ClipboardList,
   Crown,
   Dices,
+  Eye,
   Hand,
   House,
   Landmark,
@@ -66,6 +67,7 @@ export type IconName =
   | 'close'
   | 'bulb'
   | 'tv'
+  | 'eye'
   | 'check'
   | 'skip'
   | 'ban'
@@ -103,6 +105,7 @@ const L: Record<IconName, LucideIcon> = {
   close: X,
   bulb: Lightbulb,
   tv: Tv,
+  eye: Eye,
   check: Check,
   skip: SkipForward,
   ban: Ban,

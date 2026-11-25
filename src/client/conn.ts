@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import { tgInitData } from '../app/tg';
 import type { Action, GameEvent, HostAction, PlayerId } from '../engine';
-import type { ClientMsg, DiceSource, LeaderRow, ProfileView, RoomSettings, RoomView, ServerMsg } from '../proto';
+import type { ClientMsg, DiceSource, LeaderRow, LiveGame, ProfileView, RecentGame, RoomSettings, RoomView, ServerMsg } from '../proto';
 
 const SECRET_KEY = 'hh.secret';
 const PIN_KEY = 'hh.pin';
@@ -64,10 +64,12 @@ export interface ConnState {
   pushOn?: boolean;
   /** Профиль игрока за столом (по запросу). */
   playerProfile?: { pid: string; profile: ProfileView | null };
+  /** Лента главной: идущие партии и недавние (по запросу 'feed'). */
+  feed?: { live: LiveGame[]; recent: RecentGame[] };
 }
 
 export type EventListener = (events: GameEvent[], source?: DiceSource) => void;
-export type ReactListener = (r: { from: PlayerId; emoji: string; at: number }) => void;
+export type ReactListener = (r: { from: PlayerId; emoji: string; at: number; name?: string; watcher?: boolean }) => void;
 
 class Connection {
   private ws?: WebSocket;
@@ -132,6 +134,8 @@ class Connection {
         return this.patch({ tgLink: m.url });
       case 'playerProfile':
         return this.patch({ playerProfile: { pid: m.pid, profile: m.profile } });
+      case 'feed':
+        return this.patch({ feed: { live: m.live, recent: m.recent } });
       case 'profile':
         return this.patch({ profile: { profile: m.profile, leaders: m.leaders, tgBot: m.tgBot, portal: m.portal } });
       case 'created':

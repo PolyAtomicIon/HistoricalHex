@@ -371,7 +371,9 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
     });
 
     const offReact = conn.onReact((r) => {
-      const item: ReactionItem = { id: `${r.from}-${r.at}`, emoji: r.emoji, from: name(r.from), color: color(r.from) };
+      const item: ReactionItem = r.watcher
+        ? { id: `${r.from}-${r.at}`, emoji: r.emoji, from: `${r.name ?? 'Зритель'} · зритель` }
+        : { id: `${r.from}-${r.at}`, emoji: r.emoji, from: name(r.from), color: color(r.from) };
       setFx((f) => ({ ...f, reactions: [...f.reactions.slice(-12), item] }));
     });
 

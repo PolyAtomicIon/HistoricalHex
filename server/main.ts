@@ -13,7 +13,7 @@ import type { Client, SavedRoom } from './room';
 import { Room, randomOrg } from './room';
 import { TgBot } from './tgbot';
 import { addSubscription, hasPush, initPush, removeSubscriptions, sendPush, vapidPublicKey } from './push';
-import { findProfile, ipHash, logEvent, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
+import { findProfile, recentGames, ipHash, logEvent, leaderboard, openAccounts, profileByPortal, profileByTg, profileOf, runAiLeague, recordGame, renameProfile, signInPortal, signInTelegram, verifyMiniApp, verifyPortalTicket, verifyWidget, view } from './accounts';
 
 const TG_TOKEN = process.env.TG_BOT_TOKEN ?? '';
 const TG_BOT = process.env.TG_BOT_NAME ?? '';
@@ -257,6 +257,15 @@ wss.on('connection', (ws: WebSocket, req) => {
         room.takeBotSeat(me, msg.pid, msg.name);
         return;
       }
+      case 'feed': {
+        // Идущие партии: сначала мои, потом где больше людей в сети
+        const live = [...rooms.values()]
+          .map((x) => x.liveSummary(me))
+          .filter((x): x is NonNullable<typeof x> => !!x)
+          .sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || b.players.filter((p) => !p.bot && p.online).length - a.players.filter((p) => !p.bot && p.online).length)
+          .slice(0, 12);
+        return send({ t: 'feed', live, recent: recentGames(me, 8) });
+      }
       case 'playerProfile': {
         if (typeof msg.pid !== 'string' || msg.pid.length > 64) throw new Error('Нет такого игрока');
         // Ищем место за столом в любой комнате этого соединения: ИИ — по персонажу
@@ -356,7 +365,8 @@ wss.on('connection', (ws: WebSocket, req) => {
         return send({ t: 'result', id: msg.id, ok: res.ok, ...(res.ok ? {} : { error: res.error }) });
       }
       case 'react':
-        return r.react(me, msg.emoji);
+        r.react(me, String(msg.emoji ?? ''), r.isSeated(me) ? undefined : findProfile(me)?.name);
+        return;
       case 'ban':
         if (typeof msg.player !== 'string') throw new Error('Плохой запрос');
         return r.setBan(me, msg.player, !!msg.on);

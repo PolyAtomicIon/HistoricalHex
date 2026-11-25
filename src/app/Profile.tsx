@@ -6,6 +6,7 @@ import { LORE_PACKS } from '../lore';
 import { eraCover, eraIcon } from './era';
 import { ArtIcon, Icon } from './icons';
 import { inTelegram } from './tg';
+import { Sheet } from './Sheet';
 
 /** Вход через Telegram временно скрыт (весь код на месте). */
 const SHOW_TELEGRAM = false;
@@ -21,6 +22,7 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
   const [tab, setTab] = useState<'me' | 'top'>(initialTab);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
+  const [who, setWho] = useState<{ pid: string; name: string } | null>(null);
   useEffect(() => {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
@@ -42,6 +44,7 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
   const rate = p.games ? Math.round((p.wins / p.games) * 100) : 0;
   return (
     <div className="stack profile">
+      <ProfileSheet who={who} onClose={() => setWho(null)} />
       <div className="pf-head">
         <span className="pf-ava">{p.photo ? <img src={p.photo} alt="" /> : p.name.charAt(0).toUpperCase()}</span>
         <div className="grow">
@@ -150,7 +153,8 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
         <ol className="list leaders">
           {data.leaders.length === 0 && <p className="muted center">Пока никого — сыграй первую партию!</p>}
           {data.leaders.map((r) => (
-            <li key={r.id} className={`item lead ${r.id === p.id ? 'me' : ''}`}>
+            <li key={r.id}>
+              <button className={`item lead ${r.id === p.id ? 'me' : ''}`} onClick={() => setWho({ pid: r.id, name: r.name })}>
               <span className={`ld-place p${r.place}`}>{r.place}</span>
               <span className="pf-ava sm">{r.photo ? <img src={r.photo} alt="" /> : r.name.charAt(0).toUpperCase()}</span>
               <div className="grow">
@@ -163,6 +167,7 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
                 </div>
               </div>
               <b>{r.rating}</b>
+              </button>
             </li>
           ))}
         </ol>
@@ -242,5 +247,19 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
         </button>
       )}
     </div>
+  );
+}
+
+/** Шторка с профилем игрока (из лидеров, недавних партий). */
+export function ProfileSheet({ who, onClose }: { who: { pid: string; name: string } | null; onClose: () => void }) {
+  // Держим последнего, чтобы содержимое не пропадало во время анимации закрытия
+  const [last, setLast] = useState(who);
+  useEffect(() => {
+    if (who) setLast(who);
+  }, [who]);
+  return (
+    <Sheet open={!!who} onClose={onClose} title={last?.name ?? ''}>
+      {last && <PlayerProfileCard key={last.pid} pid={last.pid} name={last.name} color="rgba(255,255,255,0.08)" />}
+    </Sheet>
   );
 }

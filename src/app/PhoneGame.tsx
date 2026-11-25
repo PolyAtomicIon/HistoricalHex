@@ -945,7 +945,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         <FactsList pack={pack} />
       </Sheet>
 
-      <Sheet open={sheet === 'react'} onClose={() => setSheet(null)} title="Реакция">
+      <Sheet open={sheet === 'react'} onClose={() => setSheet(null)} title="Реакция" description={room.watchers ? `Смотрят партию: ${room.watchers}` : undefined}>
         <ReactionBar
           emojis={REACTIONS}
           onReact={(e) => {

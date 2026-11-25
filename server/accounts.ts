@@ -5,7 +5,7 @@
 // Вход через Telegram привязывает устройство к профилю с tg_id — так статистика собирается с разных телефонов.
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import type { ProfileView, LeaderRow } from '../src/proto';
+import type { ProfileView, LeaderRow, RecentGame } from '../src/proto';
 import { PERSONAS, personaById, simulateGame } from './personas';
 
 export interface Profile {
@@ -48,6 +48,8 @@ interface Store {
   linkDevice(pid: string, profileId: string): void;
   hasGame(id: string): boolean;
   putGame(g: FinishedGame): void;
+  /** Последние партии (без фоновой ИИ-лиги), свежие первыми. */
+  recentGames(n: number): FinishedGame[];
   top(n: number): Profile[];
   aiGames(): number;
   logEvent(kind: string, pid: string | undefined, data?: unknown, ipHash?: string): void;
@@ -59,6 +61,7 @@ class MemoryStore implements Store {
   profiles = new Map<string, Profile>();
   devices = new Map<string, string>();
   games = new Set<string>();
+  gameList: FinishedGame[] = [];
   getProfile = (id: string) => this.profiles.get(id);
   getByTg = (tg: string) => [...this.profiles.values()].find((p) => p.tgId === tg);
   getByPortal = (id: string) => [...this.profiles.values()].find((p) => p.portalId === id);
@@ -66,7 +69,11 @@ class MemoryStore implements Store {
   deviceProfile = (pid: string) => this.devices.get(pid);
   linkDevice = (pid: string, id: string) => void this.devices.set(pid, id);
   hasGame = (id: string) => this.games.has(id);
-  putGame = (g: FinishedGame) => void this.games.add(g.id);
+  putGame = (g: FinishedGame) => {
+    this.games.add(g.id);
+    if (!g.id.startsWith('league-')) this.gameList.unshift(g);
+  };
+  recentGames = (n: number) => this.gameList.slice(0, n);
   top = (n: number) => [...this.profiles.values()].filter((p) => p.games > 0 && !p.mergedInto).sort((a, b) => b.rating - a.rating).slice(0, n);
   aiGames = () => [...this.profiles.values()].filter((p) => p.ai).reduce((a, p) => a + p.games, 0);
   logEvent = () => {};
@@ -85,6 +92,7 @@ class SqliteStore implements Store {
       CREATE TABLE IF NOT EXISTS devices (pid TEXT PRIMARY KEY, profile_id TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, data TEXT NOT NULL, finished_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS profiles_rating ON profiles(rating DESC);
+      CREATE INDEX IF NOT EXISTS games_finished ON games(finished_at DESC);
       CREATE TABLE IF NOT EXISTS events (ts INTEGER NOT NULL, kind TEXT NOT NULL, pid TEXT, ip TEXT, data TEXT);
       CREATE INDEX IF NOT EXISTS events_ts ON events(ts);
       CREATE INDEX IF NOT EXISTS events_pid ON events(pid);
@@ -110,6 +118,11 @@ class SqliteStore implements Store {
     void this.db.prepare('INSERT INTO devices (pid, profile_id) VALUES (?, ?) ON CONFLICT(pid) DO UPDATE SET profile_id = excluded.profile_id').run(pid, id);
   hasGame = (id: string) => !!this.db.prepare('SELECT 1 FROM games WHERE id = ?').get(id);
   putGame = (g: FinishedGame) => void this.db.prepare('INSERT OR IGNORE INTO games (id, data, finished_at) VALUES (?, ?, ?)').run(g.id, JSON.stringify(g), g.finishedAt);
+  recentGames = (n: number) =>
+    this.db
+      .prepare("SELECT data FROM games WHERE id NOT LIKE 'league-%' ORDER BY finished_at DESC LIMIT ?")
+      .all(n)
+      .map((r) => JSON.parse((r as { data: string }).data) as FinishedGame);
   top = (n: number) => this.db.prepare('SELECT data FROM profiles WHERE games > 0 ORDER BY rating DESC LIMIT ?').all(n).map((r) => this.row(r)!);
   aiGames = () => (this.db.prepare("SELECT COALESCE(SUM(games), 0) AS g FROM profiles WHERE id LIKE 'ai-%'").get() as { g: number }).g;
   logEvent = (kind: string, pid: string | undefined, data?: unknown, ip?: string) =>
@@ -271,7 +284,31 @@ export function personaProfile(id: string): Profile | undefined {
 export function findProfile(pid: string, persona?: string): Profile | undefined {
   if (persona) return personaProfile(persona);
   const linked = store.deviceProfile(pid);
-  return (linked && store.getProfile(linked)) || store.getProfile(pid);
+  const p = (linked && store.getProfile(linked)) || store.getProfile(pid);
+  // Гостевой профиль, слитый в основной, — показываем основной
+  return p?.mergedInto ? (store.getProfile(p.mergedInto) ?? p) : p;
+}
+
+/** Недавние партии с людьми — для ленты главной. mine — я был за столом. */
+export function recentGames(me: string, n = 8): RecentGame[] {
+  const my = findProfile(me)?.id;
+  return store
+    .recentGames(40)
+    .filter((g) => g.players.some((p) => !p.bot))
+    .slice(0, n)
+    .map((g) => {
+      const players = g.players.map((p) => {
+        const prof = p.persona ? personaProfile(p.persona) : p.bot ? undefined : findProfile(p.pid);
+        return {
+          name: p.name,
+          vp: p.vp,
+          winner: p.winner,
+          ...(prof ? { profileId: prof.id } : {}),
+          ...(p.persona ? { ai: true } : p.bot ? { bot: true } : {}),
+        };
+      });
+      return { id: g.id, era: g.era, finishedAt: g.finishedAt, players, ...(my && players.some((p) => p.profileId === my) ? { mine: true } : {}) };
+    });
 }
 
 /** ИИ-лига: если у персонажей мало партий, они доигрывают в фоне (по партии за тик, не блокируя сервер). */

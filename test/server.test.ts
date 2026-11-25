@@ -160,6 +160,50 @@ describe('server', () => {
 });
 
 import { paceAfter } from '../server/room';
+describe('зрители', () => {
+  it('видят партию в ленте, реагируют не чаще раза в 4 секунды и считаются', async () => {
+    const host = new TestClient();
+    await host.ready();
+    host.send({ t: 'hello', secret: 'watch-host-secret-0123456789' });
+    host.send({ t: 'create', settings: { dice: 'random' } });
+    await host.until(() => !!host.room);
+    const pin = host.room!.pin;
+    host.send({ t: 'join', pin, name: 'Айдана' });
+    for (let i = 0; i < 2; i++) host.send({ t: 'addBot', level: 'easy' });
+    await host.until(() => host.room!.lobby.length === 3);
+    host.send({ t: 'start' });
+    await host.until(() => host.room!.status === 'playing');
+
+    const fan = new TestClient();
+    await fan.ready();
+    fan.send({ t: 'hello', secret: 'watch-fan-secret-0123456789' });
+    fan.send({ t: 'feed' });
+    await fan.until(() => fan.msgs.some((m) => m.t === 'feed'));
+    const feed = fan.msgs.find((m) => m.t === 'feed') as Extract<ServerMsg, { t: 'feed' }>;
+    const live = feed.live.find((g) => g.pin === pin);
+    expect(live).toBeTruthy();
+    expect(live!.players.map((p) => p.name)).toContain('Айдана');
+    expect(live!.mine).toBeUndefined();
+
+    fan.send({ t: 'open', pin });
+    await fan.until(() => !!fan.room && fan.room.seated === false);
+    await host.until(() => host.room!.watchers === 1);
+
+    fan.send({ t: 'react', emoji: '🔥' });
+    fan.send({ t: 'react', emoji: '😂' });
+    fan.send({ t: 'react', emoji: 'не эмодзи' });
+    await host.until(() => host.msgs.some((m) => m.t === 'react'));
+    await new Promise((r) => setTimeout(r, 300));
+    const got = host.msgs.filter((m): m is Extract<ServerMsg, { t: 'react' }> => m.t === 'react');
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ emoji: '🔥', watcher: true });
+
+    fan.ws.close();
+    await host.until(() => !host.room!.watchers);
+    host.ws.close();
+  });
+});
+
 describe('темп ботов', () => {
   it('после налёта ждём сцену, после кубиков — анимацию, по максимуму из событий', () => {
     expect(paceAfter([{ type: 'robberMoved', player: 'a', hex: 'h' }])).toBeGreaterThanOrEqual(6000);

@@ -78,6 +78,8 @@ export interface RoomView {
   online: Record<PlayerId, boolean>;
   diceSource?: DiceSource;
   serverNow: number;
+  /** Сколько зрителей смотрят партию (подключены, но не за столом). */
+  watchers?: number;
   /** Мою последнюю постройку можно отменить — что это было. */
   canUndo?: 'road' | 'settlement' | 'city';
   /** С кем я не торгую (тайно, видно только мне). */
@@ -129,6 +131,8 @@ export type ClientMsg =
   | { t: 'takeSeat'; pid: string; name: string }
   /** Профиль игрока за столом (человек или ИИ). */
   | { t: 'playerProfile'; pid: string }
+  /** Лента главной: идущие партии (смотреть) и недавние. */
+  | { t: 'feed' }
   | { t: 'ping' };
 
 export interface ProfileView {
@@ -168,11 +172,37 @@ export type ServerMsg =
   | { t: 'room'; room: RoomView }
   | { t: 'events'; events: GameEvent[]; diceSource?: DiceSource }
   | { t: 'result'; id: string; ok: boolean; error?: string }
-  | { t: 'react'; from: PlayerId; emoji: string; at: number }
+  /** name — у зрителя (его нет за столом, имя берётся из профиля). */
+  | { t: 'react'; from: PlayerId; emoji: string; at: number; name?: string; watcher?: boolean }
   | { t: 'error'; message: string; fatal?: boolean }
   | { t: 'pong'; now: number }
   | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; /** Адрес AQL Portal: есть — показываем вход через портал. */ portal?: string }
   | { t: 'tgLink'; url: string }
-  | { t: 'playerProfile'; pid: string; profile: ProfileView | null };
+  | { t: 'playerProfile'; pid: string; profile: ProfileView | null }
+  | { t: 'feed'; live: LiveGame[]; recent: RecentGame[] };
+
+/** Идущая партия в ленте главной — её можно открыть зрителем. */
+export interface LiveGame {
+  pin: string;
+  era: string;
+  turn: number;
+  /** Ход сейчас у этого игрока (индекс в players). */
+  current: number;
+  watchers: number;
+  /** Я сижу за этим столом. */
+  mine?: boolean;
+  players: { name: string; color: PlayerColor; points: number; bot?: boolean; online: boolean }[];
+}
+
+/** Сыгранная партия в ленте главной. */
+export interface RecentGame {
+  id: string;
+  era: string;
+  finishedAt: number;
+  /** Я играл в этой партии. */
+  mine?: boolean;
+  /** Места по порядку: победитель первым. profileId — открыть профиль по тапу. */
+  players: { name: string; profileId?: string; bot?: boolean; ai?: boolean; vp: number; winner: boolean }[];
+}
 
 export const REACTIONS = ['👍', '😂', '😱', '🔥', '😤', '🤝', '👀', '🙏', '💀', '🎉'] as const;
