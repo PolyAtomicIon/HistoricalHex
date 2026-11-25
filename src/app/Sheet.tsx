@@ -26,8 +26,9 @@ export function Sheet({
 }) {
   const { lite } = useLite();
   const bodyRef = useRef<HTMLDivElement>(null);
-  useDragToClose(bodyRef, onClose, open && dismissible && !lite);
-  if (lite) return <LiteSheet {...{ open, onClose, title, description, children, dismissible, right }} />;
+  // в лёгком режиме жеста «язычка» нет — тянуть можно за всю шторку (и заголовок, и содержимое)
+  useDragToClose(bodyRef, onClose, open && dismissible, lite);
+  if (lite) return <LiteSheet {...{ open, onClose, title, description, children, dismissible, right, bodyRef }} />;
   return (
     <Drawer
       open={open}
@@ -62,6 +63,7 @@ function LiteSheet({
   children,
   dismissible,
   right,
+  bodyRef,
 }: {
   open: boolean;
   onClose: () => void;
@@ -70,6 +72,7 @@ function LiteSheet({
   children: ReactNode;
   dismissible: boolean;
   right?: ReactNode;
+  bodyRef: React.RefObject<HTMLDivElement | null>;
 }) {
   useEffect(() => {
     if (!open || !dismissible) return;
@@ -92,7 +95,9 @@ function LiteSheet({
           )}
         </div>
         {description && <p className="sheet-desc">{description}</p>}
-        <div className="sheet-body">{children}</div>
+        <div className="sheet-body" ref={bodyRef}>
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -103,7 +108,7 @@ function LiteSheet({
  * если список прокручен до верха, свайп вниз тянет всю шторку за пальцем; отпустил ниже порога
  * или резко — закрывается, иначе пружинит обратно. Прокрутка вверх/вниз внутри списка не страдает.
  */
-function useDragToClose(ref: React.RefObject<HTMLDivElement | null>, onClose: () => void, enabled: boolean) {
+function useDragToClose(ref: React.RefObject<HTMLDivElement | null>, onClose: () => void, enabled: boolean, whole = false) {
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
@@ -125,9 +130,11 @@ function useDragToClose(ref: React.RefObject<HTMLDivElement | null>, onClose: ()
       let armed = false;
       let dragging = false;
       let prev = '';
+      const target: HTMLElement = whole ? sheet : body;
       const start = (e: TouchEvent) => {
         if (e.touches.length !== 1) return;
-        armed = body.scrollTop <= 0;
+        // за заголовок тянуть можно всегда, за содержимое — только когда оно прокручено до верха
+        armed = !body.contains(e.target as Node) || body.scrollTop <= 0;
         dragging = false;
         dy = 0;
         y0 = e.touches[0].clientY;
@@ -141,7 +148,7 @@ function useDragToClose(ref: React.RefObject<HTMLDivElement | null>, onClose: ()
             armed = false; // повёл вверх — это прокрутка
             return;
           }
-          if (d < 8 || body.scrollTop > 0) return;
+          if (d < 8 || (body.contains(e.target as Node) && body.scrollTop > 0)) return;
           dragging = true;
           prev = sheet.style.transform;
         }
@@ -167,15 +174,15 @@ function useDragToClose(ref: React.RefObject<HTMLDivElement | null>, onClose: ()
           setTimeout(() => (sheet.style.transition = ''), 240);
         }
       };
-      body.addEventListener('touchstart', start, { passive: true });
-      body.addEventListener('touchmove', move, { passive: false });
-      body.addEventListener('touchend', end);
-      body.addEventListener('touchcancel', end);
+      target.addEventListener('touchstart', start, { passive: true });
+      target.addEventListener('touchmove', move, { passive: false });
+      target.addEventListener('touchend', end);
+      target.addEventListener('touchcancel', end);
       off = () => {
-        body.removeEventListener('touchstart', start);
-        body.removeEventListener('touchmove', move);
-        body.removeEventListener('touchend', end);
-        body.removeEventListener('touchcancel', end);
+        target.removeEventListener('touchstart', start);
+        target.removeEventListener('touchmove', move);
+        target.removeEventListener('touchend', end);
+        target.removeEventListener('touchcancel', end);
       };
     };
     attach();
@@ -183,5 +190,5 @@ function useDragToClose(ref: React.RefObject<HTMLDivElement | null>, onClose: ()
       window.clearTimeout(timer);
       off();
     };
-  }, [ref, enabled]);
+  }, [ref, enabled, whole]);
 }

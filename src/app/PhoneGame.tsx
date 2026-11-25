@@ -1745,7 +1745,7 @@ function Actions(props: {
               {priv.devCards.length > 0 && <span className={`cnt dot ${canPlayNow ? 'hot' : ''}`}>{priv.devCards.length}</span>}
             </button>
             <button className="btn" onClick={() => openSheet('trade')}>
-              <Icon name="trade" /> Обмен{pub.trade ? ' ·' : ''}
+              <Icon name="trade" /> Обмен{(pub.trades?.length ?? (pub.trade ? 1 : 0)) > 0 ? ` · ${pub.trades?.length ?? 1}` : ''}
             </button>
             <button className="btn primary" disabled={busy} onClick={() => void send({ type: 'endTurn' })}>
               Конец хода <Icon name="next" />

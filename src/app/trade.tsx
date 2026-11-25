@@ -91,7 +91,7 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
               }}
             >
               {banned && <Icon name="ban" size={13} />}
-              {name(id)}
+              <span className="ttc-n">{name(id)}</span>
               {has.map((r) => (
                 <ResIcon key={r} r={r} size={16} />
               ))}

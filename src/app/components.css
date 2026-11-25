@@ -6752,3 +6752,26 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   color: rgba(246, 243, 236, 0.4);
   text-decoration: line-through;
 }
+
+/* Кому — всегда одна строка: длинные имена сокращаются «…», при 4–5 соперниках строка листается вбок */
+.trade-to {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.trade-to::-webkit-scrollbar { display: none; }
+.trade-to-l { flex: none; }
+.trade-to-chip {
+  flex: 0 1 auto;
+  min-width: 72px;
+}
+.trade-to-chip > svg,
+.trade-to-chip > img { flex: none; }
+.ttc-n {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
