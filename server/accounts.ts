@@ -297,7 +297,9 @@ export function recentGames(me: string, n = 8): RecentGame[] {
     .filter((g) => g.players.some((p) => !p.bot))
     .slice(0, n)
     .map((g) => {
-      const players = g.players.map((p) => {
+      // В записи — порядок ходов; для итогов — места: победитель, дальше по очкам
+      const ranked = [...g.players].sort((a, b) => Number(b.winner) - Number(a.winner) || b.vp - a.vp);
+      const players = ranked.map((p) => {
         const prof = p.persona ? personaProfile(p.persona) : p.bot ? undefined : findProfile(p.pid);
         return {
           name: p.name,
