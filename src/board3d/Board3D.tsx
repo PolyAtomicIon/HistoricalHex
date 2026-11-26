@@ -603,6 +603,7 @@ function Scene(props: Board3DProps & { rig: Rig }) {
       {raid3d && <Raid3D key={raid3d.key} ev={raid3d} />}
       {tanks3d && <Tanks3D key={tanks3d.key} ev={tanks3d} />}
       {war3d && <Warriors3D key={war3d.key} ev={war3d} />}
+      <PrewarmAttacks era={era} />
       <Locator world={world} tileMap={tileMap} />
       <RaidZone
         target={idleRobber ? null : robberPos}
@@ -766,3 +767,33 @@ export default function Board3D(props: Board3DProps) {
 }
 
 export type { PlayerColor };
+
+
+/**
+ * Прогрев сцены налёта: при загрузке карты на 3 кадра монтируем атаку этой эпохи глубоко под водой.
+ * Шейдеры самолётов/танков/огня и текстуры дыма готовятся во время экрана загрузки,
+ * а не в первую секунду настоящего налёта (иначе — рывок ~200 мс).
+ */
+function PrewarmAttacks({ era }: { era?: string }) {
+  const [frames, setFrames] = useState(0);
+  useFrame(() => {
+    if (frames < 4) setFrames((f) => f + 1);
+  });
+  if (frames >= 4) return null;
+  const at: [number, number, number] = [0, -40, 0];
+  return (
+    <group>
+      {era === 'ww2' ? (
+        <>
+          <Raid3D ev={{ key: -1, at }} />
+          <Tanks3D ev={{ key: -2, at }} />
+        </>
+      ) : era ? (
+        <>
+          <Warriors3D ev={{ key: -1, at, era, kind: 'robber' }} />
+          <Warriors3D ev={{ key: -2, at, era, kind: 'knight' }} />
+        </>
+      ) : null}
+    </group>
+  );
+}
