@@ -243,6 +243,7 @@ section[id] {
 .hero {
   position: relative;
   overflow: hidden;
+  background: var(--ink);
 }
 .hero-art,
 .hero .flank {
@@ -361,8 +362,32 @@ h3 {
   position: relative;
   overflow: hidden;
   padding: 84px 0 72px;
-  background: radial-gradient(90% 520px at 50% 210px, rgba(228, 87, 46, 0.34), rgba(228, 87, 46, 0) 70%),
-    linear-gradient(180deg, var(--ink) 0, #2a0d0f 150px, var(--blood) 46%, #1e1516 82%, var(--ink) 100%);
+  /* свечение ниже, а переход из тёмного — длинный: секция не начинается полосой */
+  background: radial-gradient(90% 520px at 50% 380px, rgba(228, 87, 46, 0.3), rgba(228, 87, 46, 0) 70%),
+    linear-gradient(180deg, var(--ink) 0, rgba(42, 13, 15, 0.55) 260px, var(--blood) 48%, #1e1516 80%, var(--ink) 100%);
+}
+/* мягкие края секции: сверху и снизу растворяется в общий фон */
+.war::before,
+.war::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 320px;
+  pointer-events: none;
+  z-index: 1;
+}
+.war::before {
+  top: 0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(10, 16, 23, 0.85) 30%, rgba(10, 16, 23, 0) 100%);
+}
+.war::after {
+  bottom: 0;
+  background: linear-gradient(0deg, var(--ink) 0%, rgba(10, 16, 23, 0.8) 30%, rgba(10, 16, 23, 0) 100%);
+}
+.war > :not(.war-flash) {
+  position: relative;
+  z-index: 2;
 }
 .war-flash {
   position: absolute;
@@ -478,10 +503,24 @@ html[lang='en'] .seven {
   margin-top: 36px;
 }
 .step {
+  position: relative;
   display: grid;
   grid-template-columns: 46px 1fr;
   padding: 26px 0;
-  border-top: 1px solid var(--line);
+}
+/* разделитель шагов — тающая к краям волосяная линия, без жёсткого края */
+.step::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(244, 234, 216, 0) 0%, rgba(244, 234, 216, 0.16) 30%, rgba(244, 234, 216, 0.16) 70%, rgba(244, 234, 216, 0) 100%);
+  pointer-events: none;
+}
+.step:first-child::before {
+  display: none;
 }
 .step .n {
   color: var(--gold);

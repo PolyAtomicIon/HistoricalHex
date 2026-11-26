@@ -615,7 +615,8 @@
     );
     once.observe(war.querySelector('.war-head'));
     const sentinel = doc.createElement('i');
-    sentinel.style.cssText = 'position:absolute;top:0;left:0;width:1px;height:70vh;pointer-events:none';
+    // шапка получает фон сразу после начала прокрутки — текст под логотипом не просвечивает
+    sentinel.style.cssText = 'position:absolute;top:0;left:0;width:1px;height:40px;pointer-events:none';
     doc.body.appendChild(sentinel);
     new IntersectionObserver((es) => top.classList.toggle('solid', !es[0].isIntersecting)).observe(sentinel);
   }
