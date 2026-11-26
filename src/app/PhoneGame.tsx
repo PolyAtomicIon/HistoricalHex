@@ -1399,11 +1399,8 @@ function FocusCard({
   const cities = b.filter((x) => x.kind === 'city').length;
   return (
     <div className="focus-card glass strong" style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}>
-      {part && part.total > 1 && (
-        <button className="fc-nav" onClick={() => part.step(-1)} aria-label="Предыдущий район">
-          ‹
-        </button>
-      )}
+      {/* строка 1: кто и сколько; справа — тайный бан в обмене */}
+      <div className="fc-row">
       <button className="fc-open" onClick={onMore}>
       <span className="fc-ava">{p.name.charAt(0).toUpperCase()}</span>
       <span className="fc-main">
@@ -1428,17 +1425,22 @@ function FocusCard({
           <span>{banned ? 'Бан' : 'Обмен'}</span>
         </button>
       )}
+      </div>
+      <IncomeStrip pub={pub} pid={id} />
+      {/* районы игрока по очереди — отдельной строкой внизу, ничего не выталкивает за край */}
       {part && part.total > 1 && (
-        <>
+        <div className="fc-pager">
+          <button className="fc-nav" onClick={() => part.step(-1)} aria-label="Предыдущий район">
+            <Icon name="next" size={16} style={{ transform: 'scaleX(-1)' }} />
+          </button>
           <span className="fc-count">
-            {part.idx + 1}/{part.total}
+            Район {part.idx + 1} из {part.total}
           </span>
           <button className="fc-nav" onClick={() => part.step(1)} aria-label="Следующий район">
-            ›
+            <Icon name="next" size={16} />
           </button>
-        </>
+        </div>
       )}
-      <IncomeStrip pub={pub} pid={id} />
     </div>
   );
 }

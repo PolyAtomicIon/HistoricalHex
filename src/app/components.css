@@ -7533,3 +7533,55 @@ html.lite .hub-glow { display: none; }
 }
 @keyframes dm-timer { to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .dm-timer { animation-duration: 8s; } }
+
+/* ═══ Карточка игрока (фокус): три строки, ничего не переносится и не вылезает ═══ */
+.focus-card {
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: min(calc(100vw - 24px), 420px);
+  padding: 8px;
+}
+.fc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.fc-row .fc-open {
+  flex: 1;
+  min-width: 0;
+}
+.fc-row .fc-main {
+  min-width: 0;
+}
+.fc-row .fc-main b {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-card .income {
+  flex-basis: auto;
+  padding: 0 2px;
+}
+.fc-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+.fc-pager .fc-nav {
+  width: 40px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+}
+.fc-pager .fc-count {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
