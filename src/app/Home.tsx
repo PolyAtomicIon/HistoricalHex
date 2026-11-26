@@ -106,6 +106,13 @@ export function Home({ initialPin }: { initialPin?: string }) {
   const others = feed?.live.filter((g) => !g.mine) ?? [];
   // свайп по обложке листает эпохи
   const swipe = useRef<{ x: number; y: number } | null>(null);
+  // бейдж на слайде: чужие идущие партии именно в этой эпохе
+  const liveHere = others.filter((g) => g.era === pack.id && !g.paused).length;
+  // соседние обложки грузим заранее, чтобы свайп не показывал пустую карточку
+  useEffect(() => {
+    const i = LORE_PACKS.findIndex((e) => e.id === era);
+    for (const d of [1, -1]) new Image().src = eraCoverMd(LORE_PACKS[(i + d + LORE_PACKS.length) % LORE_PACKS.length].id);
+  }, [era]);
   const stepEra = (d: number) => {
     const i = LORE_PACKS.findIndex((e) => e.id === era);
     const next = LORE_PACKS[(i + d + LORE_PACKS.length) % LORE_PACKS.length];
@@ -158,9 +165,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
           <ResumeGames games={mine} lang={lang} />
 
           <section
-            key={pack.id}
             className="hub-hero glass"
-            style={{ backgroundImage: `url(${eraCoverMd(pack.id)})` }}
             onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
             onPointerUp={(e) => {
               const s0 = swipe.current;
@@ -171,8 +176,14 @@ export function Home({ initialPin }: { initialPin?: string }) {
             }}
             onPointerCancel={() => (swipe.current = null)}
           >
+            <span
+              key={pack.id}
+              className="hub-hero-img"
+              aria-hidden
+              style={{ backgroundImage: `url(${eraCoverMd(pack.id)}), url(${eraThumb(pack.id)})` }}
+            />
             <span className="hub-hero-shade" aria-hidden />
-            <LiveCount n={feed?.live.length ?? 0} lang={lang} />
+            <LiveCount n={liveHere} lang={lang} />
             <span className="hub-dots" aria-hidden>
               {LORE_PACKS.map((e) => (
                 <i key={e.id} className={e.id === era ? 'on' : ''} />
