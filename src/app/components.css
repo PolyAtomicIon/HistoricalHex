@@ -7652,3 +7652,30 @@ html.lite .hub-glow { display: none; }
 .deal-mini .dm-items { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .deal-mini .dm-r { gap: 4px; font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
 .deal-mini .dm-res.dm-compact { flex-direction: row; align-items: center; padding: 2px 6px; gap: 2px; border-radius: 10px; }
+
+/* шапка эпох: картинка всегда закрывает карточку целиком (cover), «дыхание» — через transform,
+   а не background-size: при 112% по ширине у широкой картинки не хватало высоты и сверху
+   просвечивала мутная подложка */
+.hub-hero {
+  background-size: cover;
+  animation: toast-in 500ms var(--ease-out);
+  isolation: isolate;
+  clip-path: inset(0 round var(--r-lg));
+}
+.hub-hero-img {
+  background-size: cover, cover;
+  will-change: transform;
+  animation: hub-img-in 320ms var(--ease-out), hub-zoom 18s ease-in-out 320ms infinite alternate;
+}
+@keyframes hub-zoom {
+  from { transform: scale(1.04); }
+  to { transform: scale(1.14) translate(-2%, -2%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-hero-img { animation: none; transform: none; }
+}
+html.lite .hub-hero-img { animation: none; }
+
+/* друзья: имя не упирается в края плитки — свисающие буквы не срезаются */
+.fr { width: 76px; }
+.fr b { box-sizing: border-box; padding: 0 3px; text-align: center; }
