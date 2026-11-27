@@ -1604,9 +1604,9 @@ function PlayersSheet({ pub, room, pack, onPick }: { pub: PublicState; room: Roo
                 {!room.online[id] && !p.bot && <span className="faint"> · {L('не в сети', 'желіде емес', 'offline')}</span>}
               </div>
               <div className="pl-stats">
-                <span title={L('Карт на руке', 'Қолдағы карталар', 'Cards in hand')}><Icon name="hand" size={14} /> {L('{n} карт', '{n} карта', '{n} cards', { n: p.resourceCount })}</span>
+                <span title={L('Карт на руке', 'Қолдағы карталар', 'Cards in hand')}><Icon name="hand" size={14} /> {L('{n} карт', '{n} карта', p.resourceCount === 1 ? '{n} card' : '{n} cards', { n: p.resourceCount })}</span>
                 <span title={L('Карт развития', 'Даму карталары', 'Development cards')}><Icon name="cards" size={14} /> {L('{n} разв.', '{n} даму', '{n} dev', { n: p.devCardCount })}</span>
-                <span title={L('Самая длинная дорога', 'Ең ұзын жол', 'Longest road')}><Icon name="road" size={14} /> {L('{n} дор.', '{n} жол', '{n} roads', { n: p.roadLength })}</span>
+                <span title={L('Самая длинная дорога', 'Ең ұзын жол', 'Longest road')}><Icon name="road" size={14} /> {L('{n} дор.', '{n} жол', p.roadLength === 1 ? '{n} road' : '{n} roads', { n: p.roadLength })}</span>
                 <span title={L('Сыграно рыцарей', 'Ойналған рыцарьлар', 'Knights played')}><ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={16} /> {p.knightsPlayed}</span>
               </div>
               {(pub.longestRoad === id || pub.largestArmy === id) && (
@@ -1657,6 +1657,14 @@ function NewCard({ cards, pack }: { cards: PrivateView['devCards']; pack: LorePa
 }
 
 /** «Твой ход»: короткая вспышка цвета игрока по краям экрана и плашка. */
+/** Цвет надписи на цвете игрока: тёмная на светлых (белый, жёлтый), белая на остальных. */
+function inkOn(hex: string): string {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return '#fff';
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#111' : '#fff';
+}
+
 function TurnBanner({ color }: { color: string }) {
   const [on, setOn] = useState(true);
   useEffect(() => {
@@ -1665,7 +1673,7 @@ function TurnBanner({ color }: { color: string }) {
   }, []);
   if (!on) return null;
   return (
-    <div className="turn-banner" style={{ ['--me' as string]: color }} aria-hidden>
+    <div className="turn-banner" style={{ ['--me' as string]: color, ['--me-ink' as string]: inkOn(color) }} aria-hidden>
       <div className="tb-edge" />
       <div className="tb-plate display">{L('Твой ход', 'Сенің жүрісің', 'Your turn')}</div>
     </div>

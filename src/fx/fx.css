@@ -709,12 +709,12 @@ body.fx-shake > *:not([data-fx-portal]):not(script):not(style) {
 @keyframes fx-explain-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } }
 @media (prefers-reduced-motion: reduce) { .fx-cin-explain { animation: none; } }
 
-/* Мини-плашка события: сверху, под строкой игроков, не закрывает карту и док */
+/* Мини-плашка события: сверху, под строкой игроков и строкой статуса — не налезает на них */
 .fx-cin-mini {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(env(safe-area-inset-top, 0px) + 64px);
+  top: calc(env(safe-area-inset-top, 0px) + 128px);
   display: flex;
   justify-content: center;
   padding: 0 12px;

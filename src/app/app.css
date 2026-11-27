@@ -31,6 +31,8 @@
   --on-fg: #111;
   /* сплошная поверхность шторок и карточек */
   --surface: #121a24;
+  /* акцент как цвет текста: в светлой теме темнее, чтобы читался на светлом */
+  --accent-text: var(--accent);
   --hub-top: #0f2a3d;
   --ink-rgb: 246, 243, 236;
   /* Тёмные подложки (шторки, плашки, градиенты под кнопками) — в светлой теме становятся светлыми */
@@ -51,11 +53,12 @@ html[data-theme='light'] {
   --bg: #e9edf1;
   --ink: #161b22;
   --ink-rgb: 22, 27, 34;
-  --ink-2: rgba(22, 27, 34, 0.7);
-  --ink-3: rgba(22, 27, 34, 0.48);
+  --ink-2: rgba(22, 27, 34, 0.74);
+  --ink-3: rgba(22, 27, 34, 0.58);
   --fg-rgb: 22, 27, 34;
   --on-fg: #fff;
   --surface: #ffffff;
+  --accent-text: color-mix(in oklab, var(--accent) 60%, #000);
   --hub-top: #dfe7ee;
   --glass: rgba(255, 255, 255, 0.66);
   --glass-strong: rgba(250, 251, 252, 0.9);
@@ -711,7 +714,7 @@ textarea {
 }
 .fact-card .yr {
   font-weight: 900;
-  color: var(--accent);
+  color: var(--accent-text, var(--accent));
   margin-right: 6px;
 }
 .fact-card .src {
@@ -831,7 +834,7 @@ html.calm *::after {
 }
 html.calm .glass,
 html.calm .dock {
-  background: rgba(16, 24, 34, 0.94);
+  background: rgba(var(--sd2), 0.94);
 }
 
 /* ─── лёгкий режим (старые телефоны) ─── */
@@ -839,7 +842,7 @@ html.calm .dock {
 .lite .dock {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  background: rgba(16, 24, 34, 0.94);
+  background: rgba(var(--sd2), 0.94);
 }
 .lite .glass::before {
   display: none;
@@ -905,13 +908,33 @@ html {
 html[data-theme='light'] .hub-glow { filter: blur(60px) saturate(1.2) brightness(1.15); opacity: 0.4; }
 
 /* светлая тема: поверх фото и тёмного поля текст остаётся светлым — возвращаем тёмные токены внутри */
-html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .cine, .splash, .tv) {
+html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .cine, .splash, .tv, .tro-scales, .nc-card, .fx-mini-card, .resume-card, .pf-era, .era-card, .tut) {
   --ink: #f6f3ec;
   --ink-rgb: 246, 243, 236;
   --ink-2: rgba(246, 243, 236, 0.72);
   --ink-3: rgba(246, 243, 236, 0.48);
   --fg-rgb: 255, 255, 255;
   --on-fg: #111;
+  --sd1: 7, 11, 16;
+  --sd2: 18, 24, 34;
+  --sd3: 22, 30, 40;
+  --sd4: 5, 10, 16;
+  --sd5: 3, 6, 10;
+  --sd6: 7, 19, 29;
+  --sd7: 5, 8, 12;
+  --sd8: 2, 8, 14;
+  --sd9: 18, 24, 33;
+  --accent-text: var(--accent);
+  --bg: #07131d;
+  --glass: rgba(22, 30, 40, 0.42);
+  --glass-strong: rgba(18, 24, 33, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-hi: rgba(255, 255, 255, 0.28);
+  --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  --surface: #121a24;
+  --good: #58d68d;
+  --bad: #ff6b5b;
+  color-scheme: dark;
   color: var(--ink);
 }
 /* светлая тема: дорожки переключателей и поля ввода — лёгкая серая подложка вместо тёмной */
@@ -929,3 +952,11 @@ html[data-theme='light'] .hero-bg::after {
     linear-gradient(180deg, rgba(233, 237, 241, 0.55) 0%, rgba(233, 237, 241, 0.82) 45%, rgba(233, 237, 241, 0.97) 100%),
     radial-gradient(120% 80% at 50% 0%, transparent, rgba(233, 237, 241, 0.6));
 }
+
+/* светлая тема: подписи, которые были светлыми под тёмный фон */
+html[data-theme='light'] .btn.danger { color: #b3261e; background: rgba(217, 64, 47, 0.1); }
+html[data-theme='light'] .ld-place.p1 { color: #a87400; }
+html[data-theme='light'] .ld-place.p2 { color: #5b6472; }
+html[data-theme='light'] .p3 .hub-step { color: #8a4f22; }
+html[data-theme='light'] :is(.trc-verdict.good, .deal-mini .dm-res.get .dm-lbl) { color: var(--good); }
+html[data-theme='light'] .trc-verdict.bad { color: var(--bad); }

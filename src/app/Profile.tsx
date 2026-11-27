@@ -7,7 +7,7 @@ import { eraCover, eraThumb, eraIcon } from './era';
 import { ArtIcon, Icon } from './icons';
 import { inTelegram } from './tg';
 import { Sheet } from './Sheet';
-import { L } from '../i18n/l';
+import { L, en } from '../i18n/l';
 
 /** Вход через Telegram временно скрыт (весь код на месте). */
 const SHOW_TELEGRAM = false;
@@ -118,7 +118,7 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
                 <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraThumb(e.id)})` }}>
                   <ArtIcon src={eraIcon(e.id, 'emblem')} size={40} />
                   <b>{e.title}</b>
-                  <small>{s ? L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', '{g} games · {w} wins', { g: s.games, w: s.wins }) : L('ещё не играл', 'әлі ойнамаған', 'not played yet')}</small>
+                  <small>{s ? L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', `${en(s.games, 'game', 'games')} · ${en(s.wins, 'win', 'wins')}`, { g: s.games, w: s.wins }) : L('ещё не играл', 'әлі ойнамаған', 'not played yet')}</small>
                 </div>
               );
             })}
@@ -181,7 +181,7 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
                   {r.ai && <span className="ai-tag">{L('ИИ', 'ЖИ', 'AI')}</span>}
                 </div>
                 <div className="s">
-                  {L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', '{g} games · {w} wins', { g: r.games, w: r.wins })}
+                  {L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', `${en(r.games, 'game', 'games')} · ${en(r.wins, 'win', 'wins')}`, { g: r.games, w: r.wins })}
                 </div>
               </div>
               <b>{r.rating}</b>
@@ -252,7 +252,7 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
                 <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraThumb(e.id)})` }}>
                   <ArtIcon src={eraIcon(e.id, 'emblem')} size={36} />
                   <b>{e.title}</b>
-                  <small>{s ? L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', '{g} games · {w} wins', { g: s.games, w: s.wins }) : L('не играл', 'ойнамаған', 'not played')}</small>
+                  <small>{s ? L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', `${en(s.games, 'game', 'games')} · ${en(s.wins, 'win', 'wins')}`, { g: s.games, w: s.wins }) : L('не играл', 'ойнамаған', 'not played')}</small>
                 </div>
               );
             })}

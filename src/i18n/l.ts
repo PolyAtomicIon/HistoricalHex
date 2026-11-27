@@ -22,3 +22,6 @@ export function pick<T>(ru: T, kz: T, en: T): T {
 
 /** Локаль для дат и чисел. */
 export const locale = (): string => pick('ru-RU', 'kk-KZ', 'en-GB');
+
+/** Английское число: '1 game', '2 games' (для en-строк в L). */
+export const en = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;

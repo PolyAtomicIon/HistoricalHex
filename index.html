@@ -41,6 +41,9 @@
         #splash .s{font:600 13px/1.2 Manrope,system-ui,sans-serif;color:rgba(246,243,236,.55)}
         @keyframes sp-draw{0%{stroke-dashoffset:60;opacity:1}45%,70%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:-60;opacity:.2}}
         @media (prefers-reduced-motion:reduce){#splash .e{animation:none;stroke-dashoffset:0}}
+        html[data-theme=light] #splash{background:radial-gradient(120% 80% at 50% 40%,#f6f8fa 0%,#e9edf1 70%)}
+        html[data-theme=light] #splash .t{color:#161b22}
+        html[data-theme=light] #splash .s{color:rgba(22,27,34,.6)}
       </style>
       <div class="sp">
         <svg viewBox="-50 -50 100 100">
@@ -52,7 +55,15 @@
           <path class="e" stroke="#f2b544" d="M-38,-22 L0,-44" />
         </svg>
         <div class="t">HistoricalHex</div>
-        <div class="s">Собираем эпоху…</div>
+        <div class="s" id="splash-s">Собираем эпоху…</div>
+        <script>
+          // подпись заставки — на языке игрока (тот же ключ, что и в приложении)
+          try {
+            var l = localStorage.getItem('hh.lang') || ((navigator.language || '').toLowerCase().indexOf('kk') === 0 ? 'kz' : 'ru');
+            var t = { kz: 'Дәуірді жинап жатырмыз…', en: 'Building the era…' }[l];
+            if (t) document.getElementById('splash-s').textContent = t;
+          } catch (e) {}
+        </script>
       </div>
     </div>
     <div id="root"></div>
