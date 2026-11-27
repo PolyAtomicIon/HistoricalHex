@@ -10,7 +10,8 @@ type BIP = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: str
 let deferred: BIP | undefined;
 const subs = new Set<() => void>();
 
-const standalone = () =>
+/** Открыто как установленное приложение (с главного экрана). */
+export const standalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 /** Установленное приложение: класс html.pwa — для стилей (см. app.css). */
@@ -108,3 +109,6 @@ export async function enablePush(vapid: string | undefined, send: (sub: unknown)
   send(sub.toJSON());
   return null;
 }
+
+/** iPhone/iPad в Safari (не установленное приложение). */
+export const iosBrowser = (): boolean => isIos() && !standalone();

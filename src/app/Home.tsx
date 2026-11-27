@@ -8,11 +8,13 @@ import { ArtIcon, Icon } from './icons';
 import { Sheet } from './Sheet';
 import { ProfileView } from './Profile';
 import { tgStartPin } from './tg';
-import { InstallButton } from './pwa';
+import { InstallButton, iosBrowser } from './pwa';
 import { haptic, sfx } from '../fx';
 import { LearnCard, useLearn } from './learn/Learn';
 import { LANGS, t3, useLang } from './learn/lang';
 import { ThemeCycle } from './ThemeToggle';
+import { QrScanSheet } from './QrScan';
+import { ScanLine } from 'lucide-react';
 import type { T3 } from './learn/lang';
 import { FriendsStrip, LiveCount, LiveGames, ProfileSheet, RecentGames, ResumeGames, useFeed } from './Social';
 import { L } from '../i18n/l';
@@ -90,13 +92,16 @@ export function Home({ initialPin }: { initialPin?: string }) {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
 
-  const join = () => {
+  const join = (p = pin) => {
     const n = name.trim();
-    if (pin.replace(/\D/g, '').length !== 6 || !n) return;
+    if (p.replace(/\D/g, '').length !== 6 || !n) return;
     saveName(n);
     haptic('tap');
-    conn.join(pin.replace(/\D/g, ''), n);
+    conn.join(p.replace(/\D/g, ''), n);
   };
+  const [scan, setScan] = useState(false);
+  // QR открыл Safari на iPhone, хотя игра установлена на главный экран: подсказать, как войти из приложения
+  const safariInvite = !!startPin && iosBrowser();
   const create = () => {
     sfx.play('pop');
     setCreating(true);
@@ -307,6 +312,23 @@ export function Home({ initialPin }: { initialPin?: string }) {
               join();
             }}
           >
+            {safariInvite && (
+              <div className="pin-hint">
+                <b>{L('Игра уже на главном экране?', 'Ойын басты экранда тұр ма?', 'Game already on your Home Screen?')}</b>
+                <span>
+                  {L(
+                    'Открой её и нажми «По PIN» → «Сканировать QR». Или войди здесь, в браузере.',
+                    'Оны ашып, «PIN арқылы» → «QR сканерлеу» бас. Немесе осы жерде, браузерде кір.',
+                    'Open it and tap Join by PIN → Scan QR. Or join here in the browser.',
+                  )}
+                </span>
+              </div>
+            )}
+            {!safariInvite && (
+              <button className="btn wide" type="button" onClick={() => setScan(true)}>
+                <ScanLine size={20} /> {L('Сканировать QR', 'QR сканерлеу', 'Scan QR')}
+              </button>
+            )}
             <label className="label" htmlFor="pin">
               {T('pin')}
             </label>
@@ -341,6 +363,15 @@ export function Home({ initialPin }: { initialPin?: string }) {
           </form>
         </div>
       )}
+      <QrScanSheet
+        open={scan}
+        onClose={() => setScan(false)}
+        onPin={(p) => {
+          setScan(false);
+          setPin(p);
+          if (name.trim()) join(p);
+        }}
+      />
       {fatal && <div className="toast glass bad">{fatal}</div>}
       {learn.ui}
     </main>

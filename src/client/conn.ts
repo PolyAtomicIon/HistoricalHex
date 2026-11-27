@@ -63,6 +63,10 @@ export interface ConnState {
   profile?: { profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; portal?: string; friends?: string[] };
   /** Ссылка на бота для входа (живёт 10 минут). */
   tgLink?: string;
+  /** Код ожидания входа через AQL Portal (для адреса возврата). */
+  portalCode?: string;
+  /** Этот браузер завершил вход через портал за приложение на главном экране. */
+  portalLinked?: boolean;
   /** Web Push: публичный ключ сервера и включены ли уведомления для этого устройства. */
   vapid?: string;
   pushOn?: boolean;
@@ -176,12 +180,16 @@ class Connection {
         if (init) this.ws?.send(JSON.stringify({ t: 'tgAuth', initData: init } satisfies ClientMsg));
         // Пришли из AQL Portal: ссылка …?aql=<билет> — входим и убираем билет из адреса
         const aql = portalTicket();
-        if (aql) this.ws?.send(JSON.stringify({ t: 'portalAuth', ticket: aql } satisfies ClientMsg));
+        if (aql) this.ws?.send(JSON.stringify({ t: 'portalAuth', ticket: aql, link: portalLink ?? undefined } satisfies ClientMsg));
         if (typeof document !== 'undefined' && document.hidden) this.ws?.send(JSON.stringify({ t: 'vis', hidden: true } satisfies ClientMsg));
         return this.patch({ me: m.me, vapid: m.vapid, pushOn: m.push });
       }
       case 'tgLink':
         return this.patch({ tgLink: m.url });
+      case 'portalWait':
+        return this.patch({ portalCode: m.code });
+      case 'portalLinked':
+        return this.patch({ portalLinked: true });
       case 'playerProfile':
         return this.patch({ playerProfile: { pid: m.pid, profile: m.profile } });
       case 'feed':
@@ -339,15 +347,19 @@ if (typeof document !== 'undefined') {
 
 /** Билет входа из AQL Portal (?aql=…): берётся один раз и сразу убирается из адресной строки. */
 let aqlTicket: string | null | undefined;
+/** Код ожидающего устройства (?plink=…): вход закончился здесь, а ждёт приложение с главного экрана. */
+let portalLink: string | null = null;
 function portalTicket(): string | null {
   if (aqlTicket !== undefined) return aqlTicket;
   aqlTicket = null;
   try {
     const u = new URL(location.href);
     const t = u.searchParams.get('aql');
-    if (t) {
-      aqlTicket = t;
+    portalLink = u.searchParams.get('plink');
+    if (t || portalLink) {
+      aqlTicket = t || null;
       u.searchParams.delete('aql');
+      u.searchParams.delete('plink');
       history.replaceState(null, '', u.toString());
     }
   } catch {

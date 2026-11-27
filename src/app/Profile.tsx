@@ -12,14 +12,16 @@ import { L } from '../i18n/l';
 /** Вход через Telegram временно скрыт (весь код на месте). */
 const SHOW_TELEGRAM = false;
 /** Портал проверит вход ученика, подпишет билет и вернёт в игру на этот же адрес. Адрес портала — от сервера. */
-export function portalLoginUrl(portal: string): string {
-  const back = new URL(location.href);
-  back.searchParams.delete('aql');
+export function portalLoginUrl(portal: string, code?: string): string {
+  const back = new URL(import.meta.env.BASE_URL, location.origin);
+  // код ожидания: где бы ни закончился вход (Safari, Telegram), сервер войдёт и в этом приложении
+  if (code) back.searchParams.set('plink', code);
   return `${portal.replace(/\/$/, '')}/historicalhex/launch?return=${encodeURIComponent(back.toString())}`;
 }
 
 export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' } = {}) {
-  const { profile: data, status, tgLink } = useConn();
+  const { profile: data, status, tgLink, portalCode } = useConn();
+  const [portalOpened, setPortalOpened] = useState(false);
   const [tab, setTab] = useState<'me' | 'top'>(initialTab);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
@@ -27,6 +29,12 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
   useEffect(() => {
     if (status === 'online') conn.send({ t: 'profile' });
   }, [status]);
+
+  // Вход через портал: код ожидания берём заранее, чтобы ссылка была готова к нажатию
+  const wantPortal = !!data?.portal && !data.profile.portal;
+  useEffect(() => {
+    if (wantPortal && status === 'online') conn.send({ t: 'portalWait' });
+  }, [wantPortal, status]);
 
   // Telegram пока скрыт: вход — через AQL Portal (код Telegram на месте, включается флагом)
   const needLink = SHOW_TELEGRAM && !!data?.tgBot && !data.profile.telegram && !inTelegram();
@@ -116,13 +124,22 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
             })}
           </div>
 
+          {!p.portal && data.portal && portalOpened && (
+            <p className="faint small">
+              {L(
+                'Войди в портале — игра здесь подхватит вход сама, даже если портал открылся в Safari.',
+                'Порталға кір — ойын мұнда кіруді өзі қабылдайды, портал Safari-де ашылса да.',
+                'Sign in on the portal. The game here picks it up by itself, even if the portal opened in Safari.',
+              )}
+            </p>
+          )}
           {!p.portal && data.portal && (
             <div className="portal-login">
               <span className="pl-text">
                 <b>{L('Войди через AQL Portal', 'AQL Portal арқылы кір', 'Sign in with AQL Portal')}</b>
                 <small>{L('Профиль, рейтинг и серия — твои на любом устройстве', 'Профиль, рейтинг және серия — кез келген құрылғыда сенімен', 'Your profile, rating and streak on any device')}</small>
               </span>
-              <a className="btn primary" href={portalLoginUrl(data.portal)}>
+              <a className="btn primary" href={portalLoginUrl(data.portal, portalCode)} target="_blank" rel="noopener" onClick={() => setPortalOpened(true)}>
                 {L('Войти', 'Кіру', 'Sign in')}
               </a>
             </div>

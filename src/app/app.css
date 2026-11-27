@@ -905,7 +905,7 @@ html {
 html[data-theme='light'] .hub-glow { filter: blur(60px) saturate(1.2) brightness(1.15); opacity: 0.4; }
 
 /* светлая тема: поверх фото и тёмного поля текст остаётся светлым — возвращаем тёмные токены внутри */
-html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .hero-bg, .cine, .splash, .tv) {
+html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .cine, .splash, .tv) {
   --ink: #f6f3ec;
   --ink-rgb: 246, 243, 236;
   --ink-2: rgba(246, 243, 236, 0.72);
@@ -922,3 +922,10 @@ html[data-theme='light'] :is(input:not([type='range']):not([type='checkbox']), t
 }
 html[data-theme='light'] .sheet-backdrop, html[data-theme='light'] .sheet-scrim { background: rgba(22, 27, 34, 0.28); }
 html[data-theme='light'] .switch:not(.on) { background: rgba(22, 27, 34, 0.16); }
+
+/* светлая тема: фото эпохи за лобби — светлая дымка вместо тёмной, чтобы текст и кнопки читались */
+html[data-theme='light'] .hero-bg::after {
+  background:
+    linear-gradient(180deg, rgba(233, 237, 241, 0.55) 0%, rgba(233, 237, 241, 0.82) 45%, rgba(233, 237, 241, 0.97) 100%),
+    radial-gradient(120% 80% at 50% 0%, transparent, rgba(233, 237, 241, 0.6));
+}

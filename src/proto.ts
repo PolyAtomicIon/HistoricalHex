@@ -122,7 +122,9 @@ export type ClientMsg =
   /** Вход через Telegram: initData из Mini App или данные Login Widget. */
   | { t: 'tgAuth'; initData?: string; widget?: Record<string, string | number> }
   /** Вход через AQL Portal: подписанный порталом билет из ссылки ?aql=… */
-  | { t: 'portalAuth'; ticket: string }
+  | { t: 'portalAuth'; ticket: string; /** код ожидающего устройства (?plink=…): войти и в нём */ link?: string }
+  /** Начать вход через портал: сервер выдаёт код ожидания для адреса возврата. */
+  | { t: 'portalWait' }
   | { t: 'rename'; name: string }
   /** Ссылка на бота для входа из обычного браузера. */
   | { t: 'tgLink' }
@@ -186,6 +188,10 @@ export type ServerMsg =
   | { t: 'pong'; now: number }
   | { t: 'profile'; profile: ProfileView; leaders: LeaderRow[]; tgBot?: string; /** Адрес AQL Portal: есть — показываем вход через портал. */ portal?: string; /** id профилей моих друзей. */ friends?: string[] }
   | { t: 'tgLink'; url: string }
+  /** Код ожидания входа через портал. */
+  | { t: 'portalWait'; code: string }
+  /** Вход через портал завершён на другом устройстве/в другом браузере по коду. */
+  | { t: 'portalLinked' }
   | { t: 'playerProfile'; pid: string; profile: ProfileView | null }
   | { t: 'feed'; live: LiveGame[]; recent: RecentGame[] }
   | { t: 'friends'; list: FriendRow[] }

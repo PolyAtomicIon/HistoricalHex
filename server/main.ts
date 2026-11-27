@@ -1,7 +1,7 @@
 // Сервер HistoricalHex: WebSocket на /ws, комнаты в памяти + снимки на диске.
 //   PORT=8790 DATA_DIR=/var/lib/historicalhex node dist-server/server.mjs
 
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
@@ -262,6 +262,12 @@ wss.on('error', (e) => console.error('wss error', e));
 // Сколько пингов подряд осталось без ответа. На раздаче с телефона пакеты иногда опаздывают —
 // рвём соединение только после двух пропусков подряд (~30–45 с тишины), а не после первого.
 const missed = new WeakMap<WebSocket, number>();
+
+// Вход через AQL Portal «на другом экране»: приложение с главного экрана iPhone живёт отдельно от Safari,
+// и вход в портале (пароль, Telegram) заканчивается в Safari. Приложение заранее берёт код ожидания и
+// кладёт его в адрес возврата; где бы ни вернулся билет, сервер входит и в ожидающем приложении.
+const PORTAL_WAIT_MS = 15 * 60_000;
+const portalWaiting = new Map<string, { pid: string; push: (m: ServerMsg) => void; exp: number }>();
 /** События интерфейса, которые клиент может прислать в журнал. */
 const TRACK = new Set(['tutorialStart', 'tutorialDone', 'tutorialSkip', 'rulesOpen', 'rulesSearch']);
 /** Сколько комнат создало соединение (защита от спама комнатами). */
@@ -408,7 +414,24 @@ wss.on('connection', (ws: WebSocket, req) => {
         const u = verifyPortalTicket(String(msg.ticket ?? ''), PORTAL_SECRET);
         if (!u) throw new Error('Ссылка входа из AQL Portal устарела — открой игру из портала ещё раз');
         signInPortal(me, u);
+        const w = typeof msg.link === 'string' ? portalWaiting.get(msg.link) : undefined;
+        if (w && msg.link) {
+          portalWaiting.delete(msg.link);
+          if (w.exp > Date.now() && w.pid !== me) {
+            signInPortal(w.pid, u);
+            w.push(profileMsg(w.pid));
+            send({ t: 'portalLinked' });
+          }
+        }
         return send(profileMsg(me));
+      }
+      case 'portalWait': {
+        const now = Date.now();
+        for (const [k, v] of portalWaiting) if (v.exp < now || v.pid === me) portalWaiting.delete(k);
+        if (portalWaiting.size > 5000) throw new Error('Сервер занят, попробуй позже');
+        const code = randomBytes(12).toString('base64url');
+        portalWaiting.set(code, { pid: me, push: send, exp: now + PORTAL_WAIT_MS });
+        return send({ t: 'portalWait', code });
       }
       case 'tgAuth': {
         if (!TG_TOKEN) throw new Error('Вход через Telegram ещё не настроен');

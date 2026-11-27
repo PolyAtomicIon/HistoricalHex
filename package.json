@@ -35,6 +35,7 @@
     "@react-three/fiber": "^9.8.2",
     "@ui-sdk/core": "^0.1.0-beta.13",
     "@ui-sdk/react": "^0.1.0-beta.13",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.511.0",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",

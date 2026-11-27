@@ -39,6 +39,15 @@ export function App() {
     <>
       <Suspense fallback={<Loading />}>{screen}</Suspense>
       {!tvMode && <InviteToast />}
+      {state.portalLinked && (
+        <div className="toast glass good" role="status">
+          {L(
+            'Готово: вход через AQL Portal выполнен. Вернись в игру на главном экране — профиль уже там.',
+            'Дайын: AQL Portal арқылы кірдің. Басты экрандағы ойынға орал — профиль сонда.',
+            'Done: signed in with AQL Portal. Go back to the game on your Home Screen — your profile is there.',
+          )}
+        </div>
+      )}
       {state.status === 'offline' && (
         <div className="toast glass bad" role="status" style={{ pointerEvents: 'none' }}>
           {L('Нет связи — переподключаемся…', 'Байланыс жоқ — қайта қосылып жатырмыз…', 'No connection — reconnecting…')}
