@@ -2,7 +2,7 @@
 //   PORT=8790 DATA_DIR=/var/lib/historicalhex node dist-server/server.mjs
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -38,6 +38,27 @@ const MAX_ROOMS = 500;
 const LOBBY_IDLE_MS = 1000 * 60 * 60;
 
 mkdirSync(DATA_DIR, { recursive: true });
+// Полный журнал партий: в состоянии игры (и у клиентов) только последние LOG_LIMIT событий,
+// а сюда дописывается каждое событие. Файл остаётся и после удаления комнаты.
+const LOG_DIR = join(DATA_DIR, 'logs');
+mkdirSync(LOG_DIR, { recursive: true });
+const loggedSeq = new Map<string, number>();
+function appendLog(room: Room): void {
+  const st = room.state;
+  if (!st?.log?.length) return;
+  const maxSeq = st.log[st.log.length - 1].seq;
+  let last = loggedSeq.get(room.pin) ?? 0;
+  if (maxSeq < last) last = 0; // новая партия в той же комнате — счёт событий начался заново
+  const fresh = st.log.filter((e) => e.seq > last);
+  if (!fresh.length) return;
+  const t = Date.now();
+  try {
+    appendFileSync(join(LOG_DIR, `${room.pin}.jsonl`), fresh.map((e) => JSON.stringify({ t, ...e })).join('\n') + '\n');
+    loggedSeq.set(room.pin, maxSeq);
+  } catch (e) {
+    console.error('log append failed', room.pin, e);
+  }
+}
 
 const rooms = new Map<string, Room>();
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -49,6 +70,7 @@ function save(room: Room): void {
     setTimeout(() => {
       saveTimers.delete(room.pin);
       if (room.isDisposed) return;
+      appendLog(room);
       const file = join(DATA_DIR, `${room.pin}.json`);
       try {
         writeFileSync(file + '.tmp', JSON.stringify(room.toJSON()));
@@ -171,6 +193,9 @@ for (const f of readdirSync(DATA_DIR)) {
       continue;
     }
     rooms.set(data.pin, new Room(data, save));
+    // то, что уже в сохранении, записано в журнал до перезапуска
+    const lg = data.state?.log;
+    if (lg?.length) loggedSeq.set(data.pin, lg[lg.length - 1].seq);
   } catch (e) {
     console.error('load failed', f, e);
   }
