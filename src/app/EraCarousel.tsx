@@ -6,6 +6,7 @@ import type { LorePack } from '../lore';
 import { eraCover, eraIcon } from './era';
 import { haptic, sfx } from '../fx';
 import { ArtIcon } from './icons';
+import { L } from '../i18n/l';
 
 export function EraCarousel({ packs, value, onChange }: { packs: LorePack[]; value: string; onChange: (id: string) => void }) {
   const track = useRef<HTMLDivElement>(null);
@@ -46,7 +47,7 @@ export function EraCarousel({ packs, value, onChange }: { packs: LorePack[]; val
 
   return (
     <div className="era-carousel">
-      <div className="era-track" ref={track} role="listbox" aria-label="Эпоха">
+      <div className="era-track" ref={track} role="listbox" aria-label={L('Эпоха', 'Дәуір', 'Era')}>
         {packs.map((p) => (
           <button
             key={p.id}

@@ -27,6 +27,8 @@ import { Icon, ArtIcon } from './icons';
 import { eraIcon } from './era';
 import { setGfxPref, setLitePref, useGfx, useLite, type GfxPref } from './lite';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, myPhaseText, phaseText } from '../i18n/ru';
+import { L, pick } from '../i18n/l';
+import { ThemeToggle } from './ThemeToggle';
 import { Cinematic, DiceOverlay, GainToast, Raid, ReactionBar, ReactionsLayer, Threat, haptic, sfx, useMuted, useMusicOn } from '../fx';
 import { Sheet } from './Sheet';
 import { playerClusters } from './clusters';
@@ -122,12 +124,12 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
     if (!r) return;
     const hex = r.target ? pub.board.hexes.find((h) => h.id === r.target) : undefined;
     const resN = hex && hex.terrain !== 'desert' ? TERRAIN_RESOURCE[hex.terrain] : undefined;
-    const where = resN ? `${RESOURCE_NAME[resN]}${hex?.number ? ` ${hex.number}` : ''}` : 'гекс';
+    const where = resN ? `${RESOURCE_NAME[resN]}${hex?.number ? ` ${hex.number}` : ''}` : L('гекс', 'гекс', 'hex');
     const mine = hex && Object.entries(pub.buildings).some(([v, b]) => b.owner === me && topologyFor(pub.board.layout).vertices.get(v)?.hexes.includes(hex.id));
     setRaidCap(
       r.kind === 'robber'
-        ? { key: r.key, title: `${pack.robber.name}: ${where}`, text: mine ? 'Это твой гекс — он не приносит дохода, пока захватчиков не прогонят' : 'Этот гекс не приносит дохода, пока захватчиков не прогонят' }
-        : { key: r.key, title: `${pack.devCards.knight.name}: ${where}`, text: mine ? 'Войско перегнало захватчиков на твой гекс — он без дохода' : 'Войско перегнало захватчиков сюда — этот гекс теперь без дохода' },
+        ? { key: r.key, title: `${pack.robber.name}: ${where}`, text: mine ? L('Это твой гекс — он не приносит дохода, пока захватчиков не прогонят', 'Бұл сенің гексің — басқыншылар қуылмайынша табыс әкелмейді', 'This is your hex — it earns nothing until the raiders are driven off') : L('Этот гекс не приносит дохода, пока захватчиков не прогонят', 'Бұл гекс басқыншылар қуылмайынша табыс әкелмейді', 'This hex earns nothing until the raiders are driven off') }
+        : { key: r.key, title: `${pack.devCards.knight.name}: ${where}`, text: mine ? L('Войско перегнало захватчиков на твой гекс — он без дохода', 'Әскер басқыншыларды сенің гексіңе қуды — ол табыссыз қалды', 'The army drove the raiders onto your hex — it earns nothing') : L('Войско перегнало захватчиков сюда — этот гекс теперь без дохода', 'Әскер басқыншыларды осында қуды — бұл гекс енді табыссыз', 'The army drove the raiders here — this hex now earns nothing') },
     );
     const t = setTimeout(() => setRaidCap((c) => (c?.key === r.key ? null : c)), 6000);
     return () => clearTimeout(t);
@@ -334,7 +336,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   const prevBroken = useRef(broken);
   useEffect(() => {
     if (broken > prevBroken.current) {
-      conn.notify('Твой план сломался — загляни в «План»');
+      conn.notify(L('Твой план сломался — загляни в «План»', 'Жоспарың бұзылды — «Жоспар» бөлімін қара', 'Your plan broke — check the "Plan"'));
       haptic('error');
     }
     prevBroken.current = broken;
@@ -489,11 +491,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
         {/* меню и сводка — рядом с полосой игроков (на iPad они не разъезжаются по краям) */}
         <span className="hud-btns">
-          <button className="fab glass" onClick={() => setSheet('menu')} aria-label="Меню">
+          <button className="fab glass" onClick={() => setSheet('menu')} aria-label={L('Меню', 'Мәзір', 'Menu')}>
             <Icon name="menu" />
           </button>
           {!focusPlayer && (
-            <button className="info-fab glass" onClick={() => setSheet('info')} aria-label="Сводка стола: рынок, числа, журнал">
+            <button className="info-fab glass" onClick={() => setSheet('info')} aria-label={L('Сводка стола: рынок, числа, журнал', 'Үстел жиынтығы: нарық, сандар, журнал', 'Table summary: market, numbers, log')}>
               <Icon name="stats" size={20} />
             </button>
           )}
@@ -518,7 +520,8 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             onBan={() => {
               const on = !bans.includes(focusPlayer.id);
               conn.send({ t: 'ban', player: focusPlayer.id, on });
-              setGameToast({ text: on ? `Ты не торгуешь с игроком ${pub.players[focusPlayer.id]?.name}. Он не узнает.` : `Снова торгуешь с игроком ${pub.players[focusPlayer.id]?.name}`, key: Date.now() });
+              const pn = pub.players[focusPlayer.id]?.name;
+              setGameToast({ text: on ? L('Ты не торгуешь с игроком {n}. Он не узнает.', '{n} ойыншымен сауда жасамайсың. Ол білмейді.', "You won't trade with {n}. They won't know.", { n: pn }) : L('Снова торгуешь с игроком {n}', '{n} ойыншымен қайтадан сауда жасайсың', 'You trade with {n} again', { n: pn }), key: Date.now() });
             }}
           />
         ) : (
@@ -550,7 +553,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             </div>
           )
         )}
-        {connStatus !== 'online' && <div className="reconnect glass">Переподключаемся…</div>}
+        {connStatus !== 'online' && <div className="reconnect glass">{L('Переподключаемся…', 'Қайта қосылудамыз…', 'Reconnecting…')}</div>}
 
         {blocked && !focusPlayer && !raidCap && (
           <button className="blocked-chip glass strong" onClick={() => setBlockInfo(true)}>
@@ -558,9 +561,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               <ResIcon r={blocked.res} size={22} />
             </span>
             <span className="bc-text">
-              <b>Твой гекс захвачен</b>
+              <b>{L('Твой гекс захвачен', 'Гексің басып алынды', 'Your hex is captured')}</b>
               <small>
-                {RESOURCE_NAME[blocked.res]} · {blocked.number} — без дохода
+                {RESOURCE_NAME[blocked.res]} · {blocked.number} {L('— без дохода', '— табыссыз', '— no income')}
               </small>
             </span>
             <span className="bc-q">?</span>
@@ -572,7 +575,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <span className="pa-ic">
               <Icon name="bell" size={18} />
             </span>
-            <span className="pa-text">Напомнить о ходе?</span>
+            <span className="pa-text">{L('Напомнить о ходе?', 'Жүріс туралы еске салайық па?', 'Remind you about your turn?')}</span>
             <button
               className="btn primary small-act"
               onClick={async () => {
@@ -581,9 +584,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                 if (err) conn.notify(err);
               }}
             >
-              Включить
+              {L('Включить', 'Қосу', 'Turn on')}
             </button>
-            <button className="btn ghost small-act" onClick={() => setAskPush(false)} aria-label="Не сейчас">
+            <button className="btn ghost small-act" onClick={() => setAskPush(false)} aria-label={L('Не сейчас', 'Қазір емес', 'Not now')}>
               <Icon name="close" size={16} />
             </button>
           </div>
@@ -612,7 +615,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       {(planPick || (targets && !selected && pub.phase === 'main')) && (
         <div className="board-hint glass">
-          {planPick ? (planTargets && planTargets.ids.length === 0 ? `Нет свободных мест для: ${STEP_LABEL[planPick].toLowerCase()}` : planPick === 'settlement' ? 'План: место для дома — дороги добавлю' : `План: выбери место — ${STEP_LABEL[planPick].toLowerCase()}`) : targets!.hint}
+          {planPick ? (planTargets && planTargets.ids.length === 0 ? L('Нет свободных мест для: {s}', '{s} үшін бос орын жоқ', 'No free spots for: {s}', { s: STEP_LABEL[planPick].toLowerCase() }) : planPick === 'settlement' ? L('План: место для дома — дороги добавлю', 'Жоспар: үй үшін орын — жолдарды өзім қосамын', 'Plan: pick a spot for the house — I will add the roads') : L('План: выбери место — {s}', 'Жоспар: орынды таңда — {s}', 'Plan: pick a spot — {s}', { s: STEP_LABEL[planPick].toLowerCase() })) : targets!.hint}
           {planPick && (
             <button className="btn ghost small-btn" onClick={() => setPlanPick(null)}>
               <Icon name="close" size={16} />
@@ -639,7 +642,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         <div className="confirm glass strong">
           <span className="q">{targets.confirm}</span>
           <button className="btn ghost" onClick={() => setSelected(undefined)}>
-            Отмена
+            {L('Отмена', 'Бас тарту', 'Cancel')}
           </button>
           <button
             className="btn primary"
@@ -650,7 +653,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               if (ok) setSelected(undefined);
             }}
           >
-            Да
+            {L('Да', 'Иә', 'Yes')}
           </button>
         </div>
       )}
@@ -660,16 +663,16 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           <Icon name="plan" size={18} />
           {planHead.status === 'short' ? (
             <>
-              План · {STEP_SHORT[planHead.step.kind]}: нужно <ResChips value={planHead.missing ?? {}} />
+              {L('План', 'Жоспар', 'Plan')} · {STEP_SHORT[planHead.step.kind]}: {L('нужно', 'керек', 'needs')} <ResChips value={planHead.missing ?? {}} />
             </>
           ) : (
-            <>План · {STEP_SHORT[planHead.step.kind]}: место занято</>
+            <>{L('План', 'Жоспар', 'Plan')} · {STEP_SHORT[planHead.step.kind]}: {L('место занято', 'орын бос емес', 'spot taken')}</>
           )}
           <span className="ph-go">›</span>
         </button>
       ) : readyCard && !build && !planPick && !selected ? (
         <button key="rc" className="board-hint glass turn-hint card-hint" onClick={() => setSheet('dev')}>
-          <ArtIcon src={eraIcon(pack.id, `dev-${readyCard}`)} size={26} /> Можно сыграть: {pack.devCards[readyCard].name} ›
+          <ArtIcon src={eraIcon(pack.id, `dev-${readyCard}`)} size={26} /> {L('Можно сыграть:', 'Ойнауға болады:', 'Can play:')} {pack.devCards[readyCard].name} ›
         </button>
       ) : myTurn && pub.phase === 'main' && !build && !planPick && !selected && hints[0] && (
         <div key={hints[0]} className="board-hint glass turn-hint">
@@ -687,7 +690,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             conn.send({ t: 'undo' });
           }}
         >
-          <Icon name="undo" size={18} /> Отменить: {room.canUndo === 'road' ? 'дорогу' : room.canUndo === 'settlement' ? 'поселение' : 'город'}
+          <Icon name="undo" size={18} /> {L('Отменить:', 'Болдырмау:', 'Undo:')} {room.canUndo === 'road' ? L('дорогу', 'жолды', 'road') : room.canUndo === 'settlement' ? L('поселение', 'қонысты', 'settlement') : L('город', 'қаланы', 'city')}
         </button>
       )}
 
@@ -701,10 +704,10 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             <p className="nc-text">{notice.text}</p>
             <div className="fp-actions">
               <button className="btn primary small-act" onClick={() => markSeen(notice.key)}>
-                Понятно
+                {L('Понятно', 'Түсінікті', 'Got it')}
               </button>
               <button className="btn ghost small-act" onClick={() => { markSeen(notice.key); setInfoTab('log'); setSheet('info'); }}>
-                <Icon name="book" size={16} /> Журнал
+                <Icon name="book" size={16} /> {L('Журнал', 'Журнал', 'Log')}
               </button>
             </div>
           </div>
@@ -725,7 +728,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
 
       {planReady && !build && !selected && !planPick && (
         <button className="plan-run glass" disabled={busy} onClick={() => void runPlan()}>
-          <Icon name="play" size={18} /> Выполнить план · {checked.filter((c) => c.status === 'ready').length} из {checked.length}
+          <Icon name="play" size={18} /> {L('Выполнить план · {a} из {b}', 'Жоспарды орындау · {a} / {b}', 'Run plan · {a} of {b}', { a: checked.filter((c) => c.status === 'ready').length, b: checked.length })}
         </button>
       )}
 
@@ -758,15 +761,15 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       </section>
 
       {/* ─── шторки ─── */}
-      <Sheet open={sheet === 'trade'} onClose={() => setSheet(null)} title="Обмен">
+      <Sheet open={sheet === 'trade'} onClose={() => setSheet(null)} title={L('Обмен', 'Алмасу', 'Trade')}>
         {myTurn && pub.phase === 'main' ? (
           <TradeSheet pub={pub} priv={priv} me={me} send={sendVoid} busy={busy} bans={bans} />
         ) : (
-          <p className="muted">Торговать можно в свой ход после броска. А пока — заготовь обмен в «Плане»</p>
+          <p className="muted">{L('Торговать можно в свой ход после броска. А пока — заготовь обмен в «Плане»', 'Сауданы өз жүрісіңде, кубик тасталғаннан кейін жасауға болады. Әзірге — «Жоспарда» алмасуды дайында', 'You can trade on your turn after the roll. Until then, prepare a trade in the "Plan"')}</p>
         )}
       </Sheet>
 
-      <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn && offerForMe} onClose={() => setSheet(null)} title={`${pub.players[current]?.name ?? 'Игрок'} предлагает обмен`}>
+      <Sheet open={sheet === 'incoming' && !!pub.trade && !myTurn && offerForMe} onClose={() => setSheet(null)} title={L('{n} предлагает обмен', '{n} алмасу ұсынады', '{n} offers a trade', { n: pub.players[current]?.name ?? L('Игрок', 'Ойыншы', 'Player') })}>
         {incomingOffer && <IncomingTrade key={incomingOffer.id} pub={pubIn} priv={priv} me={me} send={sendVoid} busy={busy} />}
         {pub.trade && (
           <button
@@ -774,15 +777,15 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             onClick={() => {
               conn.send({ t: 'ban', player: current, on: true });
               setSheet(null);
-              setGameToast({ text: `Ты больше не торгуешь с игроком ${pub.players[current]?.name}. Он об этом не узнает. Снять — в «Игроки».`, key: Date.now() });
+              setGameToast({ text: L('Ты больше не торгуешь с игроком {n}. Он об этом не узнает. Снять — в «Игроки».', 'Енді {n} ойыншымен сауда жасамайсың. Ол бұл туралы білмейді. Қайтару — «Ойыншылар» бөлімінде.', 'You no longer trade with {n}. They won\'t know. Undo it in "Players".', { n: pub.players[current]?.name }), key: Date.now() });
             }}
           >
-            <Icon name="ban" size={16} /> Не торговать с {pub.players[current]?.name}
+            <Icon name="ban" size={16} /> {L('Не торговать с {n}', '{n} ойыншымен сауда жасамау', "Don't trade with {n}", { n: pub.players[current]?.name })}
           </button>
         )}
       </Sheet>
 
-      <Sheet open={sheet === 'dev'} onClose={() => setSheet(null)} title="Карты развития">
+      <Sheet open={sheet === 'dev'} onClose={() => setSheet(null)} title={L('Карты развития', 'Даму карталары', 'Development cards')}>
         <DevCards
           priv={priv}
           pack={pack}
@@ -799,7 +802,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={sheet === 'plenty'} onClose={() => setSheet(null)} title={DEV_CARD_NAME.yearOfPlenty} description="Выбери два ресурса из банка">
+      <Sheet open={sheet === 'plenty'} onClose={() => setSheet(null)} title={DEV_CARD_NAME.yearOfPlenty} description={L('Выбери два ресурса из банка', 'Банктен екі ресурс таңда', 'Pick two resources from the bank')}>
         <Plenty
           busy={busy}
           onDone={(r) => {
@@ -809,7 +812,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={sheet === 'monopoly'} onClose={() => setSheet(null)} title={DEV_CARD_NAME.monopoly} description="Какой ресурс забрать у всех?">
+      <Sheet open={sheet === 'monopoly'} onClose={() => setSheet(null)} title={DEV_CARD_NAME.monopoly} description={L('Какой ресурс забрать у всех?', 'Барлығынан қай ресурсты аласың?', 'Which resource to take from everyone?')}>
         <ResourcePicker
           onPick={(r) => {
             setSheet(null);
@@ -818,11 +821,11 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={`Сбрось ${priv.mustDiscard} ${plural(priv.mustDiscard, 'карту', 'карты', 'карт')}`} description="Выпала 7 — сбрось половину карт">
+      <Sheet open={mustDiscard} onClose={() => undefined} dismissible={false} title={L('Сбрось {n} {w}', '{n} карта таста', 'Discard {n} {w}', { n: priv.mustDiscard, w: pick(plural(priv.mustDiscard, 'карту', 'карты', 'карт'), 'карта', priv.mustDiscard === 1 ? 'card' : 'cards') })} description={L('Выпала 7 — сбрось половину карт', '7 түсті — карталардың жартысын таста', 'A 7 was rolled — discard half your cards')}>
         <Discard priv={priv} busy={busy} send={sendVoid} />
       </Sheet>
 
-      <Sheet open={sheet === 'dice'} onClose={() => setSheet(null)} title="Что выпало на кубиках?" description="Отметь, что выпало">
+      <Sheet open={sheet === 'dice'} onClose={() => setSheet(null)} title={L('Что выпало на кубиках?', 'Кубиктерде не түсті?', 'What did the dice show?')} description={L('Отметь, что выпало', 'Түскенін белгіле', 'Mark what was rolled')}>
         <PhysicalDice
           busy={busy}
           canRoll={myTurn && pub.phase === 'roll'}
@@ -833,7 +836,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={sheet === 'status'} onClose={() => setSheet(null)} title="Сейчас">
+      <Sheet open={sheet === 'status'} onClose={() => setSheet(null)} title={L('Сейчас', 'Қазір', 'Now')}>
         <div className="stack">
           <p className="status-full">{status}</p>
           <button
@@ -843,20 +846,20 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               setSheet('info');
             }}
           >
-            <Icon name="book" /> История ходов
+            <Icon name="book" /> {L('История ходов', 'Жүрістер тарихы', 'Move history')}
           </button>
         </div>
       </Sheet>
 
-      <Sheet open={sheet === 'info'} onClose={() => setSheet(null)} title="Сводка стола">
+      <Sheet open={sheet === 'info'} onClose={() => setSheet(null)} title={L('Сводка стола', 'Үстел жиынтығы', 'Table summary')}>
         <div className="seg ti-tabs" role="tablist">
           {(
             [
-              ['market', 'Рынок', 'bank'],
-              ['nums', 'Числа', 'dice'],
-              ['log', 'Журнал', 'book'],
-              ['me', 'Я', 'hand'],
-              ['goal', 'Цель', 'house'],
+              ['market', L('Рынок', 'Нарық', 'Market'), 'bank'],
+              ['nums', L('Числа', 'Сандар', 'Numbers'), 'dice'],
+              ['log', L('Журнал', 'Журнал', 'Log'), 'book'],
+              ['me', L('Я', 'Мен', 'Me'), 'hand'],
+              ['goal', L('Цель', 'Мақсат', 'Goal'), 'house'],
             ] as const
           ).map(([id, label, icon]) => (
             // Пять вкладок не влезают словами — у неактивных только иконка, у активной иконка и подпись
@@ -878,7 +881,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         {infoTab === 'goal' && <GoalTab pub={pub} priv={priv} me={me} vpToWin={room.settings.vpToWin} />}
       </Sheet>
 
-      <Sheet open={sheet === 'plan'} onClose={() => setSheet(null)} title="План хода" description="Ходы заранее — в свой ход одной кнопкой">
+      <Sheet open={sheet === 'plan'} onClose={() => setSheet(null)} title={L('План хода', 'Жүріс жоспары', 'Turn plan')} description={L('Ходы заранее — в свой ход одной кнопкой', 'Жүрістерді алдын ала жоспарла — өз кезегіңде бір батырмамен', 'Plan ahead — run it with one button on your turn')}>
         <PlanSheet
           checked={checked}
           plan={plan}
@@ -906,7 +909,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={sheet === 'players'} onClose={() => setSheet(null)} title="Игроки" description={`До победы — ${room.settings.vpToWin} очков`}>
+      <Sheet open={sheet === 'players'} onClose={() => setSheet(null)} title={L('Игроки', 'Ойыншылар', 'Players')} description={L('До победы — {n} очков', 'Жеңіске дейін — {n} ұпай', '{n} points to win', { n: room.settings.vpToWin })}>
         <PlayersSheet
           pub={pub}
           room={room}
@@ -918,32 +921,32 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={blockInfo && !!blocked} onClose={() => setBlockInfo(false)} title={`${pack.robber.name} на твоём гексе`}>
+      <Sheet open={blockInfo && !!blocked} onClose={() => setBlockInfo(false)} title={L('{n} на твоём гексе', '{n} сенің гексіңде', '{n} is on your hex', { n: pack.robber.name })}>
         {blocked && (
           <div className="stack">
             <div className="hint-card">
               <ResIcon r={blocked.res} size={28} />
               <span>
-                Пока он там, на число <b>{blocked.number}</b> ты не получаешь {RESOURCE_NAME[blocked.res]}
-                {blocked.loss > 1 ? ` (теряешь ${blocked.loss} шт. за бросок)` : ''}.
+                {L('Пока он там, на число', 'Ол сонда тұрғанда,', 'While it is there, on number')} <b>{blocked.number}</b> {L('ты не получаешь', 'саны түскенде ресурс алмайсың:', 'you get no')} {RESOURCE_NAME[blocked.res]}
+                {blocked.loss > 1 ? L(' (теряешь {n} шт. за бросок)', ' (әр лақтыруда {n} дана жоғалтасың)', ' (you lose {n} per roll)', { n: blocked.loss }) : ''}.
               </span>
             </div>
-            <div className="label">Как убрать</div>
+            <div className="label">{L('Как убрать', 'Қалай алып тастауға болады', 'How to remove it')}</div>
             <div className="item">
               <ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={40} />
               <span className="grow">
-                <span className="t">Сыграй карту «{pack.devCards.knight.name}»</span>
+                <span className="t">{L('Сыграй карту «{n}»', '«{n}» картасын ойна', 'Play the "{n}" card', { n: pack.devCards.knight.name })}</span>
                 <span className="s" style={{ display: 'block' }}>
-                  Переставишь его на чужой гекс и заберёшь карту у соседа. {priv.devCards.some((c) => c.type === 'knight') ? 'У тебя она есть!' : 'Купить: овцы, зерно, руда.'}
+                  {L('Переставишь его на чужой гекс и заберёшь карту у соседа.', 'Оны басқаның гексіне ауыстырып, көршіңнен карта аласың.', 'Move it to another hex and take a card from a neighbor.')} {priv.devCards.some((c) => c.type === 'knight') ? L('У тебя она есть!', 'Сенде бар!', 'You have it!') : L('Купить: овцы, зерно, руда.', 'Сатып ал: қой, астық, кен.', 'Buy it with: sheep, grain, ore.')}
                 </span>
               </span>
             </div>
             <div className="item">
               <Icon name="dice" />
               <span className="grow">
-                <span className="t">Выброси 7 в свой ход</span>
+                <span className="t">{L('Выброси 7 в свой ход', 'Өз жүрісіңде 7 түсір', 'Roll a 7 on your turn')}</span>
                 <span className="s" style={{ display: 'block' }}>
-                  Тогда переставляешь его ты.
+                  {L('Тогда переставляешь его ты.', 'Сонда оны өзің ауыстырасың.', 'Then you move it.')}
                 </span>
               </span>
             </div>
@@ -955,14 +958,14 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                   setSheet('dev');
                 }}
               >
-                Сыграть «{pack.devCards.knight.name}»
+                {L('Сыграть «{n}»', '«{n}» ойнау', 'Play "{n}"', { n: pack.devCards.knight.name })}
               </button>
             )}
           </div>
         )}
       </Sheet>
 
-      <Sheet open={sheet === 'pprofile' && !!profileOf} onClose={() => setSheet(null)} title="Профиль игрока">
+      <Sheet open={sheet === 'pprofile' && !!profileOf} onClose={() => setSheet(null)} title={L('Профиль игрока', 'Ойыншы профилі', 'Player profile')}>
         {profileOf && pub.players[profileOf] && (
           <PlayerProfileCard
             pid={profileOf}
@@ -980,7 +983,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         <div className="stack">
           <Fact f={openFact ?? fact} big />
           <button className="btn wide" onClick={() => setSheet('lore')}>
-            <Icon name="book" /> Все факты и словарь эпохи
+            <Icon name="book" /> {L('Все факты и словарь эпохи', 'Барлық деректер мен дәуір сөздігі', 'All facts and era glossary')}
           </button>
         </div>
       </Sheet>
@@ -989,7 +992,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         <FactsList pack={pack} />
       </Sheet>
 
-      <Sheet open={sheet === 'react'} onClose={() => setSheet(null)} title="Реакция" description={room.watchers ? `Смотрят партию: ${room.watchers}` : undefined}>
+      <Sheet open={sheet === 'react'} onClose={() => setSheet(null)} title={L('Реакция', 'Реакция', 'Reaction')} description={room.watchers ? L('Смотрят партию: {n}', 'Ойынды қарап отырғандар: {n}', 'Watching: {n}', { n: room.watchers }) : undefined}>
         <ReactionBar
           emojis={REACTIONS}
           onReact={(e) => {
@@ -999,25 +1002,25 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         />
       </Sheet>
 
-      <Sheet open={sheet === 'menu'} onClose={() => setSheet(null)} title="Меню">
+      <Sheet open={sheet === 'menu'} onClose={() => setSheet(null)} title={L('Меню', 'Мәзір', 'Menu')}>
         <div className="stack">
           <button className="item" onClick={() => setSheet('lore')}>
             <ArtIcon src={eraIcon(pack.id, 'emblem')} size={34} />
             <span className="grow">
               <span className="t">{pack.title}</span>
-              <span className="s" style={{ display: 'block' }}>История, словарь эпохи, факты</span>
+              <span className="s" style={{ display: 'block' }}>{L('История, словарь эпохи, факты', 'Тарих, дәуір сөздігі, деректер', 'History, era glossary, facts')}</span>
             </span>
           </button>
           <button className="item" onClick={() => setSheet('players')}>
             <Icon name="crown" />
-            <span className="grow t">Игроки и очки</span>
+            <span className="grow t">{L('Игроки и очки', 'Ойыншылар мен ұпайлар', 'Players and points')}</span>
           </button>
           {room.isHost && pub.phase !== 'finished' && (
             <button className="item" onClick={() => setSub('host')}>
               <Icon name="crown" />
               <span className="grow">
-                <span className="t">Ведущий</span>
-                <span className="s" style={{ display: 'block' }}>Темп, таймер хода, пропуск хода, замена ботом</span>
+                <span className="t">{L('Ведущий', 'Жүргізуші', 'Host')}</span>
+                <span className="s" style={{ display: 'block' }}>{L('Темп, таймер хода, пропуск хода, замена ботом', 'Қарқын, жүріс таймері, жүрісті өткізу, ботпен ауыстыру', 'Pace, turn timer, skip turn, bot replacement')}</span>
               </span>
               <Icon name="next" size={16} />
             </button>
@@ -1032,9 +1035,9 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             >
               <Icon name={room.paused ? 'play' : 'pause'} />
               <span className="grow">
-                <span className="t">{room.paused ? 'Продолжить партию' : 'Поставить на паузу'}</span>
+                <span className="t">{room.paused ? L('Продолжить партию', 'Ойынды жалғастыру', 'Resume the game') : L('Поставить на паузу', 'Үзіліске қою', 'Pause the game')}</span>
                 <span className="s" style={{ display: 'block' }}>
-                  {room.paused ? `Паузу поставил ${room.paused.name}` : 'Таймеры и боты стоят — хоть до завтра, хоть неделю'}
+                  {room.paused ? L('Паузу поставил {n}', 'Үзіліске {n} қойды', 'Paused by {n}', { n: room.paused.name }) : L('Таймеры и боты стоят — хоть до завтра, хоть неделю', 'Таймерлер мен боттар тоқтап тұр — ертеңге дейін, тіпті бір аптаға', 'Timers and bots are stopped — for a day or a week')}
                 </span>
               </span>
             </button>
@@ -1042,22 +1045,22 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           <button className="item" onClick={() => { setSheet(null); learn.openRules(); }}>
             <Icon name="book" />
             <span className="grow">
-              <span className="t">Правила</span>
-              <span className="s" style={{ display: 'block' }}>Все правила с поиском · RU / KZ / EN</span>
+              <span className="t">{L('Правила', 'Ережелер', 'Rules')}</span>
+              <span className="s" style={{ display: 'block' }}>{L('Все правила с поиском · RU / KZ / EN', 'Барлық ережелер іздеумен · RU / KZ / EN', 'All rules with search · RU / KZ / EN')}</span>
             </span>
           </button>
           <button className="item" onClick={() => { setSheet(null); learn.openTutorial(); }}>
             <Icon name="bulb" />
             <span className="grow">
-              <span className="t">Обучение</span>
-              <span className="s" style={{ display: 'block' }}>Учебный ход за 3 минуты</span>
+              <span className="t">{L('Обучение', 'Оқыту', 'Tutorial')}</span>
+              <span className="s" style={{ display: 'block' }}>{L('Учебный ход за 3 минуты', '3 минуттық оқу жүрісі', 'A practice turn in 3 minutes')}</span>
             </span>
           </button>
           <button className="item" onClick={() => setSub('look')}>
             <Icon name="map" />
             <span className="grow">
-              <span className="t">Вид и подсказки</span>
-              <span className="s" style={{ display: 'block' }}>2D / 3D, графика, заставки, обмен, факты</span>
+              <span className="t">{L('Вид и подсказки', 'Көрініс және кеңестер', 'View and hints')}</span>
+              <span className="s" style={{ display: 'block' }}>{L('2D / 3D, графика, заставки, обмен, факты', '2D / 3D, графика, заставкалар, алмасу, деректер', '2D / 3D, graphics, intros, trade, facts')}</span>
             </span>
             <Icon name="next" size={16} />
           </button>
@@ -1074,39 +1077,39 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           >
             <Icon name="bell" />
             <span className="grow">
-              <span className="t">Уведомлять о моём ходе</span>
+              <span className="t">{L('Уведомлять о моём ходе', 'Жүрісім туралы хабарлау', 'Notify me on my turn')}</span>
               <span className="s" style={{ display: 'block' }}>
-                {pushSupport() === 'install' ? 'На iPhone — после установки на экран «Домой»' : 'Когда игра свёрнута или телефон спит'}
+                {pushSupport() === 'install' ? L('На iPhone — после установки на экран «Домой»', 'iPhone-да — «Басты экранға» орнатқаннан кейін', 'On iPhone — after adding to the Home Screen') : L('Когда игра свёрнута или телефон спит', 'Ойын жиналғанда немесе телефон ұйықтағанда', 'When the game is minimized or the phone is asleep')}
               </span>
             </span>
             <span className={`switch ${pushOn ? 'on' : ''}`} aria-hidden />
           </button>
           <button className="item" onClick={() => setMusic(!music)}>
             <Icon name="music" />
-            <span className="grow t">Музыка эпохи</span>
+            <span className="grow t">{L('Музыка эпохи', 'Дәуір музыкасы', 'Era music')}</span>
             <span className={`switch ${music ? 'on' : ''}`} aria-hidden />
           </button>
           <button className="item" onClick={() => setMuted(!muted)}>
             <Icon name={muted ? 'mute' : 'sound'} />
-            <span className="grow t">{muted ? 'Звук выключен' : 'Звук включён'}</span>
+            <span className="grow t">{muted ? L('Звук выключен', 'Дыбыс өшірулі', 'Sound off') : L('Звук включён', 'Дыбыс қосулы', 'Sound on')}</span>
           </button>
           {pub.phase !== 'finished' ? (
             <button className="btn danger wide" onClick={() => setSheet('leave')}>
-              <Icon name="door" /> Выйти — за меня доиграет бот
+              <Icon name="door" /> {L('Выйти — за меня доиграет бот', 'Шығу — менің орныма бот ойнайды', 'Leave — a bot will finish for me')}
             </button>
           ) : (
             <button className="btn wide" onClick={() => conn.forget()}>
-              На главную
+              {L('На главную', 'Басты бетке', 'Home')}
             </button>
           )}
         </div>
       </Sheet>
 
       {/* Вложенная шторка: открывается поверх меню (меню остаётся под ней стопкой), свайп вниз — обратно в меню */}
-      <Sheet open={(sub === 'host' || sub === 'kick') && sheet === 'menu'} onClose={() => setSub(null)} title="Ведущий" description="Настройки партии для всех игроков">
+      <Sheet open={(sub === 'host' || sub === 'kick') && sheet === 'menu'} onClose={() => setSub(null)} title={L('Ведущий', 'Жүргізуші', 'Host')} description={L('Настройки партии для всех игроков', 'Барлық ойыншыларға арналған ойын баптаулары', 'Game settings for all players')}>
         <HostTools room={room} pub={pub} onKick={() => setSub('kick')} />
       </Sheet>
-      <Sheet open={sub === 'kick' && sheet === 'menu'} onClose={() => setSub('host')} title="Заменить ботом" description="Игрок выбывает, его место навсегда занимает бот">
+      <Sheet open={sub === 'kick' && sheet === 'menu'} onClose={() => setSub('host')} title={L('Заменить ботом', 'Ботпен ауыстыру', 'Replace with a bot')} description={L('Игрок выбывает, его место навсегда занимает бот', 'Ойыншы шығады, оның орнын бот мәңгілікке алады', 'The player drops out and a bot takes their seat for good')}>
         <div className="list">
           {pub.order
             .filter((id) => id !== room.me && !pub.players[id].kicked && !pub.players[id].bot)
@@ -1124,25 +1127,27 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                 <Icon name="bot" size={18} />
               </button>
             ))}
-          {pub.order.every((id) => id === room.me || pub.players[id].kicked || pub.players[id].bot) && <p className="faint small">Кроме тебя за столом только боты</p>}
+          {pub.order.every((id) => id === room.me || pub.players[id].kicked || pub.players[id].bot) && <p className="faint small">{L('Кроме тебя за столом только боты', 'Сенен басқа үстелде боттар ғана', 'Only bots besides you at the table')}</p>}
         </div>
       </Sheet>
-      <Sheet open={sub === 'look' && sheet === 'menu'} onClose={() => setSub(null)} title="Вид и подсказки" description="Сохраняется на этом телефоне">
+      <Sheet open={sub === 'look' && sheet === 'menu'} onClose={() => setSub(null)} title={L('Вид и подсказки', 'Көрініс және кеңестер', 'View and hints')} description={L('Сохраняется на этом телефоне', 'Осы телефонда сақталады', 'Saved on this phone')}>
         <div className="stack">
+          <div className="label">{L('Тема', 'Тақырып', 'Theme')}</div>
+          <ThemeToggle />
           {
             <>
-              <div className="label">Вид карты</div>
+              <div className="label">{L('Вид карты', 'Карта көрінісі', 'Map view')}</div>
               <div className="seg">
                 {(['2d', '3d'] as const).map((m) => (
                   <button key={m} aria-pressed={shownMode === m} onClick={() => setMode(m)}>
-                    {m === '2d' ? '2D — рисованная' : '3D — объёмная'}
+                    {m === '2d' ? L('2D — рисованная', '2D — сызылған', '2D — hand-drawn') : L('3D — объёмная', '3D — көлемді', '3D — with depth')}
                   </button>
                 ))}
               </div>
-              {liteOn && <p className="faint small">Включён лёгкий режим: 3D может подтормаживать на этом телефоне.</p>}
+              {liteOn && <p className="faint small">{L('Включён лёгкий режим: 3D может подтормаживать на этом телефоне.', 'Жеңіл режим қосулы: 3D осы телефонда баяулауы мүмкін.', 'Lite mode is on: 3D may lag on this phone.')}</p>}
             </>
           }
-          <div className="label">Вид предложения обмена</div>
+          <div className="label">{L('Вид предложения обмена', 'Алмасу ұсынысының көрінісі', 'Trade offer view')}</div>
           <div className="seg">
             {(['card', 'caravan'] as TradeUi[]).map((v) => (
               <button key={v} aria-pressed={tradeUi === v} onClick={() => setTradeUi(v)}>
@@ -1150,47 +1155,47 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               </button>
             ))}
           </div>
-          <div className="label">Заставки событий (семёрка, рыцарь, бонусы)</div>
+          <div className="label">{L('Заставки событий (семёрка, рыцарь, бонусы)', 'Оқиға заставкалары (жеті, рыцарь, бонустар)', 'Event intros (seven, knight, bonuses)')}</div>
           <div className="seg">
             {(['auto', 'full', 'mini'] as FxStyle[]).map((v) => (
               <button key={v} aria-pressed={fxStyle === v} onClick={() => setFxStyle(v)}>
-                {v === 'auto' ? `Авто${miniFx ? ' · мини' : ''}` : v === 'full' ? 'Крупно' : 'Мини-плашки'}
+                {v === 'auto' ? `${L('Авто', 'Авто', 'Auto')}${miniFx ? ` · ${L('мини', 'шағын', 'mini')}` : ''}` : v === 'full' ? L('Крупно', 'Ірі', 'Large') : L('Мини-плашки', 'Шағын тақтайшалар', 'Mini badges')}
               </button>
             ))}
           </div>
-          <div className="label">Подсказка «Пока ждёшь — наметь ход»</div>
+          <div className="label">{L('Подсказка «Пока ждёшь — наметь ход»', '«Күтіп тұрғанда — жүрісті жоспарла» кеңесі', 'Hint "While you wait — plan a move"')}</div>
           <div className="seg">
             <button aria-pressed={nudgeOn} onClick={() => setPlanNudge(true)}>
-              Показывать
+              {L('Показывать', 'Көрсету', 'Show')}
             </button>
             <button aria-pressed={!nudgeOn} onClick={() => setPlanNudge(false)}>
-              Скрыть
+              {L('Скрыть', 'Жасыру', 'Hide')}
             </button>
           </div>
-          <div className="label">Факты истории</div>
+          <div className="label">{L('Факты истории', 'Тарих деректері', 'History facts')}</div>
           <div className="seg">
             <button aria-pressed={factsShown} onClick={() => setFacts(true)}>
-              Показывать
+              {L('Показывать', 'Көрсету', 'Show')}
             </button>
             <button aria-pressed={!factsShown} onClick={() => setFacts(false)}>
-              Скрыть
+              {L('Скрыть', 'Жасыру', 'Hide')}
             </button>
           </div>
-          <div className="label">Объекты на карте — на твой вкус</div>
+          <div className="label">{L('Объекты на карте — на твой вкус', 'Картадағы нысандар — өз талғамыңа сай', 'Map objects — your way')}</div>
           <LookSliders />
-          <div className="label">Графика карты</div>
+          <div className="label">{L('Графика карты', 'Карта графикасы', 'Map graphics')}</div>
           <div className="seg">
             {(['auto', 'hi', 'normal'] as GfxPref[]).map((v) => (
               <button key={v} aria-pressed={gfxPref === v} onClick={() => setGfxPref(v)}>
-                {v === 'auto' ? `Авто${gfxAuto ? ' · детальная' : ''}` : v === 'hi' ? 'Детальная' : 'Обычная'}
+                {v === 'auto' ? `${L('Авто', 'Авто', 'Auto')}${gfxAuto ? ` · ${L('детальная', 'егжей-тегжейлі', 'detailed')}` : ''}` : v === 'hi' ? L('Детальная', 'Егжей-тегжейлі', 'Detailed') : L('Обычная', 'Қарапайым', 'Standard')}
               </button>
             ))}
           </div>
-          <div className="label">Лёгкий режим (старые телефоны)</div>
+          <div className="label">{L('Лёгкий режим (старые телефоны)', 'Жеңіл режим (ескі телефондар)', 'Lite mode (old phones)')}</div>
           <div className="seg">
             {(['auto', 'on', 'off'] as const).map((v) => (
               <button key={v} aria-pressed={litePref === v} onClick={() => setLitePref(v)}>
-                {v === 'auto' ? `Авто${liteAuto ? ' · вкл' : ''}` : v === 'on' ? 'Вкл' : 'Выкл'}
+                {v === 'auto' ? `${L('Авто', 'Авто', 'Auto')}${liteAuto ? ` · ${L('вкл', 'қос.', 'on')}` : ''}` : v === 'on' ? L('Вкл', 'Қос.', 'On') : L('Выкл', 'Өш.', 'Off')}
               </button>
             ))}
           </div>
@@ -1208,14 +1213,14 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               }}
             >
               <Icon name="dice" />
-              <span className="grow t">Авто-бросок в свой ход</span>
-              <span className="faint">{autoRoll ? 'вкл' : 'выкл'}</span>
+              <span className="grow t">{L('Авто-бросок в свой ход', 'Өз жүрісінде авто-лақтыру', 'Auto-roll on my turn')}</span>
+              <span className="faint">{autoRoll ? L('вкл', 'қос.', 'on') : L('выкл', 'өш.', 'off')}</span>
             </button>
           )}
         </div>
       </Sheet>
 
-      <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title="Кто доиграет за тебя?" description="Вернёшься — место снова твоё">
+      <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title={L('Кто доиграет за тебя?', 'Сенің орныңа кім ойнайды?', 'Who will finish for you?')} description={L('Вернёшься — место снова твоё', 'Қайтып келсең — орның өзіңде', 'Come back and the seat is yours again')}>
         <div className="stack">
           {BOT_LEVELS.map((l) => (
             <button
@@ -1227,7 +1232,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
                 if (ok) setSheet(null);
               }}
             >
-              <Icon name="bot" /> {l === 'easy' ? 'Лёгкий — играет наугад' : l === 'medium' ? 'Средний — с умом' : 'Сложный — на победу'}
+              <Icon name="bot" /> {l === 'easy' ? L('Лёгкий — играет наугад', 'Жеңіл — кездейсоқ ойнайды', 'Easy — plays randomly') : l === 'medium' ? L('Средний — с умом', 'Орташа — ақылмен ойнайды', 'Medium — plays smart') : L('Сложный — на победу', 'Қиын — жеңіс үшін ойнайды', 'Hard — plays to win')}
             </button>
           ))}
         </div>
@@ -1271,7 +1276,7 @@ export function PlayersBar({
   const current = pub.order[pub.current];
   const compact = pub.order.length > 4;
   return (
-    <div className={`pbar glass ${compact ? 'compact' : ''}`} role="list" aria-label="Игроки">
+    <div className={`pbar glass ${compact ? 'compact' : ''}`} role="list" aria-label={L('Игроки', 'Ойыншылар', 'Players')}>
       {pub.order.map((id) => {
         const p = pub.players[id];
         const turn = id === current && pub.phase !== 'finished';
@@ -1283,24 +1288,24 @@ export function PlayersBar({
             className={`pcell ${turn ? 'turn' : ''} ${turn && deadline ? 'timed' : ''} ${focused === id ? 'focused' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
             style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
             onClick={() => onFocus?.(id)}
-            aria-label={`${p.name}: ${p.points} очков${awardsOf(pub, id).map((a) => `, ${a === 'road' ? pack?.bonuses.longestRoad ?? 'самая длинная дорога' : pack?.bonuses.largestArmy ?? 'самая большая армия'}`).join('')}. Показать постройки`}
+            aria-label={L('{name}: {n} очков{aw}. Показать постройки', '{name}: {n} ұпай{aw}. Құрылыстарды көрсету', '{name}: {n} points{aw}. Show buildings', { name: p.name, n: p.points, aw: awardsOf(pub, id).map((a) => `, ${a === 'road' ? pack?.bonuses.longestRoad ?? L('самая длинная дорога', 'ең ұзын жол', 'longest road') : pack?.bonuses.largestArmy ?? L('самая большая армия', 'ең үлкен әскер', 'largest army')}`).join('') })}
           >
             <span className="pc-ava">
               {turn && deadline && <TimerRing until={deadline} />}
               <span className="pc-face">{p.name.charAt(0).toUpperCase()}</span>
               {!compact && (
-                <span className="pc-pts" title="Очки">
+                <span className="pc-pts" title={L('Очки', 'Ұпай', 'Points')}>
                   {p.points}
                 </span>
               )}
               {!compact && p.knightsPlayed > 0 && (
-                <span className="pc-kn" title="Сыграно воинов">
+                <span className="pc-kn" title={L('Сыграно воинов', 'Ойналған жауынгерлер', 'Warriors played')}>
                   <Icon name="army" size={8} />
                   {p.knightsPlayed}
                 </span>
               )}
               {bot && !compact && (
-                <span className="pc-bot" aria-label="бот">
+                <span className="pc-bot" aria-label={L('бот', 'бот', 'bot')}>
                   <Icon name="bot" size={9} />
                 </span>
               )}
@@ -1317,10 +1322,10 @@ export function PlayersBar({
             {!compact && (
               <span className="pc-info">
                 <span className="pc-nrow">
-                  <span className="pc-name">{id === room.me ? 'Ты' : p.name}</span>
+                  <span className="pc-name">{id === room.me ? L('Ты', 'Сен', 'You') : p.name}</span>
                 </span>
                 <span className="pc-stats">
-                  <span className="pc-st" title="Карт на руке">
+                  <span className="pc-st" title={L('Карт на руке', 'Қолдағы карталар', 'Cards in hand')}>
                     <Icon name="hand" size={10} />
                     {p.resourceCount}
                   </span>
@@ -1381,14 +1386,14 @@ function FactPopup({ pack, allowed, onRead }: { pack: LorePack; allowed: boolean
   if (!shown || !allowed || !f) return null;
   return (
     <div key={i} className="fact-chip glass" role="status">
-      <button className="fchip-main" onClick={() => { onRead(f); next(); }} aria-label="Читать факт эпохи">
+      <button className="fchip-main" onClick={() => { onRead(f); next(); }} aria-label={L('Читать факт эпохи', 'Дәуір деректерін оқу', 'Read an era fact')}>
         <ArtIcon src={eraIcon(pack.id, 'emblem')} size={30} />
         <span className="fchip-txt">
           {f.year && <b>{f.year}</b>}
           {firstSentence(f.text)}
         </span>
       </button>
-      <button className="fchip-x" onClick={next} aria-label="Скрыть">
+      <button className="fchip-x" onClick={next} aria-label={L('Скрыть', 'Жасыру', 'Hide')}>
         <Icon name="close" size={16} />
       </button>
     </div>
@@ -1434,7 +1439,7 @@ function FocusCard({
       <span className="fc-ava">{p.name.charAt(0).toUpperCase()}</span>
       <span className="fc-main">
         <b>
-          {id === me ? 'Ты' : p.name} · <Icon name="star" size={13} /> {p.points}
+          {id === me ? L('Ты', 'Сен', 'You') : p.name} · <Icon name="star" size={13} /> {p.points}
         </b>
         <small>
           <span><Icon name="house" size={12} /> {towns}</span>
@@ -1442,16 +1447,16 @@ function FocusCard({
           <span><Icon name="road" size={12} /> {p.roadLength}</span>
           <span><Icon name="hand" size={12} /> {p.resourceCount}</span>
           <span><Icon name="cards" size={12} /> {p.devCardCount}</span>
-          <span title="Сыграно воинов"><Icon name="army" size={12} /> {p.knightsPlayed}</span>
+          <span title={L('Сыграно воинов', 'Ойналған жауынгерлер', 'Warriors played')}><Icon name="army" size={12} /> {p.knightsPlayed}</span>
           {pub.longestRoad === id && <span className="bonus">{pack.bonuses.longestRoad}</span>}
           {pub.largestArmy === id && <span className="bonus">{pack.bonuses.largestArmy}</span>}
         </small>
       </span>
       </button>
       {onBan && id !== me && (
-        <button className={`fc-ban ${banned ? 'on' : ''}`} onClick={onBan} aria-label={banned ? 'Снова торговать' : 'Не торговать'} title={banned ? 'Ты с ним не торгуешь — нажми, чтобы снять' : 'Не торговать с ним'}>
+        <button className={`fc-ban ${banned ? 'on' : ''}`} onClick={onBan} aria-label={banned ? L('Снова торговать', 'Қайта сауда жасау', 'Trade again') : L('Не торговать', 'Сауда жасамау', "Don't trade")} title={banned ? L('Ты с ним не торгуешь — нажми, чтобы снять', 'Онымен сауда жасамайсың — алып тастау үшін бас', "You don't trade with them — tap to undo") : L('Не торговать с ним', 'Онымен сауда жасамау', "Don't trade with them")}>
           <Icon name="ban" size={16} />
-          <span>{banned ? 'Бан' : 'Обмен'}</span>
+          <span>{banned ? L('Бан', 'Бан', 'Ban') : L('Обмен', 'Алмасу', 'Trade')}</span>
         </button>
       )}
       </div>
@@ -1459,13 +1464,13 @@ function FocusCard({
       {/* районы игрока по очереди — отдельной строкой внизу, ничего не выталкивает за край */}
       {part && part.total > 1 && (
         <div className="fc-pager">
-          <button className="fc-nav" onClick={() => part.step(-1)} aria-label="Предыдущий район">
+          <button className="fc-nav" onClick={() => part.step(-1)} aria-label={L('Предыдущий район', 'Алдыңғы аудан', 'Previous district')}>
             <Icon name="next" size={16} style={{ transform: 'scaleX(-1)' }} />
           </button>
           <span className="fc-count">
-            Район {part.idx + 1} из {part.total}
+            {L('Район {a} из {b}', 'Аудан {a} / {b}', 'District {a} of {b}', { a: part.idx + 1, b: part.total })}
           </span>
-          <button className="fc-nav" onClick={() => part.step(1)} aria-label="Следующий район">
+          <button className="fc-nav" onClick={() => part.step(1)} aria-label={L('Следующий район', 'Келесі аудан', 'Next district')}>
             <Icon name="next" size={16} />
           </button>
         </div>
@@ -1483,7 +1488,7 @@ export function IncomeStrip({ pub, pid, label }: { pub: PublicState; pid: Player
       {label && <span className="in-label">{label}</span>}
       <div className="in-row">
         {rows.map((r) => (
-          <span key={r.n} className={`in-chip ${Object.keys(r.res).length === 0 ? 'off' : ''}`} title={`${r.n}: шанс ${r.ways} из 36`}>
+          <span key={r.n} className={`in-chip ${Object.keys(r.res).length === 0 ? 'off' : ''}`} title={L('{n}: шанс {w} из 36', '{n}: 36-дан {w} мүмкіндік', '{n}: {w} in 36 chance', { n: r.n, w: r.ways })}>
             <span className={`in-n ${r.n === 6 || r.n === 8 ? 'hot' : ''}`}>
               {r.n}
               <i style={{ width: `${r.ways * 2}px` }} />
@@ -1495,7 +1500,7 @@ export function IncomeStrip({ pub, pid, label }: { pub: PublicState; pid: Player
               </span>
             ))}
             {(Object.entries(r.blocked) as [Resource, number][]).map(([res, c]) => (
-              <span key={`b${res}`} className="in-r blocked" aria-label="захвачено">
+              <span key={`b${res}`} className="in-r blocked" aria-label={L('захвачено', 'басып алынған', 'captured')}>
                 <ResIcon r={res} size={16} />
                 {c > 1 && <small>×{c}</small>}
               </span>
@@ -1503,7 +1508,7 @@ export function IncomeStrip({ pub, pid, label }: { pub: PublicState; pid: Player
           </span>
         ))}
       </div>
-      <span className="in-avg">≈{perRoll.toFixed(1)} карт за бросок</span>
+      <span className="in-avg">{L('≈{x} карт за бросок', 'бір лақтыруға ≈{x} карта', '≈{x} cards per roll', { x: perRoll.toFixed(1) })}</span>
     </div>
   );
 }
@@ -1517,24 +1522,24 @@ function PlanNudge({ hint, onPick, onOpen, onClose }: { hint?: string; onPick: (
           <Icon name="plan" size={20} />
         </span>
         <span className="pn-tt">
-          <b>Пока ждёшь — наметь ход</b>
-          <small className="pn-sub">{hint ?? 'В свой ход выполнишь одной кнопкой'}</small>
+          <b>{L('Пока ждёшь — наметь ход', 'Күтіп тұрғанда — жүрісті жоспарла', 'While you wait — plan a move')}</b>
+          <small className="pn-sub">{hint ?? L('В свой ход выполнишь одной кнопкой', 'Өз жүрісіңде бір батырмамен орындайсың', 'Run it with one button on your turn')}</small>
         </span>
-        <button className="btn ghost icon-only pn-x" onClick={onClose} aria-label="Не сейчас">
+        <button className="btn ghost icon-only pn-x" onClick={onClose} aria-label={L('Не сейчас', 'Қазір емес', 'Not now')}>
           <Icon name="close" size={16} />
         </button>
       </div>
       <div className="pn-acts">
         <button className="btn small-act" onClick={() => onPick('road')}>
-          <Icon name="road" size={16} /> Дорога
+          <Icon name="road" size={16} /> {L('Дорога', 'Жол', 'Road')}
         </button>
         <button className="btn small-act" onClick={() => onPick('settlement')}>
-          <Icon name="house" size={16} /> Дом
+          <Icon name="house" size={16} /> {L('Дом', 'Үй', 'House')}
         </button>
         <button className="btn small-act" onClick={() => onPick('city')}>
-          <Icon name="castle" size={16} /> Город
+          <Icon name="castle" size={16} /> {L('Город', 'Қала', 'City')}
         </button>
-        <button className="btn ghost small-act icon-only" onClick={onOpen} aria-label="Весь план">
+        <button className="btn ghost small-act icon-only" onClick={onOpen} aria-label={L('Весь план', 'Бүкіл жоспар', 'Whole plan')}>
           <Icon name="next" size={16} />
         </button>
       </div>
@@ -1558,7 +1563,7 @@ function TurnClock({ until, mine }: { until: number; mine: boolean }) {
   const m = Math.floor(left / 60);
   const ss = String(left % 60).padStart(2, '0');
   return (
-    <span className={`tclock ${left <= 30 ? 'low' : ''}`} aria-label={`Осталось ${m} мин ${left % 60} с`}>
+    <span className={`tclock ${left <= 30 ? 'low' : ''}`} aria-label={L('Осталось {m} мин {s} с', 'Қалды {m} мин {s} с', '{m} min {s} s left', { m, s: left % 60 })}>
       <Icon name="timer" size={15} />
       {m}:{ss}
     </span>
@@ -1595,14 +1600,14 @@ function PlayersSheet({ pub, room, pack, onPick }: { pub: PublicState; room: Roo
             <div className="grow">
               <div className="t">
                 {p.name}
-                {id === room.me && <span className="faint"> · ты</span>}
-                {!room.online[id] && !p.bot && <span className="faint"> · не в сети</span>}
+                {id === room.me && <span className="faint"> · {L('ты', 'сен', 'you')}</span>}
+                {!room.online[id] && !p.bot && <span className="faint"> · {L('не в сети', 'желіде емес', 'offline')}</span>}
               </div>
               <div className="pl-stats">
-                <span title="Карт на руке"><Icon name="hand" size={14} /> {p.resourceCount} карт</span>
-                <span title="Карт развития"><Icon name="cards" size={14} /> {p.devCardCount} разв.</span>
-                <span title="Самая длинная дорога"><Icon name="road" size={14} /> {p.roadLength} дор.</span>
-                <span title="Сыграно рыцарей"><ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={16} /> {p.knightsPlayed}</span>
+                <span title={L('Карт на руке', 'Қолдағы карталар', 'Cards in hand')}><Icon name="hand" size={14} /> {L('{n} карт', '{n} карта', '{n} cards', { n: p.resourceCount })}</span>
+                <span title={L('Карт развития', 'Даму карталары', 'Development cards')}><Icon name="cards" size={14} /> {L('{n} разв.', '{n} даму', '{n} dev', { n: p.devCardCount })}</span>
+                <span title={L('Самая длинная дорога', 'Ең ұзын жол', 'Longest road')}><Icon name="road" size={14} /> {L('{n} дор.', '{n} жол', '{n} roads', { n: p.roadLength })}</span>
+                <span title={L('Сыграно рыцарей', 'Ойналған рыцарьлар', 'Knights played')}><ArtIcon src={eraIcon(pack.id, 'dev-knight')} size={16} /> {p.knightsPlayed}</span>
               </div>
               {(pub.longestRoad === id || pub.largestArmy === id) && (
                 <div className="pl-bonus">
@@ -1643,9 +1648,9 @@ function NewCard({ cards, pack }: { cards: PrivateView['devCards']; pack: LorePa
     <div key={shown.key} className="new-card" aria-live="polite">
       <div className="nc-card">
         <ArtIcon src={eraIcon(pack.id, `dev-${shown.type}`)} size={120} />
-        <small>Новая карта</small>
+        <small>{L('Новая карта', 'Жаңа карта', 'New card')}</small>
         <b>{info.name}</b>
-        <span>{DEV_RULE[shown.type]}</span>
+        <span>{devRule(shown.type)}</span>
       </div>
     </div>
   );
@@ -1662,7 +1667,7 @@ function TurnBanner({ color }: { color: string }) {
   return (
     <div className="turn-banner" style={{ ['--me' as string]: color }} aria-hidden>
       <div className="tb-edge" />
-      <div className="tb-plate display">Твой ход</div>
+      <div className="tb-plate display">{L('Твой ход', 'Сенің жүрісің', 'Your turn')}</div>
     </div>
   );
 }
@@ -1678,21 +1683,21 @@ function IncomingBanner({ pub, priv, me, busy, send, open }: { pub: PublicState;
       <button className="ib-body" onClick={open}>
         <span className="ib-ava">{from.name.charAt(0).toUpperCase()}</span>
         <span className="ib-terms">
-          <small>{from.name} предлагает</small>
+          <small>{L('{n} предлагает', '{n} ұсынады', '{n} offers', { n: from.name })}</small>
           <span className="counter-line">
             <ResChips value={t.want} /> → <ResChips value={t.give} />
           </span>
         </span>
       </button>
       {mine ? (
-        <span className="ib-answer faint">{mine.kind === 'accept' ? 'Ты согласен' : mine.kind === 'decline' ? 'Отказ' : 'Встречное'}</span>
+        <span className="ib-answer faint">{mine.kind === 'accept' ? L('Ты согласен', 'Келістің', 'You agreed') : mine.kind === 'decline' ? L('Отказ', 'Бас тарттың', 'Declined') : L('Встречное', 'Қарсы ұсыныс', 'Counteroffer')}</span>
       ) : (
         <>
           <button className="btn small-act" disabled={busy} onClick={() => void send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
-            Нет
+            {L('Нет', 'Жоқ', 'No')}
           </button>
           <button className="btn primary small-act" disabled={busy || !can} onClick={() => void send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
-            Да
+            {L('Да', 'Иә', 'Yes')}
           </button>
         </>
       )}
@@ -1769,7 +1774,7 @@ function Actions(props: {
   const canPlayNow = myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed && playable > 0;
   const cardsBtn = (
     <button className={`btn ${canPlayNow ? 'glow' : ''}`} onClick={() => openSheet('dev')}>
-      <Icon name="cards" /> Карты
+      <Icon name="cards" /> {L('Карты', 'Карталар', 'Cards')}
       {priv.devCards.length > 0 && <span className={`cnt ${canPlayNow ? 'hot' : ''}`}>{priv.devCards.length}</span>}
     </button>
   );
@@ -1778,22 +1783,22 @@ function Actions(props: {
       <div className="actions tools">
         <button className="tool" onClick={() => openSheet('plan')}>
           <Icon name="plan" />
-          <small>План</small>
+          <small>{L('План', 'Жоспар', 'Plan')}</small>
           {props.planCount > 0 && <span className={`cnt dot ${props.planBroken ? 'bad' : ''}`}>{props.planBroken || props.planCount}</span>}
         </button>
         <button className="tool" onClick={() => openSheet(pub.trade && !myTurn ? 'incoming' : 'trade')}>
           <Icon name="trade" />
-          <small>Обмен</small>
+          <small>{L('Обмен', 'Алмасу', 'Trade')}</small>
           {pub.trade && <span className="cnt dot hot">1</span>}
         </button>
         <button className="tool" onClick={() => openSheet('dev')}>
           <Icon name="cards" />
-          <small>Карты</small>
+          <small>{L('Карты', 'Карталар', 'Cards')}</small>
           {priv.devCards.length > 0 && <span className="cnt dot">{priv.devCards.length}</span>}
         </button>
         <button className="tool" onClick={() => openSheet('react')}>
           <Icon name="smile" />
-          <small>Реакция</small>
+          <small>{L('Реакция', 'Реакция', 'Reaction')}</small>
         </button>
       </div>
     );
@@ -1804,19 +1809,19 @@ function Actions(props: {
       return <RobberHands pub={pub} me={me} />;
     case 'setup':
     case 'roadBuilding':
-      return <p className="dock-note">Нажми на светящееся место на карте</p>;
+      return <p className="dock-note">{L('Нажми на светящееся место на карте', 'Картадағы жарқыраған орынды бас', 'Tap the glowing spot on the map')}</p>;
     case 'roll':
       // Автобросок у ведущего: кубики бросает сервер, кнопки нет совсем
-      if (props.serverRoll) return <p className="dock-note">{attacking ? 'Идёт атака…' : 'Бросаем кубики…'}</p>;
+      if (props.serverRoll) return <p className="dock-note">{attacking ? L('Идёт атака…', 'Шабуыл жүріп жатыр…', 'Attack in progress…') : L('Бросаем кубики…', 'Кубиктер лақтырылуда…', 'Rolling the dice…')}</p>;
       return (
         <div className="actions">
           {countdown !== null ? (
             <button className="btn primary big grow2" onClick={cancelCountdown}>
-              <Icon name="dice" /> Бросаю через {countdown}… <small>стоп</small>
+              <Icon name="dice" /> {L('Бросаю через {n}…', 'Лақтырамын: {n}…', 'Rolling in {n}…', { n: countdown })} <small>{L('стоп', 'тоқта', 'stop')}</small>
             </button>
           ) : (
             <button className="btn primary big grow2" disabled={busy || attacking} onClick={() => (physical ? openSheet('dice') : void send({ type: 'rollDice' }))}>
-              <Icon name={attacking ? 'army' : 'dice'} /> {attacking ? 'Идёт атака…' : physical ? 'Ввести бросок' : 'Бросить кубики'}
+              <Icon name={attacking ? 'army' : 'dice'} /> {attacking ? L('Идёт атака…', 'Шабуыл жүріп жатыр…', 'Attack in progress…') : physical ? L('Ввести бросок', 'Лақтыруды енгізу', 'Enter the roll') : L('Бросить кубики', 'Кубиктерді лақтыру', 'Roll the dice')}
             </button>
           )}
           {playable > 0 && cardsBtn}
@@ -1832,37 +1837,37 @@ function Actions(props: {
       return (
         <>
           <div className="actions builds">
-            <button className={`act ${build === 'road' ? 'on' : ''}`} disabled={!road && build !== 'road'} onClick={() => t('road')} aria-label="Дорога" title="Дорога">
+            <button className={`act ${build === 'road' ? 'on' : ''}`} disabled={!road && build !== 'road'} onClick={() => t('road')} aria-label={L('Дорога', 'Жол', 'Road')} title={L('Дорога', 'Жол', 'Road')}>
               <Icon name="road" className="i" size={24} />
               <Cost cost={COSTS.road} />
             </button>
-            <button className={`act ${build === 'settlement' ? 'on' : ''}`} disabled={!settl && build !== 'settlement'} onClick={() => t('settlement')} aria-label="Поселение" title="Поселение">
+            <button className={`act ${build === 'settlement' ? 'on' : ''}`} disabled={!settl && build !== 'settlement'} onClick={() => t('settlement')} aria-label={L('Поселение', 'Қоныс', 'Settlement')} title={L('Поселение', 'Қоныс', 'Settlement')}>
               <Icon name="house" className="i" size={24} />
               <Cost cost={COSTS.settlement} />
             </button>
-            <button className={`act ${build === 'city' ? 'on' : ''}`} disabled={!city && build !== 'city'} onClick={() => t('city')} aria-label="Город" title="Город">
+            <button className={`act ${build === 'city' ? 'on' : ''}`} disabled={!city && build !== 'city'} onClick={() => t('city')} aria-label={L('Город', 'Қала', 'City')} title={L('Город', 'Қала', 'City')}>
               <Icon name="castle" className="i" size={24} />
               <Cost cost={COSTS.city} />
             </button>
-            <button className="act" disabled={!dev || busy} onClick={() => void send({ type: 'buyDevCard' })} aria-label="Купить карту развития" title="Карта развития">
+            <button className="act" disabled={!dev || busy} onClick={() => void send({ type: 'buyDevCard' })} aria-label={L('Купить карту развития', 'Даму картасын сатып алу', 'Buy a development card')} title={L('Карта развития', 'Даму картасы', 'Development card')}>
               <Icon name="cards" className="i" size={24} />
               <Cost cost={COSTS.devCard} />
             </button>
           </div>
           <div className="actions">
-            <button className="btn icon-only" onClick={() => openSheet('plan')} aria-label="План">
+            <button className="btn icon-only" onClick={() => openSheet('plan')} aria-label={L('План', 'Жоспар', 'Plan')}>
               <Icon name="plan" />
               {props.planCount > 0 && <span className={`cnt dot ${props.planBroken ? 'bad' : ''}`}>{props.planBroken || props.planCount}</span>}
             </button>
-            <button className={`btn icon-only ${canPlayNow ? 'glow' : ''}`} onClick={() => openSheet('dev')} aria-label="Карты развития">
+            <button className={`btn icon-only ${canPlayNow ? 'glow' : ''}`} onClick={() => openSheet('dev')} aria-label={L('Карты развития', 'Даму карталары', 'Development cards')}>
               <Icon name="cards" />
               {priv.devCards.length > 0 && <span className={`cnt dot ${canPlayNow ? 'hot' : ''}`}>{priv.devCards.length}</span>}
             </button>
             <button className="btn" onClick={() => openSheet('trade')}>
-              <Icon name="trade" /> Обмен{(pub.trades?.length ?? (pub.trade ? 1 : 0)) > 0 ? ` · ${pub.trades?.length ?? 1}` : ''}
+              <Icon name="trade" /> {L('Обмен', 'Алмасу', 'Trade')}{(pub.trades?.length ?? (pub.trade ? 1 : 0)) > 0 ? ` · ${pub.trades?.length ?? 1}` : ''}
             </button>
             <button className="btn primary" disabled={busy || !armed} onClick={() => void send({ type: 'endTurn' })}>
-              Конец хода <Icon name="next" />
+              {L('Конец хода', 'Жүрісті аяқтау', 'End turn')} <Icon name="next" />
             </button>
           </div>
         </>
@@ -1873,8 +1878,8 @@ function Actions(props: {
   }
 }
 
-const pieceNames: { road: string; settlement: string; city: string } = { road: 'дорога', settlement: 'поселение', city: 'город' };
-const shortName = (k: keyof typeof pieceNames) => pieceNames[k];
+const pieceNames = (): { road: string; settlement: string; city: string } => ({ road: L('дорога', 'жол', 'road'), settlement: L('поселение', 'қоныс', 'settlement'), city: L('город', 'қала', 'city') });
+const shortName = (k: 'road' | 'settlement' | 'city') => pieceNames()[k];
 const plural = (n: number, one: string, few: string, many: string) => {
   const a = n % 10;
   const b = n % 100;
@@ -1894,51 +1899,51 @@ function computeTargets(pub: PublicState, me: PlayerId, myTurn: boolean, mode: B
         return {
           kind: 'edge',
           ids: legalRoadEdges(pub, me, pub.setup.lastVertex),
-          hint: 'Поставь дорогу к своему поселению',
-          confirm: 'Поставить сюда?',
+          hint: L('Поставь дорогу к своему поселению', 'Өз қонысыңа жол сал', 'Build a road next to your settlement'),
+          confirm: L('Поставить сюда?', 'Осында орнатамыз ба?', 'Place it here?'),
           action: (edge) => ({ type: 'buildRoad', edge }),
         };
       }
       return {
         kind: 'vertex',
         ids: legalSettlementVertices(pub, me, true),
-        hint: pub.setup?.round === 2 ? 'Второе поселение — за него дадут ресурсы' : 'Поставь первое поселение',
-        confirm: 'Поставить поселение сюда?',
+        hint: pub.setup?.round === 2 ? L('Второе поселение — за него дадут ресурсы', 'Екінші қоныс — ол үшін ресурс береді', 'Second settlement — it gives you resources') : L('Поставь первое поселение', 'Бірінші қонысты орнат', 'Place your first settlement'),
+        confirm: L('Поставить поселение сюда?', 'Қонысты осында орнатамыз ба?', 'Place the settlement here?'),
         action: (vertex) => ({ type: 'buildSettlement', vertex }),
       };
     case 'roadBuilding':
       return {
         kind: 'edge',
         ids: legalRoadEdges(pub, me),
-        hint: `Бесплатная дорога (осталось ${pub.roadBuildingLeft ?? 1})`,
-        confirm: 'Поставить сюда?',
+        hint: L('Бесплатная дорога (осталось {n})', 'Тегін жол (қалды: {n})', 'Free road ({n} left)', { n: pub.roadBuildingLeft ?? 1 }),
+        confirm: L('Поставить сюда?', 'Осында орнатамыз ба?', 'Place it here?'),
         action: (edge) => ({ type: 'buildRoad', edge }),
       };
     case 'moveRobber':
       return {
         kind: 'hex',
         ids: pub.board.hexes.filter((h) => h.id !== pub.robberHex).map((h) => h.id),
-        hint: `Куда отправить: ${ROBBER.name}?`,
-        confirm: 'Сюда?',
+        hint: L('Куда отправить: {n}?', 'Қайда жібереміз: {n}?', 'Where to send: {n}?', { n: ROBBER.name }),
+        confirm: L('Сюда?', 'Осында ма?', 'Here?'),
         action: (hex, victim) => ({ type: 'moveRobber', hex, ...(victim ? { victim } : {}) }),
       };
     case 'main':
       if (mode === 'road')
-        return { kind: 'edge', ids: legalRoadEdges(pub, me), hint: 'Где строим дорогу?', confirm: 'Построить дорогу?', action: (edge) => ({ type: 'buildRoad', edge }) };
+        return { kind: 'edge', ids: legalRoadEdges(pub, me), hint: L('Где строим дорогу?', 'Жолды қайда саламыз?', 'Where to build the road?'), confirm: L('Построить дорогу?', 'Жол саламыз ба?', 'Build the road?'), action: (edge) => ({ type: 'buildRoad', edge }) };
       if (mode === 'settlement')
         return {
           kind: 'vertex',
           ids: legalSettlementVertices(pub, me),
-          hint: 'Где строим поселение?',
-          confirm: 'Построить поселение?',
+          hint: L('Где строим поселение?', 'Қонысты қайда саламыз?', 'Where to build the settlement?'),
+          confirm: L('Построить поселение?', 'Қоныс саламыз ба?', 'Build the settlement?'),
           action: (vertex) => ({ type: 'buildSettlement', vertex }),
         };
       if (mode === 'city')
         return {
           kind: 'vertex',
           ids: legalCityVertices(pub, me),
-          hint: 'Какое поселение станет городом?',
-          confirm: 'Построить город?',
+          hint: L('Какое поселение станет городом?', 'Қай қоныс қалаға айналады?', 'Which settlement becomes a city?'),
+          confirm: L('Построить город?', 'Қала саламыз ба?', 'Build the city?'),
           action: (vertex) => ({ type: 'buildCity', vertex }),
         };
       return null;
@@ -1952,7 +1957,7 @@ function RobberHands({ pub, me }: { pub: PublicState; me: PlayerId }) {
   const others = pub.order.filter((id) => id !== me);
   return (
     <div className="rob-dock">
-      <p className="dock-note">Выбери гекс соседа — заберёшь у него случайную карту</p>
+      <p className="dock-note">{L('Выбери гекс соседа — заберёшь у него случайную карту', 'Көршінің гексін таңда — одан кездейсоқ карта аласың', "Pick a neighbor's hex — you will take a random card from them")}</p>
       <div className="rob-hands">
         {others.map((id) => {
           const p = pub.players[id];
@@ -1976,8 +1981,8 @@ function RobberPick({ pub, me, hex, busy, onCancel, onGo }: { pub: PublicState; 
   const near = playersAtHex(pub, hex, me);
   const withCards = near.filter((id) => pub.players[id].resourceCount > 0);
   return (
-    <div className="rob-pick glass strong" role="dialog" aria-label="Кого грабить">
-      <b className="rp-title">{withCards.length ? 'У кого забрать карту?' : near.length ? 'Здесь у соседей пусто на руках' : 'Рядом никого — украсть не у кого'}</b>
+    <div className="rob-pick glass strong" role="dialog" aria-label={L('Кого грабить', 'Кімді тонау', 'Who to rob')}>
+      <b className="rp-title">{withCards.length ? L('У кого забрать карту?', 'Кімнен карта аласың?', 'Take a card from whom?') : near.length ? L('Здесь у соседей пусто на руках', 'Мұндағы көршілердің қолы бос', 'The neighbors here have empty hands') : L('Рядом никого — украсть не у кого', 'Маңайда ешкім жоқ — ұрлайтын адам жоқ', 'No one nearby — nobody to steal from')}</b>
       {near.length > 0 && (
         <div className="rp-list">
           {near.map((id) => {
@@ -1987,7 +1992,7 @@ function RobberPick({ pub, me, hex, busy, onCancel, onGo }: { pub: PublicState; 
               <button key={id} className="rp-v" disabled={busy || n === 0} onClick={() => onGo(id)}>
                 <i style={{ background: PLAYER_HEX[p.color] }}>{p.name.charAt(0).toUpperCase()}</i>
                 <span className="rp-name">{p.name}</span>
-                <span className="rp-n">{n === 0 ? 'нет карт' : `${n} ${plural(n, 'карта', 'карты', 'карт')}`}</span>
+                <span className="rp-n">{n === 0 ? L('нет карт', 'карта жоқ', 'no cards') : pick(`${n} ${plural(n, 'карта', 'карты', 'карт')}`, `${n} карта`, `${n} ${n === 1 ? 'card' : 'cards'}`)}</span>
               </button>
             );
           })}
@@ -1995,11 +2000,11 @@ function RobberPick({ pub, me, hex, busy, onCancel, onGo }: { pub: PublicState; 
       )}
       <div className="rp-btns">
         <button className="btn" onClick={onCancel}>
-          Другой гекс
+          {L('Другой гекс', 'Басқа гекс', 'Another hex')}
         </button>
         {withCards.length === 0 && (
           <button className="btn primary" disabled={busy} onClick={() => onGo(undefined)}>
-            Всё равно сюда
+            {L('Всё равно сюда', 'Бәрібір осында', 'Here anyway')}
           </button>
         )}
       </div>
@@ -2024,12 +2029,12 @@ function StealReveal({ ev, pub, me }: { ev?: { thief: PlayerId; victim: PlayerId
   const resName = res ? RESOURCE_NAME[res].charAt(0).toUpperCase() + RESOURCE_NAME[res].slice(1) : '';
   return (
     <div key={shown.key} className={`steal-pop dock-pop ${role}`} role="alert">
-      <button className="sp-card glass strong" onClick={() => setShown(undefined)} aria-label="Закрыть">
+      <button className="sp-card glass strong" onClick={() => setShown(undefined)} aria-label={L('Закрыть', 'Жабу', 'Close')}>
         <span className="sp-art">{role !== 'saw' && res ? <ResIcon r={res} size={60} /> : <Icon name="cards" size={34} />}</span>
         <span className="sp-txt">
-          <span className="sp-kicker">{role === 'won' ? 'Добыча' : role === 'lost' ? 'У тебя забрали' : 'Кража'}</span>
-          <b className="sp-title">{role === 'won' ? `+1 ${resName}` : role === 'lost' ? `−1 ${resName}` : `${thief} забирает карту`}</b>
-          <small className="sp-sub">{role === 'won' ? `у игрока ${victim}` : role === 'lost' ? `забрал ${thief}` : `у игрока ${victim}`}</small>
+          <span className="sp-kicker">{role === 'won' ? L('Добыча', 'Олжа', 'Loot') : role === 'lost' ? L('У тебя забрали', 'Сенен алды', 'Taken from you') : L('Кража', 'Ұрлық', 'Theft')}</span>
+          <b className="sp-title">{role === 'won' ? `+1 ${resName}` : role === 'lost' ? `−1 ${resName}` : L('{n} забирает карту', '{n} карта алады', '{n} takes a card', { n: thief })}</b>
+          <small className="sp-sub">{role === 'won' ? L('у игрока {n}', '{n} ойыншыдан', 'from {n}', { n: victim }) : role === 'lost' ? L('забрал {n}', '{n} алды', 'taken by {n}', { n: thief }) : L('у игрока {n}', '{n} ойыншыдан', 'from {n}', { n: victim })}</small>
         </span>
       </button>
     </div>
@@ -2055,25 +2060,26 @@ function DevCardReveal({ cards, pack }: { cards: PrivateView['devCards']; pack: 
   return (
     <div key={shown.key} className="steal-pop won dev" role="alert" onClick={() => setShown(null)}>
       <div className="sp-card glass strong">
-        <span className="sp-kicker">Новая карта</span>
+        <span className="sp-kicker">{L('Новая карта', 'Жаңа карта', 'New card')}</span>
         <span className="sp-art">
           <ArtIcon src={eraIcon(pack.id, `dev-${shown.type}`)} size={104} />
         </span>
         <b className="sp-title">{pack.devCards[shown.type].name}</b>
-        <small className="sp-sub">{DEV_RULE[shown.type]}</small>
-        {shown.type !== 'victoryPoint' && <small className="sp-sub faint">Сыграть можно со следующего хода — «Карты» в доке</small>}
+        <small className="sp-sub">{devRule(shown.type)}</small>
+        {shown.type !== 'victoryPoint' && <small className="sp-sub faint">{L('Сыграть можно со следующего хода — «Карты» в доке', 'Келесі жүрістен бастап ойнауға болады — доктағы «Карталар»', 'Playable from the next turn — "Cards" in the dock')}</small>}
       </div>
     </div>
   );
 }
 
-const DEV_RULE: Record<DevCardType, string> = {
-  knight: 'Переставь разбойника и забери карту у соседа. Три сыгранные — бонус +2 очка.',
-  roadBuilding: 'Две дороги бесплатно.',
-  yearOfPlenty: 'Возьми из банка любые два ресурса.',
-  monopoly: 'Назови ресурс — все отдают тебе его целиком.',
-  victoryPoint: 'Тайное +1 очко. Играть не нужно — считается само.',
-};
+const devRule = (t: DevCardType): string =>
+  ({
+    knight: L('Переставь разбойника и забери карту у соседа. Три сыгранные — бонус +2 очка.', 'Қарақшыны ауыстырып, көршіңнен карта ал. Үш ойналған карта — +2 ұпай бонус.', 'Move the robber and take a card from a neighbor. Three played — a +2 point bonus.'),
+    roadBuilding: L('Две дороги бесплатно.', 'Екі жол тегін.', 'Two roads for free.'),
+    yearOfPlenty: L('Возьми из банка любые два ресурса.', 'Банктен кез келген екі ресурс ал.', 'Take any two resources from the bank.'),
+    monopoly: L('Назови ресурс — все отдают тебе его целиком.', 'Ресурсты ата — бәрі оны толықтай саған береді.', 'Name a resource — everyone gives you all of it.'),
+    victoryPoint: L('Тайное +1 очко. Играть не нужно — считается само.', 'Құпия +1 ұпай. Ойнаудың қажеті жоқ — өзі есептеледі.', 'A secret +1 point. No need to play it — it counts on its own.'),
+  })[t];
 const DEV_ORDER: DevCardType[] = ['knight', 'roadBuilding', 'yearOfPlenty', 'monopoly', 'victoryPoint'];
 
 function DevCards({
@@ -2094,9 +2100,9 @@ function DevCards({
   if (!priv.devCards.length)
     return (
       <div className="stack center">
-        <p className="muted">Карт пока нет.</p>
+        <p className="muted">{L('Карт пока нет.', 'Әзірге карта жоқ.', 'No cards yet.')}</p>
         <p className="faint small row" style={{ justifyContent: 'center' }}>
-          Купить в свой ход: <Cost cost={COSTS.devCard} />
+          {L('Купить в свой ход:', 'Өз жүрісіңде сатып ал:', 'Buy on your turn:')} <Cost cost={COSTS.devCard} />
         </p>
       </div>
     );
@@ -2106,7 +2112,7 @@ function DevCards({
   }).filter((g) => g.n > 0);
   return (
     <div className="list">
-      {played && <p className="faint small center">В этот ход карта уже сыграна — следующая в следующий ход.</p>}
+      {played && <p className="faint small center">{L('В этот ход карта уже сыграна — следующая в следующий ход.', 'Бұл жүрісте карта ойналып қойды — келесісі келесі жүрісте.', 'A card was already played this turn — the next one next turn.')}</p>}
       {groups.map(({ t, n, ready }) => {
         const info = pack.devCards[t];
         const usable = t !== 'victoryPoint' && ready && canPlay;
@@ -2118,11 +2124,11 @@ function DevCards({
                 <b>{info.name}</b>
                 {n > 1 && <span className="dc-n">×{n}</span>}
               </div>
-              <div className="dc-rule">{DEV_RULE[t]}</div>
+              <div className="dc-rule">{devRule(t)}</div>
               <div className="dc-flavor">{info.flavor}</div>
               {t !== 'victoryPoint' && (
                 <button className="btn primary dc-btn" disabled={!usable || busy} onClick={() => onPlay(t)}>
-                  {ready ? (canPlay ? 'Сыграть' : 'Сыграть можно в свой ход') : 'Куплена в этот ход — со следующего'}
+                  {ready ? (canPlay ? L('Сыграть', 'Ойнау', 'Play') : L('Сыграть можно в свой ход', 'Өз жүрісіңде ойнауға болады', 'Playable on your turn')) : L('Куплена в этот ход — со следующего', 'Осы жүрісте сатып алынған — келесіден бастап', 'Bought this turn — playable from the next')}
                 </button>
               )}
             </div>
@@ -2144,9 +2150,9 @@ function Plenty({ busy, onDone }: { busy: boolean; onDone: (r: [Resource, Resour
           sfx.play('tick');
         }}
       />
-      <div className="picked-row">{picked.length ? picked.map((r, i) => <ResIcon key={i} r={r} size={48} />) : <span className="faint">выбери два</span>}</div>
+      <div className="picked-row">{picked.length ? picked.map((r, i) => <ResIcon key={i} r={r} size={48} />) : <span className="faint">{L('выбери два', 'екеуін таңда', 'pick two')}</span>}</div>
       <button className="btn primary wide" disabled={picked.length !== 2 || busy} onClick={() => onDone(picked as [Resource, Resource])}>
-        Взять
+        {L('Взять', 'Алу', 'Take')}
       </button>
     </div>
   );
@@ -2159,7 +2165,7 @@ function Discard({ priv, busy, send }: { priv: PrivateView; busy: boolean; send:
     <div className="stack">
       <ResourceStepper value={sel} onChange={setSel} max={priv.resources} />
       <button className="btn primary wide" disabled={n !== priv.mustDiscard || busy} onClick={() => void send({ type: 'discard', resources: sel })}>
-        Сбросить {n}/{priv.mustDiscard}
+        {L('Сбросить {n}/{m}', 'Тастау {n}/{m}', 'Discard {n}/{m}', { n, m: priv.mustDiscard })}
       </button>
     </div>
   );
@@ -2185,13 +2191,13 @@ function PhysicalDice({ busy, canRoll, onDone }: { busy: boolean; canRoll: boole
   );
   return (
     <div className="stack">
-      <div className="label">Первый кубик</div>
+      <div className="label">{L('Первый кубик', 'Бірінші кубик', 'First die')}</div>
       {row('a', a)}
-      <div className="label">Второй кубик</div>
+      <div className="label">{L('Второй кубик', 'Екінші кубик', 'Second die')}</div>
       {row('b', b)}
       <div className={`dice-total display ${a && b && a + b === 7 ? 'seven' : ''}`}>{a && b ? a + b : '—'}</div>
       <button className="btn primary big wide" disabled={!a || !b || busy || !canRoll} onClick={() => onDone([a!, b!])}>
-        Готово
+        {L('Готово', 'Дайын', 'Done')}
       </button>
     </div>
   );
@@ -2250,9 +2256,9 @@ function PlanSheet({
     return (
       <div className="stack">
         <HandMini hand={priv.resources} />
-        <div className="label">Отдаю банку</div>
+        <div className="label">{L('Отдаю банку', 'Банкке беремін', 'I give the bank')}</div>
         <ResourcePicker selected={give} sub={(r) => `${priv.tradeRatios[r]}:1`} onPick={setGive} />
-        <div className="label">Получаю</div>
+        <div className="label">{L('Получаю', 'Аламын', 'I get')}</div>
         <ResourcePicker
           disabled={(r) => !give || r === give}
           onPick={(r) => {
@@ -2262,7 +2268,7 @@ function PlanSheet({
           }}
         />
         <button className="btn ghost wide" onClick={() => setAdding(null)}>
-          Назад
+          {L('Назад', 'Артқа', 'Back')}
         </button>
       </div>
     );
@@ -2282,7 +2288,7 @@ function PlanSheet({
         />
         <div className="row">
           <button className="btn ghost grow" onClick={() => setAdding(null)}>
-            Назад
+            {L('Назад', 'Артқа', 'Back')}
           </button>
           <button
             className="btn primary grow"
@@ -2294,7 +2300,7 @@ function PlanSheet({
               setOfferWant(emptyResources());
             }}
           >
-            В план
+            {L('В план', 'Жоспарға', 'To plan')}
           </button>
         </div>
       </div>
@@ -2311,24 +2317,24 @@ function PlanSheet({
 
   return (
     <div className="stack">
-      {me && <IncomeStrip pub={pub} pid={me} label="Твой доход по числам" />}
+      {me && <IncomeStrip pub={pub} pid={me} label={L('Твой доход по числам', 'Сандар бойынша табысың', 'Your income by number')} />}
       {checked.length > 0 ? (
         <div className={`plan-sum ${brokenN ? 'bad' : ready === checked.length ? 'good' : ''}`}>
           <div className="ps-main">
             <b>
-              Готово {ready} из {units.length}
+              {L('Готово {a} из {b}', 'Дайын: {a} / {b}', '{a} of {b} ready', { a: ready, b: units.length })}
             </b>
-            {points > 0 && <span className="ps-vp">+{points} очк.</span>}
+            {points > 0 && <span className="ps-vp">{L('+{n} очк.', '+{n} ұпай', '+{n} pts', { n: points })}</span>}
           </div>
-          {brokenN > 0 && <div className="ps-line">Сломалось шагов: {brokenN} — кто-то занял место. Убери или замени.</div>}
+          {brokenN > 0 && <div className="ps-line">{L('Сломалось шагов: {n} — кто-то занял место. Убери или замени.', 'Бұзылған қадамдар: {n} — біреу орынды басып алды. Алып таста немесе ауыстыр.', 'Broken steps: {n} — someone took the spot. Remove or replace.', { n: brokenN })}</div>}
           {Object.keys(missing).length > 0 && (
             <div className="ps-line">
-              Не хватает: <ResChips value={missing} />
+              {L('Не хватает:', 'Жетіспейді:', 'Missing:')} <ResChips value={missing} />
             </div>
           )}
         </div>
       ) : (
-        <p className="muted small">Пусто. Добавь стройку — план перепроверяется после каждого чужого хода.</p>
+        <p className="muted small">{L('Пусто. Добавь стройку — план перепроверяется после каждого чужого хода.', 'Бос. Құрылыс қос — жоспар әр басқа ойыншының жүрісінен кейін қайта тексеріледі.', "Empty. Add a build — the plan is rechecked after every other player's move.")}</p>
       )}
 
       {units.length > 0 && (
@@ -2353,20 +2359,20 @@ function PlanSheet({
                       {STEP_LABEL[c.step.kind]}
                     </b>
                     <span className="pstep-st">
-                      {u.status === 'ready' && (c.step.kind === 'bank' || c.step.kind === 'offer' ? <StepTerms step={c.step} /> : 'готово')}
+                      {u.status === 'ready' && (c.step.kind === 'bank' || c.step.kind === 'offer' ? <StepTerms step={c.step} /> : L('готово', 'дайын', 'ready'))}
                       {u.status === 'short' && (
                         <>
-                          не хватает <ResChips value={u.missing} />
+                          {L('не хватает', 'жетіспейді', 'missing')} <ResChips value={u.missing} />
                         </>
                       )}
-                      {u.status === 'broken' && (u.reason ?? 'место занято')}
+                      {u.status === 'broken' && (u.reason ?? L('место занято', 'орын бос емес', 'spot taken'))}
                     </span>
                   </div>
                   <div className="pstep-ctl">
-                    <button className="pstep-btn" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(moveUnit(units, i, i - 1))}>
+                    <button className="pstep-btn" aria-label={L('Выше', 'Жоғары', 'Move up')} disabled={i === 0} onClick={() => setPlan(moveUnit(units, i, i - 1))}>
                       <Icon name="up" size={16} />
                     </button>
-                    <button className="pstep-btn" aria-label="Убрать" onClick={() => setPlan(removeUnit(plan, u))}>
+                    <button className="pstep-btn" aria-label={L('Убрать', 'Алып тастау', 'Remove')} onClick={() => setPlan(removeUnit(plan, u))}>
                       <Icon name="close" size={16} />
                     </button>
                   </div>
@@ -2375,7 +2381,7 @@ function PlanSheet({
                   <button className="pstep-sub-toggle" aria-expanded={open} onClick={() => setOpenUnit(open ? null : c.step.id)}>
                     <Icon name="road" size={14} />
                     <span className="grow">
-                      {u.roads.length === 1 ? '+1 дорога к нему' : `+${u.roads.length} дороги к нему`}
+                      {pick(u.roads.length === 1 ? '+1 дорога к нему' : `+${u.roads.length} дороги к нему`, `+${u.roads.length} жол оған`, `+${u.roads.length} ${u.roads.length === 1 ? 'road' : 'roads'} to it`)}
                     </span>
                     <Icon name={open ? 'less' : 'down'} size={14} />
                   </button>
@@ -2389,15 +2395,15 @@ function PlanSheet({
                         role={onShow ? 'button' : undefined}
                         onClick={onShow ? () => onShow((rd.step as { at: string }).at) : undefined}
                       >
-                        <span>Дорога {k + 1}</span>
+                        <span>{L('Дорога {n}', 'Жол {n}', 'Road {n}', { n: k + 1 })}</span>
                         <span className="pstep-st">
-                          {rd.status === 'ready' && 'готово'}
+                          {rd.status === 'ready' && L('готово', 'дайын', 'ready')}
                           {rd.status === 'short' && (
                             <>
-                              не хватает <ResChips value={rd.missing ?? {}} />
+                              {L('не хватает', 'жетіспейді', 'missing')} <ResChips value={rd.missing ?? {}} />
                             </>
                           )}
-                          {rd.status === 'broken' && (rd.reason ?? 'место занято')}
+                          {rd.status === 'broken' && (rd.reason ?? L('место занято', 'орын бос емес', 'spot taken'))}
                         </span>
                       </li>
                     ))}
@@ -2410,35 +2416,35 @@ function PlanSheet({
       )}
       {sorted && (
         <button className="btn ghost wide" onClick={() => setPlan(sorted)}>
-          <Icon name="sort" size={18} /> Упорядочить: сначала то, на что хватает
+          <Icon name="sort" size={18} /> {L('Упорядочить: сначала то, на что хватает', 'Реттеу: алдымен жететіндері', 'Sort: affordable first')}
         </button>
       )}
 
-      <div className="label">Добавить шаг</div>
+      <div className="label">{L('Добавить шаг', 'Қадам қосу', 'Add a step')}</div>
       <div className="plan-add">
         <button className="act" onClick={() => onPick('road')}>
-          <span className="act-top"><Icon name="road" size={18} /> Дорога</span>
+          <span className="act-top"><Icon name="road" size={18} /> {L('Дорога', 'Жол', 'Road')}</span>
           <Cost cost={COSTS.road} />
         </button>
         <button className="act" onClick={() => onPick('settlement')}>
-          <span className="act-top"><Icon name="house" size={18} /> Поселение</span>
+          <span className="act-top"><Icon name="house" size={18} /> {L('Поселение', 'Қоныс', 'Settlement')}</span>
           <Cost cost={COSTS.settlement} />
         </button>
         <button className="act" onClick={() => onPick('city')}>
-          <span className="act-top"><Icon name="castle" size={18} /> Город</span>
+          <span className="act-top"><Icon name="castle" size={18} /> {L('Город', 'Қала', 'City')}</span>
           <Cost cost={COSTS.city} />
         </button>
         <button className="act" disabled={pub.devDeckCount <= 0} onClick={() => setPlan([...plan, { id: newStepId(), kind: 'devCard' }])}>
-          <span className="act-top"><Icon name="cards" size={18} /> Карта</span>
+          <span className="act-top"><Icon name="cards" size={18} /> {L('Карта', 'Карта', 'Card')}</span>
           <Cost cost={COSTS.devCard} />
         </button>
         <button className="act" onClick={() => setAdding('bank')}>
-          <span className="act-top"><Icon name="bank" size={18} /> Банк</span>
-          <small className="faint">курс {Math.min(...RESOURCES.map((r) => priv.tradeRatios[r]))}:1</small>
+          <span className="act-top"><Icon name="bank" size={18} /> {L('Банк', 'Банк', 'Bank')}</span>
+          <small className="faint">{L('курс {n}:1', 'бағам {n}:1', 'rate {n}:1', { n: Math.min(...RESOURCES.map((r) => priv.tradeRatios[r])) })}</small>
         </button>
         <button className="act" onClick={() => setAdding('offer')}>
-          <span className="act-top"><Icon name="trade" size={18} /> Обмен</span>
-          <small className="faint">игрокам</small>
+          <span className="act-top"><Icon name="trade" size={18} /> {L('Обмен', 'Алмасу', 'Trade')}</span>
+          <small className="faint">{L('игрокам', 'ойыншыларға', 'players')}</small>
         </button>
       </div>
 
@@ -2452,19 +2458,19 @@ function PlanSheet({
       {checked.length > 0 && (
         <div className="row">
           <button className="btn ghost grow" onClick={() => setPlan([])}>
-            Очистить
+            {L('Очистить', 'Тазалау', 'Clear')}
           </button>
           <button className="btn primary grow" disabled={!canRun || busy || checked[0].status !== 'ready'} onClick={onRun}>
-            <Icon name="play" /> Выполнить
+            <Icon name="play" /> {L('Выполнить', 'Орындау', 'Run')}
           </button>
         </div>
       )}
-      {!canRun && checked.length > 0 && <p className="faint small center">Выполнить можно в свой ход после броска</p>}
+      {!canRun && checked.length > 0 && <p className="faint small center">{L('Выполнить можно в свой ход после броска', 'Өз жүрісіңде кубик тасталған соң орындауға болады', 'You can run it on your turn after the roll')}</p>}
 
       {onLog && (
         <button className="log-open" onClick={onLog}>
           <Icon name="book" size={18} />
-          <span className="grow">Журнал партии</span>
+          <span className="grow">{L('Журнал партии', 'Ойын журналы', 'Game log')}</span>
           <small>{logCount}</small>
           <Icon name="next" size={16} />
         </button>
@@ -2475,7 +2481,7 @@ function PlanSheet({
 
 /** Журнал партии: кто что сделал, с разделителями по ходам; новое — сверху. */
 function GameLogList({ log, pub }: { log: LogEntry[]; pub: PublicState }) {
-  if (log.length === 0) return <p className="muted small">Пока пусто — события появятся по ходу партии.</p>;
+  if (log.length === 0) return <p className="muted small">{L('Пока пусто — события появятся по ходу партии.', 'Әзірге бос — оқиғалар ойын барысында пайда болады.', 'Empty for now — events will appear as the game goes on.')}</p>;
   const rows = [...log].reverse();
   return (
     <ol className="glog">
@@ -2518,11 +2524,11 @@ function HostTools({ room, pub, onKick }: { room: RoomView; pub: PublicState; on
     <div className="stack">
       <TurnSettings settings={room.settings} editable />
       <button className="btn wide" disabled={!!room.paused} onClick={() => void conn.host({ type: 'skipTurn' })}>
-        <Icon name="skip" /> Пропустить ход {pub.players[pub.order[pub.current]].name}
+        <Icon name="skip" /> {L('Пропустить ход {n}', '{n} жүрісін өткізу', "Skip {n}'s turn", { n: pub.players[pub.order[pub.current]].name })}
       </button>
       <button className="item" onClick={onKick}>
         <Icon name="ban" />
-        <span className="grow t">Заменить игрока ботом</span>
+        <span className="grow t">{L('Заменить игрока ботом', 'Ойыншыны ботпен ауыстыру', 'Replace a player with a bot')}</span>
         <Icon name="next" size={16} />
       </button>
     </div>
@@ -2542,18 +2548,18 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
     <div className="finish-overlay">
       <div className="panel glass strong stack center">
         <ArtIcon src={eraIcon(pack.id, 'dev-victoryPoint')} size={96} className="win-art" fallback={<Icon name="crown" size={56} />} />
-        <h2 className="display">{winner === me ? 'Ты победил!' : `Победа: ${pub.players[winner].name}`}</h2>
+        <h2 className="display">{winner === me ? L('Ты победил!', 'Сен жеңдің!', 'You won!') : L('Победа: {n}', 'Жеңімпаз: {n}', 'Winner: {n}', { n: pub.players[winner].name })}</h2>
         <p className="muted">{pack.victory.replace('{player}', pub.players[winner].name)}</p>
         {prof && (
           <div className="fin-prof">
             <span>
-              <b>{prof.rating}</b> рейтинг
+              <b>{prof.rating}</b> {L('рейтинг', 'рейтинг', 'rating')}
             </span>
             <span>
-              <b>{prof.streak}</b> дн. подряд
+              <b>{prof.streak}</b> {L('дн. подряд', 'күн қатарынан', 'day streak')}
             </span>
             <span>
-              <b>{prof.games}</b> партий
+              <b>{prof.games}</b> {L('партий', 'ойын', 'games')}
             </span>
           </div>
         )}
@@ -2567,7 +2573,7 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
           ))}
         </ol>
         <button className="btn primary wide fin-home" onClick={() => conn.forget()}>
-          На главную
+          {L('На главную', 'Басты бетке', 'Home')}
         </button>
       </div>
     </div>
@@ -2578,9 +2584,9 @@ function Finished({ pub, me, pack }: { pub: PublicState; me: PlayerId; pack: Lor
 function LookSliders() {
   const look = useBoardLook();
   const rows: { key: 'decor' | 'density' | 'tokens'; label: string; min: number; max: number }[] = [
-    { key: 'decor', label: 'Размер деревьев, гор, овец', min: 0.5, max: 1.3 },
-    { key: 'density', label: 'Сколько объектов на гексах', min: 0.3, max: 1 },
-    { key: 'tokens', label: 'Размер жетонов с числами', min: 0.6, max: 1.4 },
+    { key: 'decor', label: L('Размер деревьев, гор, овец', 'Ағаштар, таулар, қойлар өлшемі', 'Size of trees, mountains, sheep'), min: 0.5, max: 1.3 },
+    { key: 'density', label: L('Сколько объектов на гексах', 'Гекстегі нысандар саны', 'Objects per hex'), min: 0.3, max: 1 },
+    { key: 'tokens', label: L('Размер жетонов с числами', 'Сан жетондарының өлшемі', 'Number token size'), min: 0.6, max: 1.4 },
   ];
   const changed = rows.some((r) => look[r.key] !== LOOK_DEFAULT[r.key]);
   return (
@@ -2595,7 +2601,7 @@ function LookSliders() {
       ))}
       {changed && (
         <button className="btn ghost small-act" onClick={() => setBoardLook(LOOK_DEFAULT)}>
-          Как было
+          {L('Как было', 'Бастапқыдай', 'Reset')}
         </button>
       )}
     </div>

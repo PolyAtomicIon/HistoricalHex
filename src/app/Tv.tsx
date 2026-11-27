@@ -22,6 +22,7 @@ import { ResIcon } from './ResIcon';
 import { tvFeed, tvPhase, type FeedRes } from './tvFeed';
 import { tableHarvest } from './income';
 import type { PublicState, Resource } from '../engine';
+import { L } from '../i18n/l';
 
 
 /** Урожай стола: что в достатке / в дефиците и кто что получит на каждом числе. */
@@ -37,17 +38,17 @@ function Harvest({ pub }: { pub: PublicState }) {
       <div className="th-market">
         {scarce.length > 0 && (
           <span className="bad">
-            дефицит {scarce.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
+            {L('дефицит', 'тапшылық', 'scarce')} {scarce.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
           </span>
         )}
         {plenty.length > 0 && (
           <span className="good">
-            много {plenty.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
+            {L('много', 'көп', 'plenty')} {plenty.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
           </span>
         )}
         {empty.length > 0 && (
           <span className="faint">
-            банк пуст {empty.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
+            {L('банк пуст', 'банк бос', 'bank empty')} {empty.map((x) => <ResIcon key={x.r} r={x.r} size={20} />)}
           </span>
         )}
       </div>
@@ -201,7 +202,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
                 <div className="grow">
                   <div className="t">
                     {p.name}
-                    {!room.online[id] && !p.bot && <span className="faint small"> · не в сети</span>}
+                    {!room.online[id] && !p.bot && <span className="faint small"> · {L('не в сети', 'желіде емес', 'offline')}</span>}
                   </div>
                   <div className="faint small">
                     <span className="stat"><Icon name="hand" size={14} />{p.resourceCount}</span>
@@ -223,7 +224,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         <div className="tv-turn glass" style={{ ['--pc' as string]: PLAYER_HEX[pub.players[current].color] }}>
           <span className="tt-ava display">{pub.players[current].name.slice(0, 1)}</span>
           <div className="grow">
-            <small className="faint">{pub.phase === 'finished' ? 'Партия окончена' : pub.turn ? `Ход ${pub.turn}` : 'Расстановка'}</small>
+            <small className="faint">{pub.phase === 'finished' ? L('Партия окончена', 'Ойын аяқталды', 'Game over') : pub.turn ? L('Ход {n}', '{n}-жүріс', 'Turn {n}', { n: pub.turn }) : L('Расстановка', 'Орналастыру', 'Setup')}</small>
             <b className="display">{pub.phase === 'finished' ? name(pub.winner) : pub.players[current].name}</b>
             <span className="tt-phase">
               <Icon name={phase.icon} size={15} />
@@ -231,7 +232,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
             </span>
           </div>
           {pub.dice && pub.phase !== 'setup' && (
-            <div className={`tt-dice ${pub.phase === 'roll' ? 'old' : ''}`} aria-label={`Кубики: ${pub.dice[0] + pub.dice[1]}`}>
+            <div className={`tt-dice ${pub.phase === 'roll' ? 'old' : ''}`} aria-label={L('Кубики: {n}', 'Сүйектер: {n}', 'Dice: {n}', { n: pub.dice[0] + pub.dice[1] })}>
               <span className="pair">
                 <DieFace n={pub.dice[0]} />
                 <DieFace n={pub.dice[1]} />
@@ -282,7 +283,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         <div className="tv-join glass">
           <Qr text={joinLink(room.pin)} size={72} />
           <div>
-            <small className="faint">Войти в игру</small>
+            <small className="faint">{L('Войти в игру', 'Ойынға кіру', 'Join the game')}</small>
             <b className="display">{room.pin}</b>
           </div>
         </div>
@@ -303,7 +304,7 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
           <Icon name={muted ? 'mute' : 'sound'} size={18} />
         </button>
         {room.isHost && (
-          <button onClick={() => setPanel('host')} aria-label="Ведущий" title="Ведущий">
+          <button onClick={() => setPanel('host')} aria-label={L('Ведущий', 'Жүргізуші', 'Host')} title={L('Ведущий', 'Жүргізуші', 'Host')}>
             <Icon name="crown" size={18} />
           </button>
         )}
@@ -311,20 +312,20 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
 
       {!screen && !room.seated ? (
         <div className="tv-watch glass">
-          <span className="tw-eyes" title="Зрители">
+          <span className="tw-eyes" title={L('Зрители', 'Көрермендер', 'Viewers')}>
             <Icon name="eye" size={16} />
             {room.watchers ?? 1}
           </span>
-          <button className={`tw-react ${cooling ? 'cool' : ''}`} disabled={cooling} onClick={() => setPanel('react')} aria-label="Реакция">
+          <button className={`tw-react ${cooling ? 'cool' : ''}`} disabled={cooling} onClick={() => setPanel('react')} aria-label={L('Реакция', 'Реакция', 'Reaction')}>
             <Icon name="smile" size={20} />
             {cooling && <i key={coolUntil} className="tw-ring" />}
           </button>
           {pub.phase !== 'finished' && (
             <button className="btn small-act" onClick={() => setPanel('claim')}>
-              Я играю
+              {L('Я играю', 'Мен ойнаймын', 'I’m playing')}
             </button>
           )}
-          <button className="tw-home" onClick={() => conn.forget()} aria-label="На главную">
+          <button className="tw-home" onClick={() => conn.forget()} aria-label={L('На главную', 'Басты бетке', 'Home')}>
             <Icon name="close" size={18} />
           </button>
         </div>
@@ -332,13 +333,13 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         !screen && (
           <div className="tv-actions">
             <button className="btn glass" onClick={() => conn.forget()}>
-              На главную
+              {L('На главную', 'Басты бетке', 'Home')}
             </button>
           </div>
         )
       )}
 
-      <Sheet open={panel === 'react'} onClose={() => setPanel(null)} title="Реакция" description="Её увидят игроки и зрители · раз в 4 секунды">
+      <Sheet open={panel === 'react'} onClose={() => setPanel(null)} title={L('Реакция', 'Реакция', 'Reaction')} description={L('Её увидят игроки и зрители · раз в 4 секунды', 'Оны ойыншылар мен көрермендер көреді · 4 секундта бір рет', 'Players and viewers will see it · once every 4 seconds')}>
         <ReactionBar
           emojis={REACTIONS}
           onReact={(e) => {
@@ -349,27 +350,27 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
         />
       </Sheet>
 
-      <Sheet open={panel === 'host'} onClose={() => setPanel(null)} title="Ведущий">
+      <Sheet open={panel === 'host'} onClose={() => setPanel(null)} title={L('Ведущий', 'Жүргізуші', 'Host')}>
         <div className="stack">
           {pub.phase !== 'finished' && (
             <button className="btn wide" onClick={() => void conn.host({ type: 'skipTurn' })}>
-              <Icon name="skip" /> Пропустить ход: {pub.players[current].name}
+              <Icon name="skip" /> {L('Пропустить ход', 'Жүрісті өткізу', 'Skip turn')}: {pub.players[current].name}
             </button>
           )}
           {pub.order
             .filter((id) => !pub.players[id].kicked && !pub.players[id].bot)
             .map((id) => (
               <button key={id} className="btn danger wide" onClick={() => conn.send({ t: 'kick', player: id, level: 'medium' })}>
-                <Icon name="ban" /> Заменить ботом: {pub.players[id].name}
+                <Icon name="ban" /> {L('Заменить ботом', 'Ботқа ауыстыру', 'Replace with bot')}: {pub.players[id].name}
               </button>
             ))}
           <button className="btn ghost wide" onClick={() => conn.send({ t: 'close' })}>
-            Закрыть комнату
+            {L('Закрыть комнату', 'Бөлмені жабу', 'Close room')}
           </button>
         </div>
       </Sheet>
 
-      <Sheet open={panel === 'claim'} onClose={() => setPanel(null)} title="Сесть за стол" description="Своё место или место бота">
+      <Sheet open={panel === 'claim'} onClose={() => setPanel(null)} title={L('Сесть за стол', 'Үстелге отыру', 'Take a seat')} description={L('Своё место или место бота', 'Өз орның немесе боттың орны', 'Your own seat or a bot’s seat')}>
         <form
           className="stack"
           onSubmit={(e) => {
@@ -380,14 +381,14 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
             setPanel(null);
           }}
         >
-          <input className="field" value={claimName} maxLength={20} onChange={(e) => setNameState(e.target.value)} placeholder="Имя" />
+          <input className="field" value={claimName} maxLength={20} onChange={(e) => setNameState(e.target.value)} placeholder={L('Имя', 'Аты', 'Name')} />
           <button className="btn primary wide" disabled={!claimName.trim()}>
-            Занять место
+            {L('Занять место', 'Орынды алу', 'Take seat')}
           </button>
-          <p className="faint small">Вернуться на своё место: введи имя, под которым играешь (старое устройство должно быть не в сети).</p>
+          <p className="faint small">{L('Вернуться на своё место: введи имя, под которым играешь (старое устройство должно быть не в сети).', 'Өз орныңа оралу: ойнап жүрген атыңды енгіз (ескі құрылғы желіде болмауы керек).', 'To return to your seat, enter the name you play under (the old device must be offline).')}</p>
           {room.lobby.some((x) => x.bot) && (
             <>
-              <div className="label">Или замени бота — его постройки и карты станут твоими</div>
+              <div className="label">{L('Или замени бота — его постройки и карты станут твоими', 'Немесе ботты ауыстыр — оның құрылыстары мен карталары сенікі болады', 'Or replace a bot — its buildings and cards become yours')}</div>
               <div className="list">
                 {room.lobby
                   .filter((x) => x.bot)
@@ -407,10 +408,10 @@ export function Tv({ room, pack, screen = true }: { room: RoomView; pack: LorePa
                       <span className="grow">
                         <span className="t">{x.name}</span>
                         <span className="s" style={{ display: 'block' }}>
-                          ИИ · {x.bot === 'easy' ? 'лёгкий' : x.bot === 'medium' ? 'средний' : 'сложный'} · очков {pub.players[x.id]?.points ?? 0}
+                          {L('ИИ', 'ЖИ', 'AI')} · {x.bot === 'easy' ? L('лёгкий', 'жеңіл', 'easy') : x.bot === 'medium' ? L('средний', 'орташа', 'medium') : L('сложный', 'қиын', 'hard')} · {L('очков', 'ұпай', 'points')} {pub.players[x.id]?.points ?? 0}
                         </span>
                       </span>
-                      <span className="faint small">Занять</span>
+                      <span className="faint small">{L('Занять', 'Алу', 'Take')}</span>
                     </button>
                   ))}
               </div>

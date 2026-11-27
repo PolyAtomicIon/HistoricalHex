@@ -5,6 +5,7 @@ import { RESOURCES, totalResources } from '../engine';
 import { RESOURCE_NAME } from '../i18n/ru';
 import { ResIcon } from './ResIcon';
 import { sfx } from '../fx';
+import { L } from '../i18n/l';
 
 export const RES_COLOR: Record<Resource, string> = {
   brick: '#c8643c',
@@ -33,7 +34,7 @@ export function ResChips({ value, empty = '—' }: { value: Partial<ResourceMap>
 }
 
 /** Своя рука одной строкой — видна внутри шторок (обмен, сброс, план). */
-export function HandMini({ hand, label = 'У тебя' }: { hand: ResourceMap; label?: string }) {
+export function HandMini({ hand, label = L('У тебя', 'Сенде', 'You have') }: { hand: ResourceMap; label?: string }) {
   return (
     <div className="hand-mini">
       <span className="hm-label">{label}</span>
@@ -52,7 +53,7 @@ function Step({ n, onChange, max, tone }: { n: number; onChange: (n: number) => 
     <div className={`step ${tone} ${n > 0 ? 'on' : ''}`}>
       <button
         type="button"
-        aria-label="Меньше"
+        aria-label={L('Меньше', 'Азырақ', 'Less')}
         disabled={n <= 0}
         onClick={() => {
           sfx.play('tick');
@@ -64,7 +65,7 @@ function Step({ n, onChange, max, tone }: { n: number; onChange: (n: number) => 
       <span className="step-n">{n}</span>
       <button
         type="button"
-        aria-label="Больше"
+        aria-label={L('Больше', 'Көбірек', 'More')}
         disabled={n >= max}
         onClick={() => {
           sfx.play('tick');
@@ -86,8 +87,8 @@ export function TradeGrid({
   want,
   onChange,
   hand,
-  giveLabel = 'Отдаю',
-  wantLabel = 'Хочу',
+  giveLabel = L('Отдаю', 'Беремін', 'Give'),
+  wantLabel = L('Хочу', 'Қалаймын', 'Want'),
 }: {
   give: ResourceMap;
   want: ResourceMap;
@@ -109,7 +110,7 @@ export function TradeGrid({
             <ResIcon r={r} size={34} />
             <div className="tg-txt">
               <b>{cap(RESOURCE_NAME[r])}</b>
-              <small className={hand[r] ? '' : 'none'}>есть {hand[r]}</small>
+              <small className={hand[r] ? '' : 'none'}>{L('есть {n}', '{n} бар', 'have {n}', { n: hand[r] })}</small>
             </div>
           </div>
           <Step tone="give" n={give[r]} max={hand[r]} onChange={(n) => onChange({ ...give, [r]: n }, n > 0 ? { ...want, [r]: 0 } : want)} />
@@ -130,7 +131,7 @@ export function ResourceStepper({ value, onChange, max }: { value: ResourceMap; 
             <ResIcon r={r} size={34} />
             <div className="tg-txt">
               <b>{cap(RESOURCE_NAME[r])}</b>
-              {max && <small className={max[r] ? '' : 'none'}>есть {max[r] ?? 0}</small>}
+              {max && <small className={max[r] ? '' : 'none'}>{L('есть {n}', '{n} бар', 'have {n}', { n: max[r] ?? 0 })}</small>}
             </div>
           </div>
           <Step tone="give" n={value[r]} max={max?.[r] ?? 19} onChange={(n) => onChange({ ...value, [r]: n })} />

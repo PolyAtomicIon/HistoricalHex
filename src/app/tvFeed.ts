@@ -6,6 +6,7 @@ import type { GameEvent, PlayerId, Resource } from '../engine';
 import type { PublicState } from '../engine';
 import type { LorePack } from '../lore';
 import type { IconName } from './icons';
+import { L } from '../i18n/l';
 
 export interface FeedRes {
   r: Resource;
@@ -38,7 +39,8 @@ const count = (rs: Resource[]): FeedRes[] => {
   return list(m);
 };
 
-const PIECE = { road: 'дорога', settlement: 'поселение', city: 'город' } as const;
+const piece = (k: 'road' | 'settlement' | 'city'): string =>
+  k === 'road' ? L('дорога', 'жол', 'road') : k === 'settlement' ? L('поселение', 'қоныс', 'settlement') : L('город', 'қала', 'city');
 const PIECE_ICON = { road: 'road', settlement: 'house', city: 'castle' } as const;
 
 export function feedItem(e: GameEvent, key: number, pack: LorePack, name: (id?: PlayerId) => string): FeedItem | null {
@@ -48,40 +50,40 @@ export function feedItem(e: GameEvent, key: number, pack: LorePack, name: (id?: 
         .map(([who, g]) => ({ who, res: list(g) }))
         .filter((g) => g.res.length);
       if (!gains.length) return null;
-      return { key, icon: 'dice', text: `Доход · ${e.total}`, gains };
+      return { key, icon: 'dice', text: `${L('Доход', 'Табыс', 'Income')} · ${e.total}`, gains };
     }
     case 'built':
-      return { key, who: e.player, icon: PIECE_ICON[e.kind], text: PIECE[e.kind] };
+      return { key, who: e.player, icon: PIECE_ICON[e.kind], text: piece(e.kind) };
     case 'robberMoved':
       return { key, who: e.player, icon: 'army', text: pack.robber.name };
     case 'stole':
-      return { key, who: e.thief, icon: 'hand', text: `крадёт у ${name(e.victim)}` };
+      return { key, who: e.thief, icon: 'hand', text: L('крадёт у {v}', '{v} ойыншысынан ұрлайды', 'steals from {v}', { v: name(e.victim) }) };
     case 'discarded':
-      return { key, who: e.player, icon: 'hand', text: `сброс ${e.count}` };
+      return { key, who: e.player, icon: 'hand', text: `${L('сброс', 'тастау', 'discard')} ${e.count}` };
     case 'devCardBought':
-      return { key, who: e.player, icon: 'cards', text: 'карта развития' };
+      return { key, who: e.player, icon: 'cards', text: L('карта развития', 'даму картасы', 'development card') };
     case 'devCardPlayed':
       return { key, who: e.player, icon: 'cards', text: `«${pack.devCards[e.card].name}»` };
     case 'yearOfPlenty':
-      return { key, who: e.player, icon: 'bank', text: 'из банка', res: count(e.resources) };
+      return { key, who: e.player, icon: 'bank', text: L('из банка', 'банктен', 'from the bank'), res: count(e.resources) };
     case 'monopoly':
-      return { key, who: e.player, icon: 'crown', text: 'монополия', res: [{ r: e.resource, n: e.total }] };
+      return { key, who: e.player, icon: 'crown', text: L('монополия', 'монополия', 'monopoly'), res: [{ r: e.resource, n: e.total }] };
     case 'bankTrade':
-      return { key, who: e.player, icon: 'bank', text: 'банк', res: [{ r: e.give, n: e.giveCount }], get: [{ r: e.receive, n: e.receiveCount }] };
+      return { key, who: e.player, icon: 'bank', text: L('банк', 'банк', 'bank'), res: [{ r: e.give, n: e.giveCount }], get: [{ r: e.receive, n: e.receiveCount }] };
     case 'tradeCompleted':
       return { key, who: e.from, icon: 'trade', text: name(e.to), res: list(e.give), get: list(e.want) };
     case 'longestRoad':
       return e.player
         ? { key, who: e.player, icon: 'road', text: pack.bonuses.longestRoad, gold: true }
-        : { key, icon: 'road', text: `${pack.bonuses.longestRoad} — ничья` };
+        : { key, icon: 'road', text: `${pack.bonuses.longestRoad} — ${L('ничья', 'ешкімде жоқ', 'unclaimed')}` };
     case 'largestArmy':
       return { key, who: e.player, icon: 'army', text: pack.bonuses.largestArmy, gold: true };
     case 'playerLeft':
-      return { key, who: e.player, icon: 'bot', text: 'играет бот' };
+      return { key, who: e.player, icon: 'bot', text: L('играет бот', 'бот ойнайды', 'bot plays') };
     case 'playerReturned':
-      return { key, who: e.player, icon: 'door', text: 'вернулся' };
+      return { key, who: e.player, icon: 'door', text: L('вернулся', 'оралды', 'is back') };
     case 'gameWon':
-      return { key, who: e.player, icon: 'crown', text: `победа · ${e.points}`, gold: true };
+      return { key, who: e.player, icon: 'crown', text: `${L('победа', 'жеңіс', 'victory')} · ${e.points}`, gold: true };
     default:
       return null;
   }
@@ -102,18 +104,18 @@ export function tvFeed(pub: PublicState, pack: LorePack, name: (id?: PlayerId) =
 export function tvPhase(pub: PublicState, name: (id?: PlayerId) => string): { icon: IconName; text: string } {
   switch (pub.phase) {
     case 'setup':
-      return pub.setup?.step === 'road' ? { icon: 'road', text: 'ставит дорогу' } : { icon: 'house', text: 'ставит поселение' };
+      return pub.setup?.step === 'road' ? { icon: 'road', text: L('ставит дорогу', 'жол салады', 'places a road') } : { icon: 'house', text: L('ставит поселение', 'қоныс салады', 'places a settlement') };
     case 'roll':
-      return { icon: 'dice', text: 'бросает кубики' };
+      return { icon: 'dice', text: L('бросает кубики', 'сүйек лақтырады', 'rolls the dice') };
     case 'discard':
-      return { icon: 'hand', text: `сбрасывают: ${Object.keys(pub.pendingDiscards ?? {}).map(name).join(', ')}` };
+      return { icon: 'hand', text: L('сбрасывают: {x}', 'тастайды: {x}', 'discarding: {x}', { x: Object.keys(pub.pendingDiscards ?? {}).map(name).join(', ') }) };
     case 'moveRobber':
-      return { icon: 'army', text: 'выбирает цель' };
+      return { icon: 'army', text: L('выбирает цель', 'мақсат таңдайды', 'picks a target') };
     case 'main':
-      return { icon: 'trade', text: 'торговля и стройка' };
+      return { icon: 'trade', text: L('торговля и стройка', 'сауда және құрылыс', 'trade and build') };
     case 'roadBuilding':
-      return { icon: 'road', text: 'строит дороги' };
+      return { icon: 'road', text: L('строит дороги', 'жол салады', 'builds roads') };
     case 'finished':
-      return { icon: 'crown', text: 'победа!' };
+      return { icon: 'crown', text: L('победа!', 'жеңіс!', 'victory!') };
   }
 }

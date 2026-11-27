@@ -25,7 +25,55 @@
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --dock-h: 148px;
+  /* Цвет «поверх фона» для полупрозрачных заливок и рамок: белый на тёмном, графит на светлом */
+  --fg-rgb: 255, 255, 255;
+  /* текст на сплошной «fg»-заливке (выбранный сегмент, светлая кнопка) */
+  --on-fg: #111;
+  /* сплошная поверхность шторок и карточек */
+  --surface: #121a24;
+  --hub-top: #0f2a3d;
+  --ink-rgb: 246, 243, 236;
+  /* Тёмные подложки (шторки, плашки, градиенты под кнопками) — в светлой теме становятся светлыми */
+  --sd1: 7, 11, 16;
+  --sd2: 18, 24, 34;
+  --sd3: 22, 30, 40;
+  --sd4: 5, 10, 16;
+  --sd5: 3, 6, 10;
+  --sd6: 7, 19, 29;
+  --sd7: 5, 8, 12;
+  --sd8: 2, 8, 14;
+  --sd9: 18, 24, 33;
   color-scheme: dark;
+}
+
+/* ═══ Светлая тема: главный экран, интерфейс партии, шторки. Фото эпох и поле не меняются. ═══ */
+html[data-theme='light'] {
+  --bg: #e9edf1;
+  --ink: #161b22;
+  --ink-rgb: 22, 27, 34;
+  --ink-2: rgba(22, 27, 34, 0.7);
+  --ink-3: rgba(22, 27, 34, 0.48);
+  --fg-rgb: 22, 27, 34;
+  --on-fg: #fff;
+  --surface: #ffffff;
+  --hub-top: #dfe7ee;
+  --glass: rgba(255, 255, 255, 0.66);
+  --glass-strong: rgba(250, 251, 252, 0.9);
+  --glass-border: rgba(22, 27, 34, 0.1);
+  --glass-hi: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 10px 34px rgba(22, 27, 34, 0.14), 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  --good: #1f9d55;
+  --bad: #d9402f;
+  --sd1: 244, 246, 248;
+  --sd2: 250, 251, 252;
+  --sd3: 255, 255, 255;
+  --sd4: 240, 243, 246;
+  --sd5: 236, 239, 243;
+  --sd6: 244, 246, 248;
+  --sd7: 240, 243, 246;
+  --sd8: 236, 239, 243;
+  --sd9: 250, 251, 252;
+  color-scheme: light;
 }
 
 * {
@@ -109,7 +157,7 @@ textarea {
   padding: 0 18px;
   border-radius: 999px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--fg-rgb), 0.08);
   font-weight: 700;
   font-size: 15px;
   cursor: pointer;
@@ -131,9 +179,9 @@ textarea {
   background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 100%, white 14%), var(--accent));
   color: var(--accent-ink);
   border-color: transparent;
-  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.45), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
-  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.45), 0 1px 0 rgba(255, 255, 255, 0.5) inset; /* без color-mix: Safari < 16.2 */
-  box-shadow: 0 8px 24px color-mix(in oklab, var(--accent) 45%, transparent), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.45), 0 1px 0 rgba(var(--fg-rgb), 0.5) inset;
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.45), 0 1px 0 rgba(var(--fg-rgb), 0.5) inset; /* без color-mix: Safari < 16.2 */
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--accent) 45%, transparent), 0 1px 0 rgba(var(--fg-rgb), 0.5) inset;
 }
 .btn.danger {
   background: rgba(255, 107, 91, 0.18);
@@ -157,7 +205,7 @@ textarea {
 }
 @media (hover: hover) {
   .btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(var(--fg-rgb), 0.14);
   }
   .btn.primary:hover:not(:disabled) {
     filter: brightness(1.06);
@@ -187,7 +235,7 @@ textarea {
 
 /* ─── шторка (UI SDK Drawer) ─── */
 .sheet-backdrop {
-  background: rgba(2, 8, 14, 0.45);
+  background: rgba(var(--sd8), 0.45);
 }
 .sheet {
   width: min(560px, 100vw);
@@ -198,8 +246,8 @@ textarea {
   flex-direction: column;
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   /* сплошной фон: сквозь шторку не просвечивают меню и подсказки под ней */
-  background: #121a24;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface);
+  border: 1px solid rgba(var(--fg-rgb), 0.1);
   border-bottom: 0;
   box-shadow: 0 -12px 60px rgba(0, 0, 0, 0.45);
   scale: calc(1 - var(--drawer-stack, 0) * 0.04);
@@ -218,7 +266,7 @@ textarea {
   width: 40px;
   height: 5px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(var(--fg-rgb), 0.28);
   margin: 10px auto 4px;
   flex: none;
 }
@@ -355,7 +403,7 @@ textarea {
   height: 36px;
   padding: 0 10px 0 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--fg-rgb), 0.06);
   font-size: 13px;
   font-weight: 700;
   transition:
@@ -375,7 +423,7 @@ textarea {
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25) inset;
 }
 .pchip.turn {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(var(--fg-rgb), 0.2);
   transform: scale(1.04);
   box-shadow: 0 0 0 2px var(--pc) inset;
 }
@@ -405,8 +453,8 @@ textarea {
 }
 .status-pill.mine {
   background: rgba(var(--accent-rgb), 0.35);
-  background: rgba(22, 30, 40, 0.5); /* без color-mix: Safari < 16.2 */
-  background: color-mix(in oklab, var(--accent) 35%, rgba(22, 30, 40, 0.5));
+  background: rgba(var(--sd3), 0.5); /* без color-mix: Safari < 16.2 */
+  background: color-mix(in oklab, var(--accent) 35%, rgba(var(--sd3), 0.5));
 }
 
 .dock {
@@ -436,10 +484,10 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0.25));
+  background: linear-gradient(180deg, rgba(var(--fg-rgb), 0.40), rgba(var(--fg-rgb), 0.25));
   background: linear-gradient(180deg, transparent, transparent); /* без color-mix: Safari < 16.2 */
   background: linear-gradient(180deg, color-mix(in oklab, var(--rc) 55%, transparent), color-mix(in oklab, var(--rc) 25%, transparent));
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(var(--fg-rgb), 0.14);
   transition: transform 300ms var(--spring);
 }
 .rcard .e {
@@ -502,7 +550,7 @@ textarea {
   min-height: 56px;
   border-radius: var(--r-md);
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(var(--fg-rgb), 0.07);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -658,7 +706,7 @@ textarea {
 .fact-card {
   border-radius: var(--r-md);
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--fg-rgb), 0.06);
   border: 1px solid var(--glass-border);
 }
 .fact-card .yr {
@@ -695,8 +743,8 @@ textarea {
     color 200ms;
 }
 .seg button[aria-pressed='true'] {
-  background: rgba(255, 255, 255, 0.92);
-  color: #111;
+  background: rgba(var(--fg-rgb), 0.92);
+  color: var(--on-fg);
 }
 
 .list {
@@ -710,7 +758,7 @@ textarea {
   gap: 12px;
   padding: 12px 14px;
   border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--fg-rgb), 0.06);
   border: 1px solid var(--glass-border);
   text-align: left;
   width: 100%;
@@ -755,7 +803,7 @@ button.item {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.2);
+  border: 3px solid rgba(var(--fg-rgb), 0.2);
   border-top-color: var(--accent);
   animation: spin 800ms linear infinite;
 }
@@ -819,7 +867,7 @@ html.calm .dock {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(2, 8, 14, 0.6);
+  background: rgba(var(--sd8), 0.6);
 }
 .lite-sheet {
   position: relative;
@@ -845,10 +893,32 @@ html.pwa {
 html.pwa,
 html.pwa body {
   overscroll-behavior: none;
-  background: #070b10;
+  background: var(--bg);
 }
 /* iOS не раздувает шрифты сам (поворот экрана, «умный» размер текста) */
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+
+/* светлая тема: свечение обложки эпохи над главной — светлее и мягче */
+html[data-theme='light'] .hub-glow { filter: blur(60px) saturate(1.2) brightness(1.15); opacity: 0.4; }
+
+/* светлая тема: поверх фото и тёмного поля текст остаётся светлым — возвращаем тёмные токены внутри */
+html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .hero-bg, .cine, .splash, .tv) {
+  --ink: #f6f3ec;
+  --ink-rgb: 246, 243, 236;
+  --ink-2: rgba(246, 243, 236, 0.72);
+  --ink-3: rgba(246, 243, 236, 0.48);
+  --fg-rgb: 255, 255, 255;
+  --on-fg: #111;
+  color: var(--ink);
+}
+/* светлая тема: дорожки переключателей и поля ввода — лёгкая серая подложка вместо тёмной */
+html[data-theme='light'] .seg { background: rgba(22, 27, 34, 0.07); }
+html[data-theme='light'] :is(input:not([type='range']):not([type='checkbox']), textarea, select) {
+  background: rgba(22, 27, 34, 0.06);
+  color: var(--ink);
+}
+html[data-theme='light'] .sheet-backdrop, html[data-theme='light'] .sheet-scrim { background: rgba(22, 27, 34, 0.28); }
+html[data-theme='light'] .switch:not(.on) { background: rgba(22, 27, 34, 0.16); }

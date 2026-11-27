@@ -12,6 +12,7 @@ import { usePanZoom } from './usePanZoom';
 import { useBoardLook } from '../app/prefs';
 import { boardLocator } from '../fx/util';
 import './board2d.css';
+import { L } from '../i18n/l';
 
 const S = 100;
 const SQ3 = Math.sqrt(3);
@@ -288,7 +289,7 @@ export function Board2D(props: Board2DProps) {
     <div className={`b2d ${props.className ?? ''} ${interactive ? 'picking' : ''} ${props.spotlight ? 'spot' : ''}`} ref={pz.ref} {...pz.handlers} onClick={onSnap}>
       <div className="b2d-sea" aria-hidden />
       <div className="b2d-inner" ref={pz.inner}>
-        <svg key={`s${shaking}`} ref={svgRef} className={`b2d-svg ${shaking ? 'shake' : ''}`} viewBox={vb.current.join(' ')} role="img" aria-label="Карта острова">
+        <svg key={`s${shaking}`} ref={svgRef} className={`b2d-svg ${shaking ? 'shake' : ''}`} viewBox={vb.current.join(' ')} role="img" aria-label={L('Карта острова', 'Арал картасы', 'Island map')}>
           <defs>
             <clipPath id={id('hex')}>
               <polygon points={hexPath(0.965)} />
@@ -606,7 +607,7 @@ export function Board2D(props: Board2DProps) {
         </svg>
       </div>
       {!props.static && pz.zoomed && (
-        <button className="b2d-reset glass" onClick={pz.reset} aria-label="Показать всю карту">
+        <button className="b2d-reset glass" onClick={pz.reset} aria-label={L('Показать всю карту', 'Бүкіл картаны көрсету', 'Show the whole map')}>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
           </svg>

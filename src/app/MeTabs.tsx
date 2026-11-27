@@ -8,6 +8,7 @@ import { COSTS } from '../engine';
 import { RESOURCE_NAME } from '../i18n/ru';
 import { ResIcon } from './ResIcon';
 import { incomeByNumber, tableHarvest } from './income';
+import { L, pick } from '../i18n/l';
 
 const RES: Resource[] = ['brick', 'wood', 'sheep', 'wheat', 'ore'];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -43,10 +44,10 @@ export function MeTab({ pub, priv, me }: { pub: PublicState; priv: PrivateView; 
     <div className="me-tab">
       <div className="me-sum">
         <span>
-          <b>{total}</b> <small>на руках</small>
+          <b>{total}</b> <small>{L('на руках', 'қолыңда', 'in hand')}</small>
         </span>
         <span>
-          <b>≈ {fmt(inc.perRoll)}</b> <small>за бросок</small>
+          <b>≈ {fmt(inc.perRoll)}</b> <small>{L('за бросок', 'лақтыру үшін', 'per roll')}</small>
         </span>
       </div>
       <ul className="ti-market me-list">
@@ -57,7 +58,7 @@ export function MeTab({ pub, priv, me }: { pub: PublicState; priv: PrivateView; 
               <b>{cap(RESOURCE_NAME[r])}</b>
               <small>
                 {inc.nums[r].length === 0
-                  ? 'не добываешь'
+                  ? L('не добываешь', 'өндірмейсің', 'not produced')
                   : inc.nums[r].map((x, i) => (
                       <span key={x.n}>
                         {i > 0 && ' · '}
@@ -75,7 +76,7 @@ export function MeTab({ pub, priv, me }: { pub: PublicState; priv: PrivateView; 
         const who = producers(pub, me, r);
         return (
           <p key={r} className="me-note">
-            {cap(RESOURCE_NAME[r])} не добываешь — {who.length ? `меняй: ${who.join(', ')}` : 'его пока никто не добывает'}
+            {cap(RESOURCE_NAME[r])} {L('не добываешь', 'өндірмейсің', 'not produced')} — {who.length ? L('меняй: {who}', 'айырбаста: {who}', 'trade with: {who}', { who: who.join(', ') }) : L('его пока никто не добывает', 'оны әзірге ешкім өндірмейді', 'nobody produces it yet')}
           </p>
         );
       })}
@@ -83,11 +84,20 @@ export function MeTab({ pub, priv, me }: { pub: PublicState; priv: PrivateView; 
   );
 }
 
+const buildLabel = (id: string) =>
+  id === 'city'
+    ? L('Город', 'Қала', 'City')
+    : id === 'settlement'
+      ? L('Поселение', 'Қоныс', 'Settlement')
+      : id === 'road'
+        ? L('Дорога', 'Жол', 'Road')
+        : L('Карта развития', 'Даму картасы', 'Development card');
+
 const BUILDS = [
-  { id: 'city', label: 'Город', cost: COSTS.city },
-  { id: 'settlement', label: 'Поселение', cost: COSTS.settlement },
-  { id: 'road', label: 'Дорога', cost: COSTS.road },
-  { id: 'devCard', label: 'Карта развития', cost: COSTS.devCard },
+  { id: 'city', cost: COSTS.city },
+  { id: 'settlement', cost: COSTS.settlement },
+  { id: 'road', cost: COSTS.road },
+  { id: 'devCard', cost: COSTS.devCard },
 ] as const;
 
 export function GoalTab({ pub, priv, me, vpToWin }: { pub: PublicState; priv: PrivateView; me: PlayerId; vpToWin: number }) {
@@ -122,8 +132,8 @@ export function GoalTab({ pub, priv, me, vpToWin }: { pub: PublicState; priv: Pr
     <div className="me-tab">
       {next && (
         <section className="goal-next">
-          <small>Ближе всего</small>
-          <b>{next.label} — не хватает</b>
+          <small>{L('Ближе всего', 'Ең жақыны', 'Closest')}</small>
+          <b>{buildLabel(next.id)} — {L('не хватает', 'жетіспейді', 'missing')}</b>
           <span className="goal-miss">
             {(Object.entries(next.miss) as [Resource, number][]).map(([r, m]) => (
               <span key={r} className="goal-chip">
@@ -133,25 +143,30 @@ export function GoalTab({ pub, priv, me, vpToWin }: { pub: PublicState; priv: Pr
           </span>
           <small>
             {next.tradeOnly
-              ? `только обменом: ${(Object.keys(next.miss) as Resource[])
-                  .filter((r) => inc.per[r] <= 0)
-                  .map((r) => `${RESOURCE_NAME[r]} — ${producers(pub, me, r).join(', ') || 'никто не добывает'}`)
-                  .join('; ')}`
-              : `≈ через ${next.rolls} ${next.rolls === 1 ? 'бросок' : next.rolls < 5 ? 'броска' : 'бросков'} или обменом`}
+              ? L('только обменом: {list}', 'тек айырбаспен: {list}', 'trade only: {list}', {
+                  list: (Object.keys(next.miss) as Resource[])
+                    .filter((r) => inc.per[r] <= 0)
+                    .map((r) => `${RESOURCE_NAME[r]} — ${producers(pub, me, r).join(', ') || L('никто не добывает', 'ешкім өндірмейді', 'nobody produces')}`)
+                    .join('; '),
+                })
+              : L('≈ через {n} {w} или обменом', '≈ {n} лақтырудан кейін немесе айырбаспен', '≈ in {n} {w} or by trading', {
+                  n: next.rolls,
+                  w: pick(next.rolls === 1 ? 'бросок' : next.rolls < 5 ? 'броска' : 'бросков', '', next.rolls === 1 ? 'roll' : 'rolls'),
+                })}
           </small>
         </section>
       )}
       <ul className="goal-list">
         {list.map((b) => (
           <li key={b.id}>
-            <span className="goal-l">{b.label}</span>
+            <span className="goal-l">{buildLabel(b.id)}</span>
             {b.out ? (
-              <span className="goal-st faint">{b.id === 'devCard' ? 'колода пуста' : 'фишки кончились'}</span>
+              <span className="goal-st faint">{b.id === 'devCard' ? L('колода пуста', 'колода бос', 'deck is empty') : L('фишки кончились', 'фишкалар таусылды', 'out of pieces')}</span>
             ) : b.n === 0 ? (
-              <span className="goal-st ok">хватает</span>
+              <span className="goal-st ok">{L('хватает', 'жеткілікті', 'enough')}</span>
             ) : (
               <span className="goal-st">
-                нет{' '}
+                {L('нет', 'жоқ', 'need')}{' '}
                 {(Object.entries(b.miss) as [Resource, number][]).map(([r, m]) => (
                   <span key={r} className="goal-mi">
                     <ResIcon r={r} size={18} />
@@ -163,13 +178,13 @@ export function GoalTab({ pub, priv, me, vpToWin }: { pub: PublicState; priv: Pr
           </li>
         ))}
       </ul>
-      {ready.length === 0 && !next && <p className="me-note">Строить пока нечего — фишки кончились</p>}
+      {ready.length === 0 && !next && <p className="me-note">{L('Строить пока нечего — фишки кончились', 'Әзірге салатын ештеңе жоқ — фишкалар таусылды', 'Nothing to build yet — out of pieces')}</p>}
       <p className="me-note">
-        Банк:{' '}
+        {L('Банк', 'Банк', 'Bank')}:{' '}
         {bankText(priv.tradeRatios)}
       </p>
       <p className="me-note">
-        Очки: <b>{priv.points}</b> из {vpToWin}
+        {L('Очки', 'Ұпай', 'Points')}: <b>{priv.points}</b> {L('из', '/', 'of')} {vpToWin}
       </p>
     </div>
   );
@@ -179,6 +194,6 @@ export function GoalTab({ pub, priv, me, vpToWin }: { pub: PublicState; priv: Pr
 function bankText(ratios: Record<Resource, number>): string {
   const base = Math.max(...RES.map((r) => ratios[r]));
   const special = RES.filter((r) => ratios[r] < base);
-  if (!special.length) return base === 4 ? 'всё 4:1 — порта пока нет' : `всё ${base}:1`;
-  return `${special.map((r) => `${RESOURCE_NAME[r]} ${ratios[r]}:1`).join(', ')}, остальное ${base}:1`;
+  if (!special.length) return base === 4 ? L('всё 4:1 — порта пока нет', 'бәрі 4:1 — порт әзірге жоқ', 'all 4:1 — no port yet') : L('всё {b}:1', 'бәрі {b}:1', 'all {b}:1', { b: base });
+  return `${special.map((r) => `${RESOURCE_NAME[r]} ${ratios[r]}:1`).join(', ')}, ${L('остальное', 'қалғаны', 'others')} ${base}:1`;
 }

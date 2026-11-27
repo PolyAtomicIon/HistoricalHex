@@ -6,6 +6,7 @@ import type { LorePack } from '../lore';
 import { eraCover, eraIcon } from './era';
 import { ArtIcon } from './icons';
 import { sfx } from '../fx';
+import { L } from '../i18n/l';
 
 const seenKey = (pin: string) => `hh.intro.${pin}`;
 
@@ -59,7 +60,7 @@ export function EraIntro({ pack, onDone }: { pack: LorePack; onDone: () => void 
         </div>
       </div>
       <button className="ei-skip" onClick={onDone}>
-        Пропустить
+        {L('Пропустить', 'Өткізіп жіберу', 'Skip')}
       </button>
       <div className="ei-progress" style={{ animationDuration: `${2200 + lines.length * 2600 + 1800}ms` }} />
     </div>

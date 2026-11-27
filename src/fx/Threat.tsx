@@ -1,6 +1,7 @@
 // Затишье перед ударом: кто-то выбирает цель для атаки — по краям экрана пульсирует красное,
 // сверху баннер «Кэндзи выбирает цель…», звучит зловещий гул. Висит, пока цель не выбрана.
 
+import { L } from '../i18n/l';
 import { useEffect } from 'react';
 import { haptic, sfx } from './sfx';
 import { duckMusic } from './music';
@@ -32,8 +33,8 @@ export function Threat({ t, tv }: { t: ThreatInfo | null; tv?: boolean }) {
         <div className="threat-banner glass strong">
           <img src={t.img} alt="" />
           <div>
-            <b>{t.name} выбирает цель</b>
-            <small>Куда ударит «{t.attack}»?</small>
+            <b>{L('{name} выбирает цель', '{name} мақсат таңдайды', '{name} is picking a target', { name: t.name })}</b>
+            <small>{L('Куда ударит «{a}»?', '«{a}» қайда соққы береді?', 'Where will “{a}” strike?', { a: t.attack })}</small>
           </div>
         </div>
       )}

@@ -12,8 +12,10 @@ import { InstallButton } from './pwa';
 import { haptic, sfx } from '../fx';
 import { LearnCard, useLearn } from './learn/Learn';
 import { LANGS, t3, useLang } from './learn/lang';
+import { ThemeCycle } from './ThemeToggle';
 import type { T3 } from './learn/lang';
 import { FriendsStrip, LiveCount, LiveGames, ProfileSheet, RecentGames, ResumeGames, useFeed } from './Social';
+import { L } from '../i18n/l';
 
 /** Тексты главной на трёх языках (названия эпох пока по-русски — это имена собственные из лор-паков). */
 const H: Record<string, T3> = {
@@ -153,12 +155,15 @@ export function Home({ initialPin }: { initialPin?: string }) {
               <small>{T('streak')}</small>
             </span>
           </header>
-          <div className="hub-lang" role="group" aria-label="Language">
-            {LANGS.map((l) => (
-              <button key={l.id} className={l.id === lang ? 'on' : ''} onClick={() => setLang(l.id)}>
-                {l.label}
-              </button>
-            ))}
+          <div className="hub-prefs">
+            <div className="hub-lang" role="group" aria-label="Language">
+              {LANGS.map((l) => (
+                <button key={l.id} className={l.id === lang ? 'on' : ''} onClick={() => setLang(l.id)}>
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <ThemeCycle />
           </div>
           <InstallButton />
 
@@ -241,7 +246,7 @@ export function Home({ initialPin }: { initialPin?: string }) {
                     </i>
                   </span>
                   <span>
-                    <b className="hub-era-t">{e.title}</b>
+                    <b className="hub-era-t">{e.id === 'horde' ? L('Золотая Орда', 'Алтын Орда', 'Golden Horde') : e.title}</b>
                     <small>{T('soon')}</small>
                   </span>
                 </div>

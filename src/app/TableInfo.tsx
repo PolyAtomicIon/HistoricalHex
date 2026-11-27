@@ -10,14 +10,15 @@ import { PLAYER_HEX } from '../ui/theme';
 import { Icon } from './icons';
 import { ResIcon } from './ResIcon';
 import { tableHarvest, type Supply } from './income';
+import { L } from '../i18n/l';
 
 const ORDER: Record<NonNullable<Supply['tag']> | 'ok', number> = { none: 0, scarce: 1, ok: 2, plenty: 3 };
 
 function tagText(s: Supply): { text: string; tone: 'bad' | 'good' | 'faint' } | null {
-  if (s.tag === 'none') return { text: 'никто не добывает', tone: 'bad' };
-  if (s.tag === 'scarce') return { text: 'дефицит', tone: 'bad' };
-  if (s.tag === 'plenty') return { text: 'много', tone: 'good' };
-  if (s.bank < 4) return { text: 'банк почти пуст', tone: 'faint' };
+  if (s.tag === 'none') return { text: L('никто не добывает', 'ешкім өндірмейді', 'nobody produces it'), tone: 'bad' };
+  if (s.tag === 'scarce') return { text: L('дефицит', 'тапшы', 'scarce'), tone: 'bad' };
+  if (s.tag === 'plenty') return { text: L('много', 'көп', 'plenty'), tone: 'good' };
+  if (s.bank < 4) return { text: L('банк почти пуст', 'банк бос дерлік', 'bank almost empty'), tone: 'faint' };
   return null;
 }
 
@@ -36,7 +37,7 @@ export function MarketTab({ pub, me }: { pub: PublicState; me?: PlayerId }) {
             <span className="ti-m-txt">
               <b>{cap(RESOURCE_NAME[s.r])}</b>
               <small>
-                ≈ {s.perRoll.toFixed(1).replace('.', ',')} за бросок · в банке {s.bank}
+                ≈ {s.perRoll.toFixed(1).replace('.', ',')} {L('за бросок', 'бір лақтыруға', 'per roll')} · {L('в банке {n}', 'банкте {n}', '{n} in bank', { n: s.bank })}
               </small>
             </span>
             {t && <span className={`ti-tag ${t.tone}`}>{t.text}</span>}
@@ -46,7 +47,7 @@ export function MarketTab({ pub, me }: { pub: PublicState; me?: PlayerId }) {
                 {s.by.map((b) => (
                   <span key={b.who} className={`ti-by-p ${b.who === me ? 'me' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[pub.players[b.who]?.color] }}>
                     <i />
-                    {b.who === me ? 'Ты' : pub.players[b.who]?.name} <small>{b.perRoll.toFixed(1).replace('.', ',')}</small>
+                    {b.who === me ? L('Ты', 'Сен', 'You') : pub.players[b.who]?.name} <small>{b.perRoll.toFixed(1).replace('.', ',')}</small>
                   </span>
                 ))}
               </span>
@@ -68,13 +69,13 @@ export function ArmyRace({ pub, me, title }: { pub: PublicState; me?: PlayerId; 
     <section className="ti-army">
       <div className="ti-army-h">
         <b>{title}</b>
-        <small>{holder ? `у ${holder === me ? 'тебя' : pub.players[holder].name} · чтобы забрать, нужно ${need}` : 'нужно 3 сыгранных воина — бонус +2 очка'}</small>
+        <small>{holder ? L('у {name} · чтобы забрать, нужно {need}', '{name} иесі · алу үшін {need} керек', '{name} holds it · {need} to take it', { name: holder === me ? L('тебя', 'сенде', 'you') : pub.players[holder].name, need }) : L('нужно 3 сыгранных воина — бонус +2 очка', '3 жауынгер ойнау керек — бонус +2 ұпай', 'play 3 knights for a +2 point bonus')}</small>
       </div>
       <div className="ti-army-row">
         {list.map(({ id, n }) => (
           <span key={id} className={`ti-army-p ${id === holder ? 'lead' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[pub.players[id].color] }}>
             <i />
-            <span className="ti-army-name">{id === me ? 'Ты' : pub.players[id].name}</span>
+            <span className="ti-army-name">{id === me ? L('Ты', 'Сен', 'You') : pub.players[id].name}</span>
             <b>
               <Icon name="army" size={13} /> {n}
             </b>
@@ -88,7 +89,7 @@ export function ArmyRace({ pub, me, title }: { pub: PublicState; me?: PlayerId; 
 export function NumbersTab({ pub, me }: { pub: PublicState; me?: PlayerId }) {
   const { rows } = useMemo(() => tableHarvest(pub), [pub.buildings, pub.robberHex, pub.bank]); // eslint-disable-line react-hooks/exhaustive-deps
   const hit = pub.dice && pub.phase !== 'setup' && pub.phase !== 'roll' ? pub.dice[0] + pub.dice[1] : 0;
-  if (!rows.length) return <p className="muted small">Числа появятся, когда на карте будут поселения.</p>;
+  if (!rows.length) return <p className="muted small">{L('Числа появятся, когда на карте будут поселения.', 'Картада елдімекендер пайда болғанда сандар шығады.', 'Numbers will appear once there are settlements on the map.')}</p>;
   return (
     <ul className="ti-nums">
       {rows.map((r) => (
@@ -98,7 +99,7 @@ export function NumbersTab({ pub, me }: { pub: PublicState; me?: PlayerId }) {
             <i>{'•'.repeat(r.ways)}</i>
           </span>
           <span className="ti-gets">
-            {r.gets.length === 0 && <small className="faint">никто</small>}
+            {r.gets.length === 0 && <small className="faint">{L('никто', 'ешкім', 'nobody')}</small>}
             {r.gets.map((g) => (
               <span key={g.who} className={`ti-g ${g.who === me ? 'me' : ''}`} style={{ ['--pc' as string]: PLAYER_HEX[pub.players[g.who]?.color] }}>
                 {(Object.entries(g.res) as [Resource, number][]).map(([res, c]) => (
@@ -110,7 +111,7 @@ export function NumbersTab({ pub, me }: { pub: PublicState; me?: PlayerId }) {
               </span>
             ))}
             {r.blocked && (
-              <span className="ti-blocked" title="Гекс захвачен">
+              <span className="ti-blocked" title={L('Гекс захвачен', 'Гекс басып алынған', 'Hex is blocked')}>
                 <Icon name="ban" size={14} />
               </span>
             )}

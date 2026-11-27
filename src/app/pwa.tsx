@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Icon } from './icons';
 import { Sheet } from './Sheet';
 import { inTelegram } from './tg';
+import { L } from '../i18n/l';
 
 type BIP = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
 let deferred: BIP | undefined;
@@ -59,13 +60,13 @@ export function InstallButton() {
           } else setIosHelp(true);
         }}
       >
-        <Icon name="up" size={18} /> Установить
+        <Icon name="up" size={18} /> {L('Установить', 'Орнату', 'Install')}
       </button>
-      <Sheet open={iosHelp} onClose={() => setIosHelp(false)} title="Игра на экране «Домой»">
+      <Sheet open={iosHelp} onClose={() => setIosHelp(false)} title={L('Игра на экране «Домой»', 'Ойын «Басты экранда»', 'Game on your Home Screen')}>
         <ol className="stack install-steps">
-          <li>Нажми «Поделиться» внизу Safari (квадрат со стрелкой).</li>
-          <li>Выбери «На экран „Домой“».</li>
-          <li>Готово — HistoricalHex откроется на весь экран, как приложение.</li>
+          <li>{L('Нажми «Поделиться» внизу Safari (квадрат со стрелкой).', 'Safari-дің төменгі жағындағы «Бөлісу» түймесін бас (көрсеткісі бар шаршы).', 'Tap Share at the bottom of Safari (the square with an arrow).')}</li>
+          <li>{L('Выбери «На экран „Домой“».', '«Басты экранға қосу» таңда.', 'Choose Add to Home Screen.')}</li>
+          <li>{L('Готово — HistoricalHex откроется на весь экран, как приложение.', 'Дайын — HistoricalHex қолданба сияқты толық экранда ашылады.', 'Done: HistoricalHex will open full screen, like an app.')}</li>
         </ol>
       </Sheet>
     </>
@@ -97,11 +98,11 @@ export function pushSupport(): 'ok' | 'install' | 'no' {
 
 /** Включить «Твой ход» (Web Push). Возвращает текст ошибки или null. */
 export async function enablePush(vapid: string | undefined, send: (sub: unknown) => void): Promise<string | null> {
-  if (!vapid) return 'Сервер ещё не готов, попробуй через минуту';
-  if (pushSupport() === 'install') return 'На iPhone уведомления работают, когда игра установлена на экран «Домой»';
-  if (pushSupport() === 'no') return 'Этот браузер не умеет уведомления';
+  if (!vapid) return L('Сервер ещё не готов, попробуй через минуту', 'Сервер әлі дайын емес, бір минуттан кейін қайталап көр', 'The server is not ready yet, try again in a minute');
+  if (pushSupport() === 'install') return L('На iPhone уведомления работают, когда игра установлена на экран «Домой»', 'iPhone-да хабарландырулар ойын «Басты экранға» орнатылғанда жұмыс істейді', 'On iPhone, notifications work once the game is added to the Home Screen');
+  if (pushSupport() === 'no') return L('Этот браузер не умеет уведомления', 'Бұл браузер хабарландыруды қолдамайды', 'This browser does not support notifications');
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') return 'Разреши уведомления в настройках браузера';
+  if (perm !== 'granted') return L('Разреши уведомления в настройках браузера', 'Браузер баптауларында хабарландыруға рұқсат бер', 'Allow notifications in your browser settings');
   const reg = await navigator.serviceWorker.ready;
   const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(vapid) }));
   send(sub.toJSON());

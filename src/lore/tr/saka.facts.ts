@@ -1,4 +1,57 @@
 import type { LoreFactsTr } from './types';
 
 // Перевод фактов пакета «saka»: facts[i] — перевод pack.facts[i].text.
-export const FACTS: LoreFactsTr = {};
+export const FACTS: LoreFactsTr = {
+  kz: {
+    facts: [
+      `Солтүстік Қазақстандағы Ботай мәдениеті — адам жылқыны алғаш қолға үйреткен жерлердің бірі.`,
+      `Б.з.д. I мыңжылдықтың басында далада көшпелі мал шаруашылығы қалыптасты — екі мыңжылдықтан астам уақыт бойы өмірдің негізі болды.`,
+      `Шілікті патша қорымдары — Қазақстан жеріндегі сақтардың ең ерте ескерткіштері.`,
+      `Геродоттың айтуынша, б.з.д. шамамен 530 жылы патшайым Томирис бастаған сақ-массагеттер парсы әскерін жойып, патша Кир II қаза тапты.`,
+      `«Тарихтың атасы» Геродот өзінің «Тарих» еңбегінде грек-парсы соғыстары мен көшпелі скифтерді сипаттады.`,
+      `Есік қорғанынан «Алтын адам» табылды — шамамен 4000 алтын пластинадан тігілген киімі бар сақ асылзадасы.`,
+      `«Алтын адамды» 1969 жылы Кемал Ақышевтің басшылығымен қазба жұмыстары кезінде тапты.`,
+      `«Алтын адам» Қазақстанның символына айналды: оның мүсіні Алматыдағы Тәуелсіздік монументін тәж етіп тұр.`,
+      `Есік қорғанынан 26 таңбадан тұратын жазуы бар күміс тостаған табылды. Ол әлі күнге дейін оқылған жоқ.`,
+      `Сақ өнерін «аң стилі» деп атайды: алтын тоғаларда барыстар, бұғылар, арқарлар және қанатты аттар бейнеленген.`,
+      `Алтайдағы Берел қорғандарында тұрақты тоң ағашты, киізді және мерекелік әшекейлі жерленген аттарды сақтап қалды.`,
+      `Жетісудағы Бесшатыр — сақ патша қорымдарының ең ірі топтарының бірі. Үйінділер астында тянь-шань шыршасынан қиылған қималар бар.`,
+      `Сарыарқадағы Тасмола мәдениеті «мұрты бар қорғандарымен» әйгілі: үйіндіден екі тас қатар созылып жатады.`,
+      `Тамғалы петроглифтері — жартастардағы мыңдаған сурет. 2004 жылы олар ЮНЕСКО-ның Бүкіләлемдік мұра тізіміне енгізілді.`,
+      `Парсылар сақтарды топтарға бөлді. «Сақа-тиграхауда» «үшкір бөрікті сақтар» дегенді білдірді.`,
+      `Персепольдегі сарай рельефтерінде үшкір бөрік киген сақ елшілері патшаға тарту алып бара жатқаны бейнеленген.`,
+      `Б.з.д. I мыңжылдықтың басында далада темір құралдар мен қару қола құралдарды ығыстыра бастады.`,
+      `Ескендір Зұлқарнайын 13 жылда Грециядан Үндіге дейінгі державаны құрып, Сырдарияға жетті.`,
+      `Б.з.д. 331 жылы Гавгамелада Ескендір III Дарийдің әскерін жеңді — Парсы державасының тағдыры шешілді.`,
+      `Б.з.д. 330 жылы македондықтар Персепольдегі Ахеменидтер сарайларын өртеп жіберді.`,
+      `Ескендір Зұлқарнайынның ұстазы Аристотель Афинада Ликейді негіздеді.`,
+      `Томирис — Сырдария бойында өмір сүрген сақ-массагеттердің патшайымы.`,
+    ],
+  },
+  en: {
+    facts: [
+      `The Botai culture in northern Kazakhstan is one of the first places where humans domesticated the horse.`,
+      `At the start of the 1st millennium BC nomadic pastoralism took shape in the steppe, the basis of life for over two thousand years.`,
+      `The royal kurgans of Shilikty are the earliest Saka monuments on the land of Kazakhstan.`,
+      `Around 530 BC, according to Herodotus, the Saka-Massagetae led by Queen Tomyris destroyed the Persian army; King Cyrus II was killed.`,
+      `Herodotus, the "father of history", described the Greco-Persian wars and the nomadic Scythians in his "Histories".`,
+      `In the Issyk kurgan the "Golden Man" was found: a Saka nobleman in clothing made of about 4,000 gold plates.`,
+      `The "Golden Man" was found in 1969 during excavations led by Kemal Akishev.`,
+      `The "Golden Man" became a symbol of Kazakhstan: his figure crowns the Independence Monument in Almaty.`,
+      `In the Issyk kurgan a silver bowl was found with an inscription of 26 characters. It has still not been deciphered.`,
+      `Saka art is called the "animal style": the gold plaques show snow leopards, deer, argali and winged horses.`,
+      `In the Berel kurgans in the Altai, permafrost preserved wood, felt and buried horses in festive trappings.`,
+      `Besshatyr in Zhetysu is one of the largest groups of Saka royal kurgans. Beneath the mounds are log chambers made of Tian Shan spruce.`,
+      `The Tasmola culture in Saryarka is famous for its "kurgans with mustaches": two stone ridges stretch out from the mound.`,
+      `The petroglyphs of Tamgaly are thousands of drawings on rocks. In 2004 they were inscribed on the UNESCO World Heritage List.`,
+      `The Persians divided the Saka into groups. "Saka tigraxauda" meant "Saka with pointed caps".`,
+      `The reliefs of the palace at Persepolis show Saka envoys in pointed caps bringing gifts to the king.`,
+      `At the start of the 1st millennium BC, iron tools and weapons began to displace bronze ones in the steppe.`,
+      `In 13 years Alexander the Great built an empire from Greece to the Indus and reached the Syr Darya.`,
+      `At Gaugamela in 331 BC Alexander defeated the army of Darius III, and the fate of the Persian Empire was decided.`,
+      `In 330 BC the Macedonians burned the Achaemenid palaces at Persepolis.`,
+      `Aristotle, the teacher of Alexander the Great, founded the Lyceum in Athens.`,
+      `Tomyris was a queen of the Saka-Massagetae who lived by the Syr Darya.`,
+    ],
+  },
+};

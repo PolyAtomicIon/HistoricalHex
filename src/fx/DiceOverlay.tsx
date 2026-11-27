@@ -1,3 +1,4 @@
+import { L } from '../i18n/l';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { sfx, haptic } from './sfx';
 import { FxPortal, prefersReducedMotion, rand } from './util';
@@ -150,7 +151,7 @@ export function DiceOverlay({ roll, big = false }: { roll: DiceRoll | null; big?
   if (!active) return null;
   const total = active.dice[0] + active.dice[1];
   const seven = total === 7;
-  const badge = active.source === 'randomOrg' ? 'random.org' : active.source === 'physical' ? 'настоящие кубики' : null;
+  const badge = active.source === 'randomOrg' ? 'random.org' : active.source === 'physical' ? L('настоящие кубики', 'нағыз сүйектер', 'real dice') : null;
   const style = { '--fx-player': active.color ?? 'var(--accent, #7aa2ff)' } as CSSProperties;
 
   return (

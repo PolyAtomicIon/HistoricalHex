@@ -16,6 +16,7 @@ import {
   tradeRatios,
 } from '../engine';
 import { RESOURCE_NAME, resourcesText } from '../i18n/ru';
+import { L } from '../i18n/l';
 
 export type PlanStep =
   /** for — id поселения, к которому ведёт эта дорога: в списке плана она свёрнута под ним. */
@@ -36,23 +37,24 @@ export interface CheckedStep {
   reason?: string;
 }
 
+/** Подписи шагов плана — геттеры: читается текущий язык. */
 export const STEP_LABEL: Record<PlanStep['kind'], string> = {
-  road: 'Дорога',
-  settlement: 'Поселение',
-  city: 'Город',
-  devCard: 'Карта развития',
-  bank: 'Обмен с банком',
-  offer: 'Предложить обмен',
+  get road() { return L('Дорога', 'Жол', 'Road'); },
+  get settlement() { return L('Поселение', 'Қоныс', 'Settlement'); },
+  get city() { return L('Город', 'Қала', 'City'); },
+  get devCard() { return L('Карта развития', 'Даму картасы', 'Development card'); },
+  get bank() { return L('Обмен с банком', 'Банкпен айырбас', 'Bank trade'); },
+  get offer() { return L('Предложить обмен', 'Айырбас ұсыну', 'Offer a trade'); },
 };
 
 /** Короткие подписи — для одной строки подсказки. */
 export const STEP_SHORT: Record<PlanStep['kind'], string> = {
-  road: 'Дорога',
-  settlement: 'Дом',
-  city: 'Город',
-  devCard: 'Карта',
-  bank: 'Банк',
-  offer: 'Обмен',
+  get road() { return L('Дорога', 'Жол', 'Road'); },
+  get settlement() { return L('Дом', 'Үй', 'House'); },
+  get city() { return L('Город', 'Қала', 'City'); },
+  get devCard() { return L('Карта', 'Карта', 'Card'); },
+  get bank() { return L('Банк', 'Банк', 'Bank'); },
+  get offer() { return L('Обмен', 'Айырбас', 'Trade'); },
 };
 
 export const STEP_ICON = {
@@ -97,19 +99,19 @@ export function checkPlan(plan: PlanStep[], pub: PublicState, priv: PrivateView,
     let placeOk = true;
     let reason: string | undefined;
     if (step.kind === 'road') {
-      if (view.roads[step.at]) (placeOk = false), (reason = 'Здесь уже чужая дорога');
-      else if (!canBuildRoad(view, me, step.at)) (placeOk = false), (reason = 'Сюда больше нельзя: нет связи с твоими дорогами');
-      else if (pieces.roads <= 0) (placeOk = false), (reason = 'Дороги закончились');
+      if (view.roads[step.at]) (placeOk = false), (reason = L('Здесь уже чужая дорога', 'Мұнда бөтеннің жолы бар', 'Another road is already here'));
+      else if (!canBuildRoad(view, me, step.at)) (placeOk = false), (reason = L('Сюда больше нельзя: нет связи с твоими дорогами', 'Бұған енді болмайды: жолдарыңмен байланыс жоқ', 'Not allowed here anymore: no link to your roads'));
+      else if (pieces.roads <= 0) (placeOk = false), (reason = L('Дороги закончились', 'Жолдар таусылды', 'No roads left'));
     } else if (step.kind === 'settlement') {
       const b = view.buildings[step.at];
-      if (b && b.owner !== me) (placeOk = false), (reason = `Место занято`);
-      else if (!canBuildSettlement(view, me, step.at)) (placeOk = false), (reason = 'Нельзя: рядом чужая постройка или нет дороги');
-      else if (pieces.settlements <= 0) (placeOk = false), (reason = 'Поселения закончились');
+      if (b && b.owner !== me) (placeOk = false), (reason = L('Место занято', 'Орын бос емес', 'Spot taken'));
+      else if (!canBuildSettlement(view, me, step.at)) (placeOk = false), (reason = L('Нельзя: рядом чужая постройка или нет дороги', 'Болмайды: жанында бөтеннің құрылысы бар немесе жол жоқ', 'Not allowed: a building is adjacent or there is no road'));
+      else if (pieces.settlements <= 0) (placeOk = false), (reason = L('Поселения закончились', 'Қоныстар таусылды', 'No settlements left'));
     } else if (step.kind === 'city') {
-      if (!canBuildCity(view, me, step.at)) (placeOk = false), (reason = 'Здесь нет твоего поселения');
-      else if (pieces.cities <= 0) (placeOk = false), (reason = 'Города закончились');
+      if (!canBuildCity(view, me, step.at)) (placeOk = false), (reason = L('Здесь нет твоего поселения', 'Мұнда сенің қонысың жоқ', 'You have no settlement here'));
+      else if (pieces.cities <= 0) (placeOk = false), (reason = L('Города закончились', 'Қалалар таусылды', 'No cities left'));
     } else if (step.kind === 'devCard') {
-      if (pub.devDeckCount <= 0) (placeOk = false), (reason = 'Колода пуста');
+      if (pub.devDeckCount <= 0) (placeOk = false), (reason = L('Колода пуста', 'Колода бос', 'The deck is empty'));
     }
 
     if (!placeOk) {
@@ -163,9 +165,9 @@ export function stepText(c: CheckedStep): string {
       : s.kind === 'offer'
         ? `${resourcesText(s.give)} → ${resourcesText(s.want)}`
         : '';
-  if (c.status === 'broken') return c.reason ?? 'План сломался';
-  if (c.status === 'short') return `${base ? base + ' · ' : ''}не хватает ${resourcesText(c.missing)}`;
-  return base || 'Готово к ходу';
+  if (c.status === 'broken') return c.reason ?? L('План сломался', 'Жоспар бұзылды', 'The plan is broken');
+  if (c.status === 'short') return `${base ? base + ' · ' : ''}${L('не хватает {x}', 'жетпейді: {x}', 'missing {x}', { x: resourcesText(c.missing) })}`;
+  return base || L('Готово к ходу', 'Жүріске дайын', 'Ready to go');
 }
 
 // ─── хранение плана (у каждого игрока свой, в localStorage) ───
@@ -197,26 +199,26 @@ export const newStepId = () => Math.random().toString(36).slice(2, 9);
 export function goalHints(pub: PublicState, priv: PrivateView, me: PlayerId): string[] {
   const out: string[] = [];
   const hand = priv.resources;
-  const goals: [string, ResourceMap, string][] = [
-    ['город', COSTS.city, 'города'],
-    ['поселение', COSTS.settlement, 'поселения'],
-    ['карту развития', COSTS.devCard, 'карты развития'],
+  const goals: [ResourceMap, () => string, (r: string) => string][] = [
+    [COSTS.city, () => L('Хватает на город', 'Қалаға жетеді', 'Enough for a city'), (r) => L('До города не хватает: {r}', 'Қалаға жетпейді: {r}', 'One short of a city: {r}', { r })],
+    [COSTS.settlement, () => L('Хватает на поселение', 'Қонысқа жетеді', 'Enough for a settlement'), (r) => L('До поселения не хватает: {r}', 'Қонысқа жетпейді: {r}', 'One short of a settlement: {r}', { r })],
+    [COSTS.devCard, () => L('Хватает на карту развития', 'Даму картасына жетеді', 'Enough for a development card'), (r) => L('До карты развития не хватает: {r}', 'Даму картасына жетпейді: {r}', 'One short of a development card: {r}', { r })],
   ];
-  for (const [name, cost, gen] of goals) {
+  for (const [cost, enough, short] of goals) {
     const miss = missingOf(hand, cost);
     const n = Object.values(miss).reduce((a, b) => a + (b ?? 0), 0);
-    if (n === 0) out.push(`Хватает на ${name}`);
+    if (n === 0) out.push(enough());
     else if (n === 1) {
       const r = Object.keys(miss)[0] as Resource;
-      out.push(`До ${gen} не хватает: ${RESOURCE_NAME[r]}`);
+      out.push(short(RESOURCE_NAME[r]));
     }
   }
   const ratios = tradeRatios(pub, me);
   for (const r of RESOURCES) {
-    if (ratios[r] === 2 && hand[r] >= 2) out.push(`Гавань 2:1: выгодно сменять ${RESOURCE_NAME[r]}`);
+    if (ratios[r] === 2 && hand[r] >= 2) out.push(L('Гавань 2:1: выгодно сменять {r}', 'Айлақ 2:1: {r} айырбастаған тиімді', 'Harbor 2:1: worth trading {r}', { r: RESOURCE_NAME[r] }));
   }
   const total = RESOURCES.reduce((a, r) => a + hand[r], 0);
-  if (total > 7) out.push(`У тебя ${total} карт — на семёрке потеряешь половину. Потрать!`);
+  if (total > 7) out.push(L('У тебя {n} карт — на семёрке потеряешь половину. Потрать!', 'Сенде {n} карта — жетіде жартысын жоғалтасың. Жұмса!', 'You have {n} cards — a seven will cost you half. Spend them!', { n: total }));
   return out.slice(0, 3);
 }
 
@@ -232,12 +234,12 @@ export function incomingTradeHint(
     const gain = RESOURCES.filter((r) => (give[r] ?? 0) > 0)
       .map((r) => RESOURCE_NAME[r])
       .join(', ');
-    return { canAccept: true, text: `Тебе по силам. Получишь ${gain}` };
+    return { canAccept: true, text: L('Тебе по силам. Получишь {gain}', 'Қолыңнан келеді. Аласың: {gain}', "You can afford it. You'll get {gain}", { gain }) };
   }
   const names = missing.map((r) => RESOURCE_NAME[r]).join(', ');
   return {
     canAccept: false,
-    text: `Бро, у тебя нет: ${names} — это предложение не к тебе. Но можешь предложить встречное.`,
+    text: L('Бро, у тебя нет: {names} — это предложение не к тебе. Но можешь предложить встречное.', 'Бро, сенде жоқ: {names} — бұл ұсыныс саған емес. Бірақ қарсы ұсыныс жасай аласың.', "Bro, you don't have: {names} — this offer isn't for you. But you can counter.", { names }),
   };
 }
 
@@ -318,11 +320,12 @@ export function tradeVerdict(want: ResourceMap, give: ResourceMap, hand: Resourc
   const canAccept = hasResources(hand, want);
   const after = emptyResources();
   for (const r of RESOURCES) after[r] = hand[r] - (want[r] ?? 0) + (give[r] ?? 0);
+  // названия — на текущем языке (их показывают в подсказке и сверяют тесты)
   const goals: [string, ResourceMap][] = [
-    ['город', COSTS.city],
-    ['поселение', COSTS.settlement],
-    ['карту развития', COSTS.devCard],
-    ['дорогу', COSTS.road],
+    [L('город', 'қала', 'a city'), COSTS.city],
+    [L('поселение', 'қоныс', 'a settlement'), COSTS.settlement],
+    [L('карту развития', 'даму картасы', 'a development card'), COSTS.devCard],
+    [L('дорогу', 'жол', 'a road'), COSTS.road],
   ];
   const unlocks = canAccept ? goals.filter(([, c]) => !hasResources(hand, c) && hasResources(after, c)).map(([n]) => n) : [];
   const loses = canAccept ? goals.filter(([, c]) => hasResources(hand, c) && !hasResources(after, c)).map(([n]) => n) : [];
@@ -332,16 +335,21 @@ export function tradeVerdict(want: ResourceMap, give: ResourceMap, hand: Resourc
   fair = Math.max(-1, Math.min(1, fair));
   const ratio = `${out}:${inn}`;
   const text = !canAccept
-    ? `Нечем ответить — не хватает: ${RESOURCES.filter((r) => (want[r] ?? 0) > hand[r]).map((r) => RESOURCE_NAME[r]).join(', ')}`
+    ? L(
+        'Нечем ответить — не хватает: {x}',
+        'Жауап беруге ештеңе жоқ — жетпейді: {x}',
+        "Can't accept — missing: {x}",
+        { x: RESOURCES.filter((r) => (want[r] ?? 0) > hand[r]).map((r) => RESOURCE_NAME[r]).join(', ') },
+      )
     : unlocks.length
-      ? `Выгодно: после обмена хватит на ${unlocks[0]}`
+      ? L('Выгодно: после обмена хватит на {x}', 'Тиімді: айырбастан кейін жетеді ({x})', 'Good deal: after the trade you can afford {x}', { x: unlocks[0] })
       : loses.length
-        ? `Осторожно: перестанет хватать на ${loses[0]}`
+        ? L('Осторожно: перестанет хватать на {x}', 'Абайла: енді жетпейді ({x})', "Careful: you'll no longer afford {x}", { x: loses[0] })
         : inn > out
-          ? `Выгодно ${ratio}: получаешь больше, чем отдаёшь`
+          ? L('Выгодно {r}: получаешь больше, чем отдаёшь', 'Тиімді {r}: бергеніңнен көп аласың', 'Good deal {r}: you get more than you give', { r: ratio })
           : inn < out
-            ? `Дорого ${ratio}: отдаёшь больше, чем получаешь`
-            : `Честно ${ratio}`;
+            ? L('Дорого {r}: отдаёшь больше, чем получаешь', 'Қымбат {r}: алғаныңнан көп бересің', 'Expensive {r}: you give more than you get', { r: ratio })
+            : L('Честно {r}', 'Әділ {r}', 'Fair {r}', { r: ratio });
   return { canAccept, out, inn, after, unlocks, loses, fair, text };
 }
 
@@ -392,7 +400,7 @@ export function counterIdeas(want: ResourceMap, give: ResourceMap, hand: Resourc
       }
       if (!moved) break;
     }
-    push({ give: { ...have }, get, label: n < giveTotal ? 'Сколько есть — и меньше взамен' : 'Сколько есть' });
+    push({ give: { ...have }, get, label: n < giveTotal ? L('Сколько есть — и меньше взамен', 'Барын беремін — орнына азырақ сұраймын', 'What I have — for less in return') : L('Сколько есть', 'Барын беремін', 'What I have') });
   }
 
   // 2) недостающее — другим ресурсом (тем, чего больше всего и что он сам не даёт)
@@ -404,7 +412,7 @@ export function counterIdeas(want: ResourceMap, give: ResourceMap, hand: Resourc
   for (const { r } of spare) {
     const g = { ...have };
     g[r] += missing;
-    push({ give: g, get: { ...give }, label: `Вместо — ${RESOURCE_NAME[r]}` });
+    push({ give: g, get: { ...give }, label: L('Вместо — {r}', 'Орнына — {r}', 'Instead — {r}', { r: RESOURCE_NAME[r] }) });
   }
   return out.slice(0, 3);
 }

@@ -16,9 +16,18 @@ import { counterIdeas, tradeVerdict } from './planner';
 import type { CounterIdea } from './planner';
 import { Sheet } from './Sheet';
 import { RESOURCE_NAME } from '../i18n/ru';
+import { L } from '../i18n/l';
 
 export type TradeUi = 'card' | 'caravan';
-export const TRADE_UI_LABEL: Record<TradeUi, string> = { card: 'Сделка', caravan: 'Караван' };
+// Геттеры — подпись берётся на текущем языке в момент обращения
+export const TRADE_UI_LABEL: Record<TradeUi, string> = {
+  get card() {
+    return L('Сделка', 'Мәміле', 'Deal');
+  },
+  get caravan() {
+    return L('Караван', 'Керуен', 'Caravan');
+  },
+};
 
 const KEY = 'hh.tradeUi';
 const subs = new Set<() => void>();
@@ -103,10 +112,10 @@ function CounterButton({ p, ideas, className, children }: { p: Props; ideas: Cou
   // Лучшее встречное — одним касанием; остальные варианты и «своё» — в шторке (кнопка «ещё»)
   return (
     <>
-      <button className={className ?? 'btn deal-yes'} disabled={p.busy} onClick={() => send(ideas[0])} aria-label={`Предложить: ${ideas[0].label}`}>
+      <button className={className ?? 'btn deal-yes'} disabled={p.busy} onClick={() => send(ideas[0])} aria-label={L('Предложить: {label}', 'Ұсыну: {label}', 'Offer: {label}', { label: ideas[0].label })}>
         {children ?? (
           <span className="dm-counter">
-            <small>Предложить</small>
+            <small>{L('Предложить', 'Ұсыну', 'Offer')}</small>
             <MiniRes res={ideas[0].give} />
             <Icon name="next" size={12} />
             <MiniRes res={ideas[0].get} get />
@@ -114,20 +123,20 @@ function CounterButton({ p, ideas, className, children }: { p: Props; ideas: Cou
         )}
       </button>
       {!children && (
-        <button className="btn dm-more" onClick={() => setOpen(true)} aria-label="Другие варианты">
+        <button className="btn dm-more" onClick={() => setOpen(true)} aria-label={L('Другие варианты', 'Басқа нұсқалар', 'Other options')}>
           <Icon name="menu" size={18} />
         </button>
       )}
-      <Sheet open={open} onClose={() => setOpen(false)} title="Встречное предложение" description={`${from.name} просит то, чего у тебя нет. Предложи иначе:`}>
+      <Sheet open={open} onClose={() => setOpen(false)} title={L('Встречное предложение', 'Қарсы ұсыныс', 'Counteroffer')} description={L('{name} просит то, чего у тебя нет. Предложи иначе:', '{name} сенде жоқ нәрсені сұрайды. Басқаша ұсын:', "{name} asks for something you don't have. Offer something else:", { name: from.name })}>
         <div className="list counter-list">
           {ideas.map((c, i) => (
             <button key={i} className="item" disabled={p.busy} onClick={() => send(c)}>
               <span className="grow">
                 <span className="t">{c.label}</span>
                 <span className="counter-terms">
-                  <span className="faint">отдаёшь</span> <MiniRes res={c.give} />
+                  <span className="faint">{L('отдаёшь', 'бересің', 'you give')}</span> <MiniRes res={c.give} />
                   <Icon name="next" size={14} />
-                  <span className="faint">получаешь</span> <MiniRes res={c.get} get />
+                  <span className="faint">{L('получаешь', 'аласың', 'you get')}</span> <MiniRes res={c.get} get />
                 </span>
               </span>
             </button>
@@ -140,7 +149,7 @@ function CounterButton({ p, ideas, className, children }: { p: Props; ideas: Cou
             }}
           >
             <Icon name="feather" />
-            <span className="grow t">Своё — собрать вручную</span>
+            <span className="grow t">{L('Своё — собрать вручную', 'Өзімше — қолмен құрастыру', 'Custom: build it by hand')}</span>
             <Icon name="next" size={16} />
           </button>
         </div>
@@ -149,7 +158,12 @@ function CounterButton({ p, ideas, className, children }: { p: Props; ideas: Cou
   );
 }
 
-const answerText = (k: string) => (k === 'accept' ? 'Ты согласился — ждём решения' : k === 'decline' ? 'Ты отказал' : 'Ты предложил встречное');
+const answerText = (k: string) =>
+  k === 'accept'
+    ? L('Ты согласился — ждём решения', 'Сен келістің — шешімді күтеміз', 'You agreed — waiting for the decision')
+    : k === 'decline'
+      ? L('Ты отказал', 'Сен бас тарттың', 'You declined')
+      : L('Ты предложил встречное', 'Сен қарсы ұсыныс жасадың', 'You made a counteroffer');
 
 /** A · Сделка — стеклянная карточка над доком */
 export function TradeCard(p: Props) {
@@ -160,20 +174,20 @@ export function TradeCard(p: Props) {
   // Мини-плашка: кто, что отдаёшь → что получаешь, три кнопки. Не закрывает карту.
   // Нечем ответить — вместо «Да» сразу готовое встречное (одно — кнопкой, несколько — шторкой).
   return (
-    <section ref={ref} key={t.id} className={`deal deal-mini glass strong ${agreed ? 'agreed' : ''}`} aria-label={`Предложение от ${from.name}`}>
+    <section ref={ref} key={t.id} className={`deal deal-mini glass strong ${agreed ? 'agreed' : ''}`} aria-label={L('Предложение от {name}', '{name} ұсынысы', 'Offer from {name}', { name: from.name })}>
       <div className="dm-row">
         <span className="deal-ava" style={{ background: PLAYER_HEX[from.color] }}>
           {from.name.charAt(0).toUpperCase()}
         </span>
         <span className="dm-who">
           <b className="dm-name">{from.name}</b>
-          <small>предлагает обмен</small>
+          <small>{L('предлагает обмен', 'айырбас ұсынады', 'offers a trade')}</small>
         </span>
       </div>
       <div className="dm-swap">
-        <MiniRes res={t.want} label="Ты отдаёшь" />
+        <MiniRes res={t.want} label={L('Ты отдаёшь', 'Сен бересің', 'You give')} />
         <Icon name="trade" size={18} className="dm-arrow" />
-        <MiniRes res={t.give} get label="Ты получаешь" />
+        <MiniRes res={t.give} get label={L('Ты получаешь', 'Сен аласың', 'You get')} />
       </div>
       {!answered && from.bot && <span key={`tm${t.id}`} className="dm-timer" aria-hidden />}
       {(answered || !v.canAccept) && (
@@ -182,15 +196,15 @@ export function TradeCard(p: Props) {
       {!answered && (
         <div className="dm-btns">
           <button className="btn" disabled={p.busy} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
-            Нет
+            {L('Нет', 'Жоқ', 'No')}
           </button>
           {v.canAccept || !ideas.length ? (
             <>
               <button className="btn" onClick={p.counter}>
-                Своё
+                {L('Своё', 'Өзімше', 'Custom')}
               </button>
               <button className="btn deal-yes" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
-                Обменять
+                {L('Обменять', 'Айырбастау', 'Trade')}
               </button>
             </>
           ) : (
@@ -251,9 +265,9 @@ function DealPile({ res }: { res: ResourceMap }) {
 export function TradeCaravan(p: Props) {
   const { t, from, v, answered, ideas } = useOffer(p);
   return (
-    <section key={t.id} className="tro-caravan glass strong" style={{ ['--pc' as string]: PLAYER_HEX[from.color] }} aria-label="Входящее предложение">
+    <section key={t.id} className="tro-caravan glass strong" style={{ ['--pc' as string]: PLAYER_HEX[from.color] }} aria-label={L('Входящее предложение', 'Кіріс ұсыныс', 'Incoming offer')}>
       <div className="trc-row">
-        <button className="trc-ava" onClick={p.counter} aria-label={`${from.name}: подробнее и встречное`}>
+        <button className="trc-ava" onClick={p.counter} aria-label={L('{name}: подробнее и встречное', '{name}: толығырақ және қарсы ұсыныс', '{name}: details and counteroffer', { name: from.name })}>
           {from.name.charAt(0).toUpperCase()}
         </button>
         <span className="trc-terms">
@@ -262,10 +276,10 @@ export function TradeCaravan(p: Props) {
           <Chips res={t.give} get />
         </span>
         {answered ? (
-          <small className="trc-ans">{answered.kind === 'accept' ? 'Да' : answered.kind === 'decline' ? 'Нет' : 'Встречное'}</small>
+          <small className="trc-ans">{answered.kind === 'accept' ? L('Да', 'Иә', 'Yes') : answered.kind === 'decline' ? L('Нет', 'Жоқ', 'No') : L('Встречное', 'Қарсы', 'Counter')}</small>
         ) : (
           <>
-            <button className="trc-btn no" aria-label="Отказать" disabled={p.busy} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
+            <button className="trc-btn no" aria-label={L('Отказать', 'Бас тарту', 'Decline')} disabled={p.busy} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'decline' })}>
               <Icon name="close" size={18} />
             </button>
             {!v.canAccept && ideas.length ? (
@@ -273,7 +287,7 @@ export function TradeCaravan(p: Props) {
                 <Icon name="trade" size={18} />
               </CounterButton>
             ) : (
-              <button className="trc-btn yes" aria-label="Принять" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
+              <button className="trc-btn yes" aria-label={L('Принять', 'Қабылдау', 'Accept')} disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
                 <Icon name="check" size={20} />
               </button>
             )}

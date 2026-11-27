@@ -5,6 +5,7 @@ import { Drawer, DrawerBackdrop, DrawerContent, DrawerDescription, DrawerTitle }
 import { useEffect, useRef } from 'react';
 import { sfx } from '../fx';
 import { useLite } from './lite';
+import { L } from '../i18n/l';
 
 export function Sheet({
   open,
@@ -89,7 +90,7 @@ function LiteSheet({
           <h2 className="sheet-title">{title}</h2>
           {right}
           {dismissible && (
-            <button className="btn ghost icon" onClick={onClose} aria-label="Закрыть">
+            <button className="btn ghost icon" onClick={onClose} aria-label={L('Закрыть', 'Жабу', 'Close')}>
               ×
             </button>
           )}

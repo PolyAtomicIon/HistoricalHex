@@ -5,6 +5,7 @@ import { RESOURCES } from '../engine';
 import type { LoreFact, LorePack } from '../lore';
 import { ArtIcon } from './icons';
 import { eraIcon } from './era';
+import { L } from '../i18n/l';
 
 export function FactsList({ pack }: { pack: LorePack }) {
   const [only, setOnly] = useState<'all' | 'kz'>('all');
@@ -17,7 +18,7 @@ export function FactsList({ pack }: { pack: LorePack }) {
           {p}
         </p>
       ))}
-      <div className="label">Словарь эпохи</div>
+      <div className="label">{L('Словарь эпохи', 'Дәуір сөздігі', 'Era glossary')}</div>
       <div className="glossary">
         {RESOURCES.map((r) => (
           <div key={r} className="item">
@@ -38,16 +39,16 @@ export function FactsList({ pack }: { pack: LorePack }) {
       </div>
       <div className="seg">
         <button aria-pressed={only === 'all'} onClick={() => setOnly('all')}>
-          Все факты · {pack.facts.length}
+          {L('Все факты · {n}', 'Барлық фактілер · {n}', 'All facts · {n}', { n: pack.facts.length })}
         </button>
         <button aria-pressed={only === 'kz'} onClick={() => setOnly('kz')}>
-          Казахстан · {pack.facts.filter((f) => f.kz).length}
+          {L('Казахстан · {n}', 'Қазақстан · {n}', 'Kazakhstan · {n}', { n: pack.facts.filter((f) => f.kz).length })}
         </button>
       </div>
       {facts.map((f, i) => (
         <Fact key={i} f={f} />
       ))}
-      <div className="label">Источники</div>
+      <div className="label">{L('Источники', 'Дереккөздер', 'Sources')}</div>
       <ul className="sources faint small">
         {pack.sources.map((s) => (
           <li key={s}>{s}</li>
@@ -63,7 +64,7 @@ export function Fact({ f, big, noSource }: { f: LoreFact; big?: boolean; noSourc
       {(f.year || f.kz) && (
         <div className="fc-head">
           {f.year && <span className="yr">{f.year}</span>}
-          {f.kz && <span className="kz-tag">Казахстан</span>}
+          {f.kz && <span className="kz-tag">{L('Казахстан', 'Қазақстан', 'Kazakhstan')}</span>}
         </div>
       )}
       <p className="fc-text">{f.text}</p>

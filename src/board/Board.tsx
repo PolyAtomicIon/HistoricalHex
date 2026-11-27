@@ -8,6 +8,7 @@ import type { HarborType, Terrain } from '../engine';
 import { PLAYER_HEX, PLAYER_STROKE, TERRAIN_FILL, TERRAIN_ICON, harborIcon } from '../ui/theme';
 import { art } from '../ui/art';
 import './board.css';
+import { L } from '../i18n/l';
 
 /** Радиус гекса в единицах SVG. */
 const S = 100;
@@ -84,7 +85,7 @@ export function Board({ view, colors, highlight, onVertex, onEdge, onHex, recent
   };
 
   return (
-    <svg className={`board ${className ?? ''}`} viewBox={geo.viewBox} role="img" aria-label="Карта острова">
+    <svg className={`board ${className ?? ''}`} viewBox={geo.viewBox} role="img" aria-label={L('Карта острова', 'Арал картасы', 'Island map')}>
       {/* Картинки местности: квадрат натягивается на гекс (лишнее по бокам обрезается) */}
       <defs>
         {[...TERRAINS, 'sea' as const].map((t) => {

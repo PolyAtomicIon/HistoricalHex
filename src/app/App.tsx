@@ -6,6 +6,7 @@ import { Home } from './Home';
 import { useLang } from './learn/lang';
 
 import { InviteToast } from './Social';
+import { L } from '../i18n/l';
 
 // Лобби и партия грузятся отдельно — главная открывается быстрее
 const InGame = lazy(() => import('./GameScreen'));
@@ -40,7 +41,7 @@ export function App() {
       {!tvMode && <InviteToast />}
       {state.status === 'offline' && (
         <div className="toast glass bad" role="status" style={{ pointerEvents: 'none' }}>
-          Нет связи — переподключаемся…
+          {L('Нет связи — переподключаемся…', 'Байланыс жоқ — қайта қосылып жатырмыз…', 'No connection — reconnecting…')}
         </div>
       )}
       {/* в игре сообщения показывает сам экран игры (в колонке сверху) */}
@@ -63,9 +64,9 @@ function Kicked() {
       <div className="ambient" aria-hidden />
       <div className="center-col">
         <div className="panel glass stack center">
-          <h2>Ведущий убрал тебя из игры</h2>
+          <h2>{L('Ведущий убрал тебя из игры', 'Жүргізуші сені ойыннан шығарды', 'The host removed you from the game')}</h2>
           <button className="btn wide" onClick={() => conn.forget()}>
-            На главную
+            {L('На главную', 'Басты бетке', 'Home')}
           </button>
         </div>
       </div>

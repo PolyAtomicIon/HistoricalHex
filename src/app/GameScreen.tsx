@@ -9,6 +9,7 @@ import { setFxPace } from '../fx';
 import { Tv } from './Tv';
 import { useEra } from './era';
 import { Icon } from './icons';
+import { L, locale } from '../i18n/l';
 
 const tvMode = new URLSearchParams(location.search).has('tv');
 
@@ -42,30 +43,30 @@ function PauseCard({ room }: { room: RoomView }) {
   const d = new Date(p.at);
   const today = new Date().toDateString() === d.toDateString();
   const when = today
-    ? `в ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
-    : d.toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    ? L('в {t}', '{t}-да', 'at {t}', { t: d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }) })
+    : d.toLocaleString(locale(), { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   return (
-    <div className="pause-veil" role="dialog" aria-label="Партия на паузе">
+    <div className="pause-veil" role="dialog" aria-label={L('Партия на паузе', 'Ойын тоқтатылған', 'Game paused')}>
       <div className="pause-card glass strong">
         <span className="pc-ic">
           <Icon name="pause" size={26} />
         </span>
-        <b className="display">Партия на паузе</b>
+        <b className="display">{L('Партия на паузе', 'Ойын тоқтатылған', 'Game paused')}</b>
         <small className="muted">
           {p.name} · {when}
           <br />
-          Таймеры и боты стоят. Доска и карты на месте.
+          {L('Таймеры и боты стоят. Доска и карты на месте.', 'Таймерлер мен боттар тоқтаған. Тақта мен карталар орнында.', 'Timers and bots are stopped. The board and cards are untouched.')}
         </small>
         {room.seated && !tvMode ? (
           <button className="btn primary wide" onClick={() => conn.send({ t: 'pause', on: false })}>
-            <Icon name="play" /> Продолжить
+            <Icon name="play" /> {L('Продолжить', 'Жалғастыру', 'Resume')}
           </button>
         ) : (
-          <small className="faint">Продолжит любой игрок за столом</small>
+          <small className="faint">{L('Продолжит любой игрок за столом', 'Үстелдегі кез келген ойыншы жалғастыра алады', 'Any player at the table can resume')}</small>
         )}
         {!tvMode && (
           <button className="btn ghost wide" onClick={() => conn.forget()}>
-            На главную
+            {L('На главную', 'Басты бетке', 'Home')}
           </button>
         )}
       </div>
@@ -80,13 +81,13 @@ function Away() {
       <div className="center-col">
         <div className="panel glass stack center">
           <Icon name="bot" size={56} />
-          <h2>За тебя играет бот</h2>
-          <p className="muted">Карты и постройки на месте. Вернись — и бот отдаст место.</p>
+          <h2>{L('За тебя играет бот', 'Орныңа бот ойнап жатыр', 'A bot is playing for you')}</h2>
+          <p className="muted">{L('Карты и постройки на месте. Вернись — и бот отдаст место.', 'Карталар мен құрылыстар орнында. Қайт — бот орынды береді.', 'Your cards and buildings are safe. Come back and the bot will give your seat back.')}</p>
           <button className="btn primary big wide" onClick={() => void conn.act({ type: 'returnFromBot' })}>
-            Вернуться в игру
+            {L('Вернуться в игру', 'Ойынға оралу', 'Back to the game')}
           </button>
           <button className="btn ghost wide" onClick={() => conn.forget()}>
-            На главную
+            {L('На главную', 'Басты бетке', 'Home')}
           </button>
         </div>
       </div>

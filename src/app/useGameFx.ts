@@ -11,6 +11,7 @@ import { fxMs, haptic, isTurbo, rollDurationMs, sfx } from '../fx';
 import { PLAYER_HEX } from '../ui/theme';
 import { eraIcon } from './era';
 import { RESOURCE_NAME } from '../i18n/ru';
+import { L } from '../i18n/l';
 import type { LogEntry, Notice } from './gameLog';
 import { hexResource, logText, noticeFor } from './gameLog';
 
@@ -109,9 +110,9 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
 
   useEffect(() => {
     const tv = me === undefined;
-    const name = (id?: PlayerId) => (id && pubRef.current?.players[id]?.name) || 'Кто-то';
-    /** «Хиро строит» / «Ты строишь» — для простых пояснений к событиям. */
-    const who = (id: PlayerId | undefined, third: string, second: string) => (me && id === me ? `Ты ${second}` : `${name(id)} ${third}`);
+    const name = (id?: PlayerId) => (id && pubRef.current?.players[id]?.name) || L('Кто-то', 'Біреу', 'Someone');
+    /** Это мой игрок (на телевизоре — никто). */
+    const isMe = (id: PlayerId | undefined) => !!me && id === me;
     const color = (id?: PlayerId) => {
       const c = id && pubRef.current?.players[id]?.color;
       return c ? PLAYER_HEX[c] : undefined;
@@ -189,7 +190,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
       (window as unknown as { __sail: (t: HarborType) => void }).__sail = (type) => setFx((f) => ({ ...f, sail: { type, key: k.current++ } }));
       (window as unknown as { __pub: () => unknown }).__pub = () => pubRef.current;
       (window as unknown as { __cine: (t: string, x: string) => void }).__cine = (title, explain) =>
-        cine({ kind: 'seven', title, explain, subtitle: 'Семь! Сторожевые псы лают', emoji: '', img: eraIcon(packRef.current.id, 'robber-unit') });
+        cine({ kind: 'seven', title, explain, subtitle: L('Семь! Сторожевые псы лают', 'Жеті! Күзетші иттер үреді', 'Seven! The guard dogs bark'), emoji: '', img: eraIcon(packRef.current.id, 'robber-unit') });
       (window as unknown as { __notice: (t: string, x: string) => void }).__notice = (title, text) => setFx((f) => ({ ...f, notices: [...f.notices, { title, text, key: k.current++ }] }));
       (window as unknown as { __say: (t: string) => void }).__say = (t) => say(t);
     }
@@ -236,7 +237,9 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             }));
             if (e.total === 7) {
               setTimeout(() => {
-                cine({ kind: 'seven', title: `Семь! ${p.robber.name}`, explain: `У кого больше 7 карт — сбрасывают половину. Потом ${me === e.player ? 'ты ставишь' : `${name(e.player)} ставит`} захватчиков на гекс и ${me === e.player ? 'забираешь' : 'забирает'} карту у соседа`, subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber-unit') });
+                cine({ kind: 'seven', title: L('Семь! {r}', 'Жеті! {r}', 'Seven! {r}', { r: p.robber.name }), explain: isMe(e.player)
+                  ? L('У кого больше 7 карт — сбрасывают половину. Потом ты ставишь захватчиков на гекс и забираешь карту у соседа', '7-ден көп картасы барлар жартысын тастайды. Содан кейін сен басқыншыларды гекске қойып, көршіңнен карта аласың', 'Anyone with more than 7 cards discards half. Then you place the raiders on a hex and take a card from a neighbor')
+                  : L('У кого больше 7 карт — сбрасывают половину. Потом {p} ставит захватчиков на гекс и забирает карту у соседа', '7-ден көп картасы барлар жартысын тастайды. Содан кейін {p} басқыншыларды гекске қойып, көршісінен карта алады', 'Anyone with more than 7 cards discards half. Then {p} places the raiders on a hex and takes a card from a neighbor', { p: name(e.player) }), subtitle: narrate(p, 'seven', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'robber-unit') });
                 setFx((f) => ({ ...f, shake: f.shake + 1 }));
               }, rollDurationMs());
             }
@@ -268,7 +271,9 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             }));
             sfx.play('pop');
             if (e.kind === 'city') {
-              cine({ kind: 'built-city', title: `${p.pieces.city}!`, explain: `${who(e.player, 'строит', 'строишь')} город: соседние гексы дают ${me === e.player ? 'тебе' : 'ему'} двойной доход, +1 очко`, subtitle: narrate(p, 'city', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'emblem'), color: color(e.player) });
+              cine({ kind: 'built-city', title: `${p.pieces.city}!`, explain: isMe(e.player)
+                  ? L('Ты строишь город: соседние гексы дают тебе двойной доход, +1 очко', 'Сен қала саласың: көрші гекстер саған екі еселенген табыс береді, +1 ұпай', 'You build a city: neighboring hexes give you double income, +1 point')
+                  : L('{p} строит город: соседние гексы дают ему двойной доход, +1 очко', '{p} қала салады: көрші гекстер оған екі еселенген табыс береді, +1 ұпай', '{p} builds a city: neighboring hexes give them double income, +1 point', { p: name(e.player) }), subtitle: narrate(p, 'city', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'emblem'), color: color(e.player) });
             } else if (tv) say(narrate(p, e.kind === 'road' ? 'road' : 'settlement', { player: name(e.player) }), e.player);
             break;
           }
@@ -301,9 +306,13 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             const card = p.devCards[e.card];
             if (e.card === 'knight') {
               knightBy.current = e.player; // сама атака — после выбора цели (robberMoved)
-              cine({ kind: 'knight', title: card.name, explain: `Карта воина: ${me === e.player ? 'ты ставишь' : `${name(e.player)} ставит`} захватчиков на любой гекс и ${me === e.player ? 'забираешь' : 'забирает'} карту у соседа`, subtitle: narrate(p, 'knight', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
+              cine({ kind: 'knight', title: card.name, explain: isMe(e.player)
+                  ? L('Карта воина: ты ставишь захватчиков на любой гекс и забираешь карту у соседа', 'Жауынгер картасы: сен басқыншыларды кез келген гекске қойып, көршіңнен карта аласың', 'Warrior card: you place the raiders on any hex and take a card from a neighbor')
+                  : L('Карта воина: {p} ставит захватчиков на любой гекс и забирает карту у соседа', 'Жауынгер картасы: {p} басқыншыларды кез келген гекске қойып, көршісінен карта алады', 'Warrior card: {p} places the raiders on any hex and takes a card from a neighbor', { p: name(e.player) }), subtitle: narrate(p, 'knight', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
             } else if (e.card === 'roadBuilding') {
-              cine({ kind: 'roadBuilding', title: card.name, explain: `${who(e.player, 'строит', 'строишь')} 2 дороги бесплатно`, subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
+              cine({ kind: 'roadBuilding', title: card.name, explain: isMe(e.player)
+                  ? L('Ты строишь 2 дороги бесплатно', 'Сен 2 жолды тегін саласың', 'You build 2 roads for free')
+                  : L('{p} строит 2 дороги бесплатно', '{p} 2 жолды тегін салады', '{p} builds 2 roads for free', { p: name(e.player) }), subtitle: narrate(p, 'roadBuilding', { player: name(e.player) }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
             }
             break;
           }
@@ -311,7 +320,9 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             cine({
               kind: 'monopoly',
               title: p.devCards.monopoly.name,
-              explain: `${who(e.player, 'забирает', 'забираешь')} у всех весь ресурс «${RESOURCE_NAME[e.resource]}»: ${e.total} шт.`,
+              explain: isMe(e.player)
+                ? L('Ты забираешь у всех весь ресурс «{r}»: {n} шт.', 'Сен бәрінен «{r}» ресурсының барлығын аласың: {n} дана.', 'You take all “{r}” from everyone: {n} total.', { r: RESOURCE_NAME[e.resource], n: e.total })
+                : L('{p} забирает у всех весь ресурс «{r}»: {n} шт.', '{p} бәрінен «{r}» ресурсының барлығын алады: {n} дана.', '{p} takes all “{r}” from everyone: {n} total.', { p: name(e.player), r: RESOURCE_NAME[e.resource], n: e.total }),
               subtitle: narrate(p, 'monopoly', { player: name(e.player), res: RESOURCE_NAME[e.resource], count: e.total }),
               emoji: '', img: eraIcon(p.id, `res-${e.resource}`), rain: eraIcon(p.id, 'dev-monopoly'),
               color: color(e.player),
@@ -322,7 +333,10 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             cine({
               kind: 'yearOfPlenty',
               title: p.devCards.yearOfPlenty.name,
-              explain: `${who(e.player, 'берёт', 'берёшь')} из банка бесплатно: ${(e.resources ?? []).map((r) => RESOURCE_NAME[r as Resource]).join(' и ')}`,
+              explain: L(isMe(e.player) ? 'Ты берёшь из банка бесплатно: {x}' : '{p} берёт из банка бесплатно: {x}', isMe(e.player) ? 'Сен банктен тегін аласың: {x}' : '{p} банктен тегін алады: {x}', isMe(e.player) ? 'You take from the bank for free: {x}' : '{p} takes from the bank for free: {x}', {
+                p: name(e.player),
+                x: (e.resources ?? []).map((r) => RESOURCE_NAME[r as Resource]).join(L(' и ', ' және ', ' and ')),
+              }),
               subtitle: narrate(p, 'yearOfPlenty', { player: name(e.player) }),
               emoji: '', img: eraIcon(p.id, 'dev-yearOfPlenty'), rain: eraIcon(p.id, `res-${(e.resources ?? ['wheat'])[0]}`),
               color: color(e.player),
@@ -330,10 +344,14 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
             break;
           case 'longestRoad':
             if (e.player)
-              cine({ kind: 'longestRoad', title: p.bonuses.longestRoad, explain: `Самая длинная дорога (${e.length}) — у ${me === e.player ? 'тебя' : name(e.player)}: +2 очка, пока кто-то не построит длиннее`, subtitle: narrate(p, 'longestRoad', { player: name(e.player), n: e.length }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
+              cine({ kind: 'longestRoad', title: p.bonuses.longestRoad, explain: isMe(e.player)
+                  ? L('Самая длинная дорога ({n}) — у тебя: +2 очка, пока кто-то не построит длиннее', 'Ең ұзын жол ({n}) — сенде: +2 ұпай, біреу ұзынырақ салғанша', 'Longest road ({n}) is yours: +2 points until someone builds a longer one', { n: e.length })
+                  : L('Самая длинная дорога ({n}) — у {p}: +2 очка, пока кто-то не построит длиннее', 'Ең ұзын жол ({n}) — {p} ойыншысында: +2 ұпай, біреу ұзынырақ салғанша', 'Longest road ({n}) belongs to {p}: +2 points until someone builds a longer one', { n: e.length, p: name(e.player) }), subtitle: narrate(p, 'longestRoad', { player: name(e.player), n: e.length }), emoji: '', img: eraIcon(p.id, 'dev-roadBuilding'), color: color(e.player) });
             break;
           case 'largestArmy':
-            cine({ kind: 'largestArmy', title: p.bonuses.largestArmy, explain: `Больше всех сыгранных воинов (${e.knights}) — у ${me === e.player ? 'тебя' : name(e.player)}: +2 очка`, subtitle: narrate(p, 'largestArmy', { player: name(e.player), n: e.knights }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
+            cine({ kind: 'largestArmy', title: p.bonuses.largestArmy, explain: isMe(e.player)
+                ? L('Больше всех сыгранных воинов ({n}) — у тебя: +2 очка', 'Ең көп ойналған жауынгерлер ({n}) — сенде: +2 ұпай', 'You have played the most warriors ({n}): +2 points', { n: e.knights })
+                : L('Больше всех сыгранных воинов ({n}) — у {p}: +2 очка', 'Ең көп ойналған жауынгерлер ({n}) — {p} ойыншысында: +2 ұпай', '{p} has played the most warriors ({n}): +2 points', { n: e.knights, p: name(e.player) }), subtitle: narrate(p, 'largestArmy', { player: name(e.player), n: e.knights }), emoji: '', img: eraIcon(p.id, 'dev-knight'), color: color(e.player) });
             break;
           case 'tradeCompleted':
             sfx.play('chime');
@@ -372,7 +390,7 @@ export function useGameFx(pub: PublicState | undefined, pack: LorePack, me?: Pla
 
     const offReact = conn.onReact((r) => {
       const item: ReactionItem = r.watcher
-        ? { id: `${r.from}-${r.at}`, emoji: r.emoji, from: `${r.name ?? 'Зритель'} · зритель` }
+        ? { id: `${r.from}-${r.at}`, emoji: r.emoji, from: `${r.name ?? L('Зритель', 'Көрермен', 'Viewer')} · ${L('зритель', 'көрермен', 'viewer')}` }
         : { id: `${r.from}-${r.at}`, emoji: r.emoji, from: name(r.from), color: color(r.from) };
       setFx((f) => ({ ...f, reactions: [...f.reactions.slice(-12), item] }));
     });

@@ -13,6 +13,7 @@ import { counterIdeas, incomingTradeHint } from './planner';
 import { Icon } from './icons';
 import { Sheet } from './Sheet';
 import { PLAYER_HEX } from '../ui/theme';
+import { L } from '../i18n/l';
 
 type Send = (a: Action) => Promise<void>;
 
@@ -23,10 +24,10 @@ export function TradeSheet({ pub, priv, me, send, busy, bans = [] }: { pub: Publ
       <HandMini hand={priv.resources} />
       <div className="seg">
         <button aria-pressed={tab === 'players'} onClick={() => setTab('players')}>
-          С игроками
+          {L('С игроками', 'Ойыншылармен', 'With players')}
         </button>
         <button aria-pressed={tab === 'bank'} onClick={() => setTab('bank')}>
-          С банком
+          {L('С банком', 'Банкпен', 'With bank')}
         </button>
       </div>
       {tab === 'players' ? <PlayersTrade pub={pub} priv={priv} me={me} send={send} busy={busy} bans={bans} /> : <BankTrade pub={pub} priv={priv} send={send} busy={busy} />}
@@ -71,8 +72,8 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
       />
       {/* Кому — аватарки игроков в одну строку (как в верхней панели): выбран — цветной, нет — приглушён.
           Значок ресурса — он добывает то, что ты хочешь. Перечёркнутый — ты с ним не торгуешь (нажми — снять). */}
-      <div className="trade-to" role="group" aria-label="Кому предложить">
-        <span className="trade-to-l">Кому</span>
+      <div className="trade-to" role="group" aria-label={L('Кому предложить', 'Кімге ұсыну', 'Offer to')}>
+        <span className="trade-to-l">{L('Кому', 'Кімге', 'To')}</span>
         {opponents.map((id) => {
           const on = to.includes(id);
           const banned = bans.includes(id);
@@ -84,7 +85,7 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
               className={`trade-to-ava ${on ? 'on' : ''} ${banned ? 'banned' : ''}`}
               style={{ ['--pc' as string]: PLAYER_HEX[pl.color], ['--pt' as string]: pl.color === 'white' ? '#11161d' : '#fff' }}
               aria-pressed={on}
-              aria-label={`${name(id)}${banned ? ', ты с ним не торгуешь' : ''}`}
+              aria-label={`${name(id)}${banned ? L(', ты с ним не торгуешь', ', онымен сауда жасамайсың', ", you don't trade with them") : ''}`}
               onClick={() => {
                 if (banned) {
                   conn.send({ t: 'ban', player: id, on: false });
@@ -117,7 +118,7 @@ function PlayersTrade({ pub, priv, me, send, busy, bans }: { pub: PublicState; p
           setWant(emptyResources());
         }}
       >
-        {to.length === 0 ? 'Выбери, кому' : all ? 'Предложить всем' : 'Предложить'}
+        {to.length === 0 ? L('Выбери, кому', 'Кімге екенін таңда', 'Choose who') : all ? L('Предложить всем', 'Бәріне ұсыну', 'Offer to all') : L('Предложить', 'Ұсыну', 'Offer')}
       </button>
     </div>
   );
@@ -130,7 +131,7 @@ function BankTrade({ pub, priv, send, busy }: { pub: PublicState; priv: PrivateV
   const can = give && receive && give !== receive && priv.resources[give] >= ratio(give) && pub.bank[receive] > 0;
   return (
     <div className="stack">
-      <div className="label">Отдаю банку</div>
+      <div className="label">{L('Отдаю банку', 'Банкке беремін', 'Give to bank')}</div>
       <ResourcePicker
         selected={give}
         sub={(r) => `${ratio(r)}:1`}
@@ -140,7 +141,7 @@ function BankTrade({ pub, priv, send, busy }: { pub: PublicState; priv: PrivateV
           if (receive === r) setReceive(null);
         }}
       />
-      <div className="label">Получаю</div>
+      <div className="label">{L('Получаю', 'Аламын', 'Receive')}</div>
       <ResourcePicker selected={receive} disabled={(r) => r === give || pub.bank[r] <= 0} onPick={setReceive} />
       <button
         className="btn primary big wide"
@@ -156,10 +157,10 @@ function BankTrade({ pub, priv, send, busy }: { pub: PublicState; priv: PrivateV
             {ratio(give)} <ResIcon r={give} size={24} /> → 1 <ResIcon r={receive} size={24} />
           </>
         ) : (
-          'Обменять'
+          L('Обменять', 'Айырбастау', 'Trade')
         )}
       </button>
-      <p className="faint small">Курс 4:1. Гавань даёт 3:1 или 2:1, если у неё стоит твоё поселение или город.</p>
+      <p className="faint small">{L('Курс 4:1. Гавань даёт 3:1 или 2:1, если у неё стоит твоё поселение или город.', 'Бағам 4:1. Айлақта сенің елдімекенің немесе қалаң тұрса, 3:1 немесе 2:1 болады.', 'Rate is 4:1. A harbor gives 3:1 or 2:1 if your settlement or city stands on it.')}</p>
     </div>
   );
 }
@@ -187,7 +188,7 @@ export function IncomingTrade({ pub, priv, me, send, busy }: { pub: PublicState;
           give={myGive}
           want={myGet}
           hand={priv.resources}
-          wantLabel="Получаю"
+          wantLabel={L('Получаю', 'Аламын', 'Receive')}
           onChange={(g, w) => {
             setMyGive(g);
             setMyGet(w);
@@ -195,7 +196,7 @@ export function IncomingTrade({ pub, priv, me, send, busy }: { pub: PublicState;
         />
         <div className="row">
           <button className="btn ghost grow" onClick={() => setCounter(false)}>
-            Назад
+            {L('Назад', 'Артқа', 'Back')}
           </button>
           <button
             className="btn primary grow"
@@ -205,7 +206,7 @@ export function IncomingTrade({ pub, priv, me, send, busy }: { pub: PublicState;
               setCounter(false);
             }}
           >
-            Предложить {from}
+            {L('Предложить {name}', '{name} адамына ұсыну', 'Offer to {name}', { name: from })}
           </button>
         </div>
       </div>
@@ -217,28 +218,28 @@ export function IncomingTrade({ pub, priv, me, send, busy }: { pub: PublicState;
       <HandMini hand={priv.resources} />
       <div className="terms-card">
         <div className="tc-side">
-          <span className="tc-l">Ты отдаёшь</span>
+          <span className="tc-l">{L('Ты отдаёшь', 'Сен бересің', 'You give')}</span>
           <ResChips value={trade.want} />
         </div>
         <Icon name="trade" size={20} className="tc-arrow" />
         <div className="tc-side">
-          <span className="tc-l">Ты получаешь</span>
+          <span className="tc-l">{L('Ты получаешь', 'Сен аласың', 'You get')}</span>
           <ResChips value={trade.give} />
         </div>
       </div>
       <div className={`hint-card ${hint.canAccept ? 'good' : ''}`}>
         <Icon name="bulb" size={18} /> {hint.text}
       </div>
-      {mine && <p className="faint small center">Твой ответ: {mine.kind === 'accept' ? 'согласен' : mine.kind === 'decline' ? 'отказ' : 'встречное'}</p>}
+      {mine && <p className="faint small center">{L('Твой ответ: {a}', 'Сенің жауабың: {a}', 'Your answer: {a}', { a: mine.kind === 'accept' ? L('согласен', 'келісемін', 'agree') : mine.kind === 'decline' ? L('отказ', 'бас тарту', 'decline') : L('встречное', 'қарсы ұсыныс', 'counteroffer') })}</p>}
       <div className="row">
         <button className="btn grow" disabled={busy} onClick={() => send({ type: 'respondTrade', tradeId: trade.id, kind: 'decline' })}>
-          Отказ
+          {L('Отказ', 'Бас тарту', 'Decline')}
         </button>
         <button className="btn grow" onClick={() => setCounter(true)}>
-          Встречное
+          {L('Встречное', 'Қарсы ұсыныс', 'Counter')}
         </button>
         <button className="btn primary grow" disabled={!canAccept || busy} onClick={() => send({ type: 'respondTrade', tradeId: trade.id, kind: 'accept' })}>
-          Согласен
+          {L('Согласен', 'Келісемін', 'Agree')}
         </button>
       </div>
     </div>
@@ -276,28 +277,28 @@ function MyOffers({ pub, priv, me, send, busy, bans, mine }: { pub: PublicState;
   }
   const waiting = mine.reduce((n, t) => n + rows(t).filter((id) => !t.responses?.[id]).length, 0);
   const sub = best
-    ? `${name(best.id)} ${best.t.responses?.[best.id]?.kind === 'counter' ? 'предлагает встречное' : 'согласен'}`
+    ? `${name(best.id)} ${best.t.responses?.[best.id]?.kind === 'counter' ? L('предлагает встречное', 'қарсы ұсыныс жасайды', 'offers a counter') : L('согласен', 'келісті', 'agrees')}`
     : waiting > 0
-      ? 'ждём ответа'
-      : 'все отказались';
+      ? L('ждём ответа', 'жауап күтеміз', 'waiting for an answer')
+      : L('все отказались', 'бәрі бас тартты', 'everyone declined');
   return (
     <>
       <div className="mo-row">
-        <button className="mo-open" onClick={() => setOpen(true)} aria-label="Открыть твои предложения">
+        <button className="mo-open" onClick={() => setOpen(true)} aria-label={L('Открыть твои предложения', 'Ұсыныстарыңды ашу', 'Open your offers')}>
           <span className="mo-count">{mine.length}</span>
           <span className="mo-t">
-            <b>{mine.length === 1 ? 'Твоё предложение' : 'Твои предложения'}</b>
+            <b>{mine.length === 1 ? L('Твоё предложение', 'Сенің ұсынысың', 'Your offer') : L('Твои предложения', 'Сенің ұсыныстарың', 'Your offers')}</b>
             <small className={best ? 'ok' : ''}>{sub}</small>
           </span>
           {!best && <span className="mo-chev" aria-hidden>›</span>}
         </button>
         {best && (
           <button className="btn primary small-act" disabled={busy} onClick={() => send({ type: 'confirmTrade', tradeId: best.t.id, with: best.id })}>
-            Обменяться
+            {L('Обменяться', 'Айырбастау', 'Trade')}
           </button>
         )}
       </div>
-      <Sheet open={open && mine.length > 0} onClose={() => setOpen(false)} title="Твои предложения">
+      <Sheet open={open && mine.length > 0} onClose={() => setOpen(false)} title={L('Твои предложения', 'Сенің ұсыныстарың', 'Your offers')}>
         <div className="my-offers">
           {[...mine].reverse().map((trade) => (
             <div key={trade.id} className="offer-card">
@@ -305,7 +306,7 @@ function MyOffers({ pub, priv, me, send, busy, bans, mine }: { pub: PublicState;
                 <ResChips value={trade.give} />
                 <Icon name="trade" size={16} className="tc-arrow" />
                 <ResChips value={trade.want} />
-                <button className="offer-x" disabled={busy} onClick={() => send({ type: 'cancelTrade', tradeId: trade.id })} aria-label="Отменить предложение">
+                <button className="offer-x" disabled={busy} onClick={() => send({ type: 'cancelTrade', tradeId: trade.id })} aria-label={L('Отменить предложение', 'Ұсынысты болдырмау', 'Cancel offer')}>
                   <Icon name="close" size={16} />
                 </button>
               </div>
@@ -317,19 +318,19 @@ function MyOffers({ pub, priv, me, send, busy, bans, mine }: { pub: PublicState;
                       <span className="grow">
                         <b>{name(id)}</b>{' '}
                         <small>
-                          {!r && 'думает…'}
-                          {r?.kind === 'accept' && 'согласен'}
-                          {r?.kind === 'decline' && 'отказ'}
+                          {!r && L('думает…', 'ойланып жатыр…', 'thinking…')}
+                          {r?.kind === 'accept' && L('согласен', 'келісті', 'agrees')}
+                          {r?.kind === 'decline' && L('отказ', 'бас тартты', 'declined')}
                           {r?.kind === 'counter' && (
                             <span className="counter-line">
-                              встречное: <ResChips value={r.give} /> → <ResChips value={r.want} />
+                              {L('встречное:', 'қарсы ұсыныс:', 'counter:')} <ResChips value={r.give} /> → <ResChips value={r.want} />
                             </span>
                           )}
                         </small>
                       </span>
                       {ready(trade, id) && (
                         <button className="btn primary small-act" disabled={busy} onClick={() => send({ type: 'confirmTrade', tradeId: trade.id, with: id })}>
-                          Обменяться
+                          {L('Обменяться', 'Айырбастау', 'Trade')}
                         </button>
                       )}
                     </li>

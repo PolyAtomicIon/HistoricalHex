@@ -7,6 +7,7 @@ import { eraCover, eraThumb, eraIcon } from './era';
 import { ArtIcon, Icon } from './icons';
 import { inTelegram } from './tg';
 import { Sheet } from './Sheet';
+import { L } from '../i18n/l';
 
 /** Вход через Telegram временно скрыт (весь код на месте). */
 const SHOW_TELEGRAM = false;
@@ -74,34 +75,34 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
               {!p.telegram && !p.portal && <Icon name="feather" size={14} />}
             </button>
           )}
-          <div className="faint small">{p.portal ? 'AQL Portal' : p.telegram ? `Telegram${p.username ? ` · @${p.username}` : ''}` : 'Гость на этом устройстве'}</div>
+          <div className="faint small">{p.portal ? 'AQL Portal' : p.telegram ? `Telegram${p.username ? ` · @${p.username}` : ''}` : L('Гость на этом устройстве', 'Осы құрылғыдағы қонақ', 'Guest on this device')}</div>
         </div>
         <div className="pf-rating">
           <b className="display">{p.rating}</b>
-          <small>рейтинг</small>
+          <small>{L('рейтинг', 'рейтинг', 'rating')}</small>
         </div>
       </div>
 
       <div className="seg">
         <button aria-pressed={tab === 'me'} onClick={() => setTab('me')}>
-          Мой профиль
+          {L('Мой профиль', 'Менің профилім', 'My profile')}
         </button>
         <button aria-pressed={tab === 'top'} onClick={() => setTab('top')}>
-          Лучшие игроки
+          {L('Лучшие игроки', 'Үздік ойыншылар', 'Top players')}
         </button>
       </div>
 
       {tab === 'me' ? (
         <>
           <div className="pf-stats">
-            <Stat n={p.games} l="партий" />
-            <Stat n={p.wins} l="побед" />
-            <Stat n={`${rate}%`} l="побед из всех" />
-            <Stat n={p.streak} l={p.playedToday ? 'дней подряд' : 'дней подряд · сыграй сегодня'} hot={p.streak > 0} />
+            <Stat n={p.games} l={L('партий', 'ойын', 'games')} />
+            <Stat n={p.wins} l={L('побед', 'жеңіс', 'wins')} />
+            <Stat n={`${rate}%`} l={L('побед из всех', 'жеңіс үлесі', 'win rate')} />
+            <Stat n={p.streak} l={p.playedToday ? L('дней подряд', 'күн қатарынан', 'days in a row') : L('дней подряд · сыграй сегодня', 'күн қатарынан · бүгін ойна', 'days in a row · play today')} hot={p.streak > 0} />
           </div>
-          {p.streakBest > 1 && <p className="faint small center">Лучшая серия: {p.streakBest} дн.</p>}
+          {p.streakBest > 1 && <p className="faint small center">{L('Лучшая серия: {n} дн.', 'Үздік серия: {n} күн', 'Best streak: {n} d', { n: p.streakBest })}</p>}
 
-          <div className="label">Коллекция эпох · {Object.keys(p.eras).length}/{LORE_PACKS.length}</div>
+          <div className="label">{L('Коллекция эпох', 'Дәуірлер жинағы', 'Era collection')} · {Object.keys(p.eras).length}/{LORE_PACKS.length}</div>
           <div className="pf-eras">
             {LORE_PACKS.map((e) => {
               const s = p.eras[e.id];
@@ -109,7 +110,7 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
                 <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraThumb(e.id)})` }}>
                   <ArtIcon src={eraIcon(e.id, 'emblem')} size={40} />
                   <b>{e.title}</b>
-                  <small>{s ? `${s.games} парт. · ${s.wins} побед` : 'ещё не играл'}</small>
+                  <small>{s ? L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', '{g} games · {w} wins', { g: s.games, w: s.wins }) : L('ещё не играл', 'әлі ойнамаған', 'not played yet')}</small>
                 </div>
               );
             })}
@@ -118,11 +119,11 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
           {!p.portal && data.portal && (
             <div className="portal-login">
               <span className="pl-text">
-                <b>Войди через AQL Portal</b>
-                <small>Профиль, рейтинг и серия — твои на любом устройстве</small>
+                <b>{L('Войди через AQL Portal', 'AQL Portal арқылы кір', 'Sign in with AQL Portal')}</b>
+                <small>{L('Профиль, рейтинг и серия — твои на любом устройстве', 'Профиль, рейтинг және серия — кез келген құрылғыда сенімен', 'Your profile, rating and streak on any device')}</small>
               </span>
               <a className="btn primary" href={portalLoginUrl(data.portal)}>
-                Войти
+                {L('Войти', 'Кіру', 'Sign in')}
               </a>
             </div>
           )}
@@ -131,27 +132,27 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
               <Icon name="star" size={18} />
               <span>
                 {inTelegram()
-                  ? 'Входим через Telegram…'
+                  ? L('Входим через Telegram…', 'Telegram арқылы кіріп жатырмыз…', 'Signing in with Telegram…')
                   : data.tgBot
-                    ? 'Войди через Telegram — профиль и рейтинг будут с тобой на любом телефоне. Бот пришлёт подтверждение.'
-                    : 'Статистика пока хранится на этом устройстве. Скоро — вход через Telegram.'}
+                    ? L('Войди через Telegram — профиль и рейтинг будут с тобой на любом телефоне. Бот пришлёт подтверждение.', 'Telegram арқылы кір — профиль мен рейтинг кез келген телефонда сенімен болады. Бот растау жібереді.', 'Sign in with Telegram to keep your profile and rating on any phone. The bot will send a confirmation.')
+                    : L('Статистика пока хранится на этом устройстве. Скоро — вход через Telegram.', 'Статистика әзірге осы құрылғыда сақталады. Жақында — Telegram арқылы кіру.', 'Stats are stored on this device for now. Telegram sign-in is coming soon.')}
               </span>
             </div>
           )}
           {SHOW_TELEGRAM && !p.telegram && data.tgBot && !inTelegram() && (
             <div className="row">
               <a className={`btn grow tg-btn ${tgLink ? '' : 'disabled'}`} href={tgLink} target="_blank" rel="noreferrer">
-                Войти через Telegram
+                {L('Войти через Telegram', 'Telegram арқылы кіру', 'Sign in with Telegram')}
               </a>
               <a className="btn grow" href={`https://t.me/${data.tgBot}/play`} target="_blank" rel="noreferrer">
-                Играть в Telegram
+                {L('Играть в Telegram', 'Telegram-да ойнау', 'Play in Telegram')}
               </a>
             </div>
           )}
         </>
       ) : (
         <ol className="list leaders">
-          {data.leaders.length === 0 && <p className="muted center">Пока никого — сыграй первую партию!</p>}
+          {data.leaders.length === 0 && <p className="muted center">{L('Пока никого — сыграй первую партию!', 'Әзірге ешкім жоқ — алғашқы ойынды ойна!', 'Nobody yet — play the first game!')}</p>}
           {data.leaders.map((r) => (
             <li key={r.id}>
               <button className={`item lead ${r.id === p.id ? 'me' : ''}`} onClick={() => setWho({ pid: r.id, name: r.name })}>
@@ -160,10 +161,10 @@ export function ProfileView({ initialTab = 'me' }: { initialTab?: 'me' | 'top' }
               <div className="grow">
                 <div className="t">
                   {r.name}
-                  {r.ai && <span className="ai-tag">ИИ</span>}
+                  {r.ai && <span className="ai-tag">{L('ИИ', 'ЖИ', 'AI')}</span>}
                 </div>
                 <div className="s">
-                  {r.games} парт. · {r.wins} побед
+                  {L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', '{g} games · {w} wins', { g: r.games, w: r.wins })}
                 </div>
               </div>
               <b>{r.rating}</b>
@@ -201,13 +202,13 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
         <div className="grow">
           <div className="pf-name">{name}</div>
           <div className="faint small">
-            {p?.ai ? `ИИ · ${p.ai.style} · ${p.ai.level === 'easy' ? 'лёгкий' : p.ai.level === 'medium' ? 'средний' : 'сложный'}` : p?.telegram ? 'Telegram' : 'Игрок'}
+            {p?.ai ? `${L('ИИ', 'ЖИ', 'AI')} · ${p.ai.style} · ${p.ai.level === 'easy' ? L('лёгкий', 'жеңіл', 'easy') : p.ai.level === 'medium' ? L('средний', 'орташа', 'medium') : L('сложный', 'қиын', 'hard')}` : p?.telegram ? 'Telegram' : L('Игрок', 'Ойыншы', 'Player')}
           </div>
         </div>
         {p && (
           <div className="pf-rating">
             <b className="display">{p.rating}</b>
-            <small>рейтинг</small>
+            <small>{L('рейтинг', 'рейтинг', 'rating')}</small>
           </div>
         )}
       </div>
@@ -216,17 +217,17 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
           <div className="spinner" />
         </div>
       )}
-      {p === null && <p className="muted">Профиля пока нет — это первая партия игрока.</p>}
+      {p === null && <p className="muted">{L('Профиля пока нет — это первая партия игрока.', 'Профиль әзірге жоқ — бұл ойыншының алғашқы ойыны.', 'No profile yet — this is the player’s first game.')}</p>}
       {p && (
         <>
           {p.ai && <p className="muted pf-bio">{p.ai.bio}</p>}
           <div className="pf-stats">
-            <Stat n={p.games} l="партий" />
-            <Stat n={p.wins} l="побед" />
-            <Stat n={`${p.games ? Math.round((p.wins / p.games) * 100) : 0}%`} l="побед из всех" />
-            <Stat n={p.streakBest} l="лучшая серия, дн." />
+            <Stat n={p.games} l={L('партий', 'ойын', 'games')} />
+            <Stat n={p.wins} l={L('побед', 'жеңіс', 'wins')} />
+            <Stat n={`${p.games ? Math.round((p.wins / p.games) * 100) : 0}%`} l={L('побед из всех', 'жеңіс үлесі', 'win rate')} />
+            <Stat n={p.streakBest} l={L('лучшая серия, дн.', 'үздік серия, күн', 'best streak, d')} />
           </div>
-          <div className="label">Эпохи</div>
+          <div className="label">{L('Эпохи', 'Дәуірлер', 'Eras')}</div>
           <div className="pf-eras">
             {LORE_PACKS.map((e) => {
               const s = p.eras[e.id];
@@ -234,7 +235,7 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
                 <div key={e.id} className={`pf-era ${s ? 'got' : ''}`} style={{ backgroundImage: `url(${eraThumb(e.id)})` }}>
                   <ArtIcon src={eraIcon(e.id, 'emblem')} size={36} />
                   <b>{e.title}</b>
-                  <small>{s ? `${s.games} парт. · ${s.wins} побед` : 'не играл'}</small>
+                  <small>{s ? L('{g} парт. · {w} побед', '{g} ойын · {w} жеңіс', '{g} games · {w} wins', { g: s.games, w: s.wins }) : L('не играл', 'ойнамаған', 'not played')}</small>
                 </div>
               );
             })}
@@ -244,7 +245,7 @@ export function PlayerProfileCard({ pid, name, color, onShow }: { pid: string; n
       {p && !p.ai && <FriendActions id={p.id} />}
       {onShow && (
         <button className="btn wide" onClick={onShow}>
-          <Icon name="layers" /> Показать постройки на карте
+          <Icon name="layers" /> {L('Показать постройки на карте', 'Құрылыстарды картада көрсету', 'Show buildings on the map')}
         </button>
       )}
     </div>
@@ -276,11 +277,11 @@ function FriendActions({ id }: { id: string }) {
     <div className="pf-friend">
       {where && !here && (
         <button className="btn primary wide" onClick={() => conn.open(where.pin)}>
-          <Icon name={where.state === 'playing' ? 'eye' : 'door'} size={18} /> {where.state === 'playing' ? 'Смотреть партию' : 'Зайти в лобби'}
+          <Icon name={where.state === 'playing' ? 'eye' : 'door'} size={18} /> {where.state === 'playing' ? L('Смотреть партию', 'Ойынды көру', 'Watch game') : L('Зайти в лобби', 'Лоббиге кіру', 'Join lobby')}
         </button>
       )}
       <button className={`btn wide ${on ? 'ghost' : ''}`} onClick={() => conn.send({ t: 'friend', id, on: !on })}>
-        <Icon name={on ? 'check' : 'plus'} size={18} /> {on ? 'В друзьях' : 'Добавить в друзья'}
+        <Icon name={on ? 'check' : 'plus'} size={18} /> {on ? L('В друзьях', 'Достарда', 'Friends') : L('Добавить в друзья', 'Досқа қосу', 'Add friend')}
       </button>
     </div>
   );

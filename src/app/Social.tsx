@@ -10,6 +10,7 @@ import { eraCoverMd, eraIcon } from './era';
 import { Sheet } from './Sheet';
 export { ProfileSheet } from './Profile';
 import { t3, type Lang, type T3 } from './learn/lang';
+import { L } from '../i18n/l';
 
 const S: Record<string, T3> = {
   live: { ru: 'Сейчас играют', kz: 'Қазір ойнап жатыр', en: 'Playing now' },
@@ -229,7 +230,7 @@ export function RecentGames({ recent, lang, onPlayer }: { recent: RecentGame[]; 
                     <span className="pf-ava sm">{p.bot ? <Icon name="bot" size={16} /> : p.name.charAt(0).toUpperCase()}</span>
                     <span className="nm">
                       {p.name}
-                      {p.ai && <span className="ai-tag">ИИ</span>}
+                      {p.ai && <span className="ai-tag">{L('ИИ', 'ЖИ', 'AI')}</span>}
                       {p.winner && <Icon name="crown" size={14} />}
                     </span>
                     <b>
@@ -294,7 +295,7 @@ export function InviteToast() {
     <div className="invite-toast glass" role="alert" key={invite.key}>
       <ArtIcon src={eraIcon(invite.era, 'emblem')} size={34} />
       <span className="grow">
-        <b>{invite.from} зовёт в партию</b>
+        <b>{L('{name} зовёт в партию', '{name} ойынға шақырады', '{name} invites you to a game', { name: invite.from })}</b>
         <small>
           {eraName(invite.era)} · PIN {invite.pin}
         </small>
@@ -306,9 +307,9 @@ export function InviteToast() {
           conn.open(invite.pin);
         }}
       >
-        Открыть
+        {L('Открыть', 'Ашу', 'Open')}
       </button>
-      <button className="it-x" aria-label="Закрыть" onClick={() => conn.dismissInvite()}>
+      <button className="it-x" aria-label={L('Закрыть', 'Жабу', 'Close')} onClick={() => conn.dismissInvite()}>
         <Icon name="close" size={16} />
       </button>
     </div>
@@ -329,7 +330,7 @@ export function InviteFriends() {
   if (!list.length || !room?.seated) return null;
   return (
     <section className="panel glass stack lb-friends">
-      <span className="label">Позвать друзей</span>
+      <span className="label">{L('Позвать друзей', 'Достарды шақыру', 'Invite friends')}</span>
       <ul className="lbf-list">
         {list.slice(0, 8).map((f) => {
           const done = (sent[f.id] ?? 0) > Date.now() - 30_000;
@@ -341,7 +342,7 @@ export function InviteFriends() {
               </span>
               <span className="grow">
                 <b>{f.name}</b>
-                <small>{f.where ? (f.where.state === 'playing' ? 'играет' : 'в другом лобби') : f.online ? 'в сети' : 'придёт уведомление'}</small>
+                <small>{f.where ? (f.where.state === 'playing' ? L('играет', 'ойнап жатыр', 'playing') : L('в другом лобби', 'басқа лоббиде', 'in another lobby')) : f.online ? L('в сети', 'желіде', 'online') : L('придёт уведомление', 'хабарлама барады', 'will be notified')}</small>
               </span>
               <button
                 className={`btn small-act ${done ? 'ghost' : ''}`}
@@ -351,7 +352,7 @@ export function InviteFriends() {
                   setSent((x) => ({ ...x, [f.id]: Date.now() }));
                 }}
               >
-                {done ? 'Позвали' : 'Позвать'}
+                {done ? L('Позвали', 'Шақырылды', 'Invited') : L('Позвать', 'Шақыру', 'Invite')}
               </button>
             </li>
           );

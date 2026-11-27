@@ -1,3 +1,4 @@
+import { L } from '../i18n/l';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { sfx, haptic } from './sfx';
 import { FxPortal, prefersReducedMotion, rand } from './util';
@@ -137,7 +138,7 @@ export function Cinematic({ event, tv = false, mini = false }: { event: Cinemati
     return (
       <FxPortal>
         <div key={active.key} className={`fx-cin-mini fx-cin-${active.kind}`} style={style} role="status">
-          <button className="fx-mini-card" onClick={() => setActive(null)} aria-label="Закрыть">
+          <button className="fx-mini-card" onClick={() => setActive(null)} aria-label={L('Закрыть', 'Жабу', 'Close')}>
             <span className="fx-mini-ic">{active.img ? <img src={active.img} alt="" /> : active.emoji}</span>
             <span className="fx-mini-txt">
               <b>{active.title}</b>
@@ -155,7 +156,7 @@ export function Cinematic({ event, tv = false, mini = false }: { event: Cinemati
         style={style}
         onClick={tv ? undefined : () => setActive(null)}
         role={tv ? undefined : 'button'}
-        aria-label={tv ? undefined : 'Закрыть'}
+        aria-label={tv ? undefined : L('Закрыть', 'Жабу', 'Close')}
       >
         <div className="fx-cin-vignette" />
         <div className="fx-cin-flash" />
