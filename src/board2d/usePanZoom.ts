@@ -7,13 +7,19 @@ import type { PointerEvent as RPointerEvent } from 'react';
 const MIN = 1;
 const MAX = 3.2;
 const SLOP = 8;
+// Палец на телефоне дрожит сильнее мыши: до этого сдвига касание ещё считается тапом
+const TOUCH_SLOP = 14;
+// Поворот карты свайпом — только явный быстрый взмах, чтобы случайное касание не крутило поле
+const SWIPE_MIN_DX = 110;
+const SWIPE_MAX_MS = 450;
+const SWIPE_RATIO = 2.2;
 
 export function usePanZoom(enabled: boolean, onSwipe?: (dir: 1 | -1) => void) {
   const ref = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const t = useRef({ s: 1, x: 0, y: 0 });
   const pts = useRef(new Map<number, { x: number; y: number }>());
-  const g = useRef<{ moved: boolean; sx: number; sy: number; d0: number; s0: number; x0: number; y0: number; mx: number; my: number; lx?: number; ly?: number; multi?: boolean } | null>(null);
+  const g = useRef<{ moved: boolean; sx: number; sy: number; d0: number; s0: number; x0: number; y0: number; mx: number; my: number; lx?: number; ly?: number; multi?: boolean; t0?: number; touch?: boolean } | null>(null);
   const swipeRef = useRef(onSwipe);
   swipeRef.current = onSwipe;
   const suppress = useRef(false);
@@ -80,7 +86,7 @@ export function usePanZoom(enabled: boolean, onSwipe?: (dir: 1 | -1) => void) {
     pts.current.set(e.pointerId, local(e));
     const p = [...pts.current.values()];
     if (p.length === 1) {
-      g.current = { moved: false, sx: p[0].x, sy: p[0].y, d0: 0, s0: t.current.s, x0: t.current.x, y0: t.current.y, mx: 0, my: 0 };
+      g.current = { moved: false, sx: p[0].x, sy: p[0].y, d0: 0, s0: t.current.s, x0: t.current.x, y0: t.current.y, mx: 0, my: 0, t0: performance.now(), touch: e.pointerType !== 'mouse' };
       suppress.current = false;
     } else if (p.length === 2) {
       const mx = (p[0].x + p[1].x) / 2;
@@ -109,7 +115,7 @@ export function usePanZoom(enabled: boolean, onSwipe?: (dir: 1 | -1) => void) {
     const dy = p[0].y - st.sy;
     st.lx = p[0].x;
     st.ly = p[0].y;
-    if (!st.moved && Math.hypot(dx, dy) < SLOP) return;
+    if (!st.moved && Math.hypot(dx, dy) < (st.touch ? TOUCH_SLOP : SLOP)) return;
     if (!st.moved) {
       st.moved = true;
       suppress.current = true;
@@ -138,7 +144,8 @@ export function usePanZoom(enabled: boolean, onSwipe?: (dir: 1 | -1) => void) {
       if (st && st.moved && !st.multi && s <= 1.02 && st.lx !== undefined && st.ly !== undefined) {
         const dx = st.lx - st.sx;
         const dy = st.ly - st.sy;
-        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) swipeRef.current?.(dx > 0 ? 1 : -1);
+        const quick = st.t0 === undefined || performance.now() - st.t0 < SWIPE_MAX_MS;
+        if (quick && Math.abs(dx) > SWIPE_MIN_DX && Math.abs(dx) > Math.abs(dy) * SWIPE_RATIO) swipeRef.current?.(dx > 0 ? 1 : -1);
       }
       // Двойной тап по пустому месту — приблизить/отдалить
       if (g.current && !g.current.moved) {

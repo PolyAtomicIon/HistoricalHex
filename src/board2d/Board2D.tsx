@@ -86,7 +86,9 @@ export function Board2D(props: Board2DProps) {
   // Поворот карты свайпом влево-вправо (шаг 60° — сетка гексов совпадает сама с собой)
   const [rot, setRot] = useState(0);
   const look = useBoardLook();
-  const pz = usePanZoom(!props.static, (d) => setRot((r) => r + d * 60));
+  // Пока выбираешь место для постройки (есть подсветка), свайп поле не крутит — промах пальцем не сбивает вид
+  const picking = !!(highlight && ((highlight.vertices?.length ?? 0) + (highlight.edges?.length ?? 0) + (highlight.hexes?.length ?? 0) > 0));
+  const pz = usePanZoom(!props.static, picking ? undefined : (d) => setRot((r) => r + d * 60));
   const tiles = useImages(TERRAINS.map((t) => eraIcon(era, `tile-${t}`)));
   const unit = useImages([eraIcon(era, 'camp'), eraIcon(era, 'robber-unit')]);
   const shipSrc = `${import.meta.env.BASE_URL}eras/ship.webp`;
