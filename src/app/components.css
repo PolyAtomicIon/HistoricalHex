@@ -7714,3 +7714,17 @@ html.lite .hub-hero-img { animation: none; }
 .pstep-subrow.ready .pstep-st { color: var(--good); }
 .pstep-subrow.broken .pstep-st { color: var(--bad); }
 .pstep-body.tappable b::after { white-space: nowrap; }
+
+/* аватар с фото — ровный круг: картинка прибита к кругу, а не растягивает его по своей высоте
+   (у .fr/.lbf-list overflow: visible ради точки «в сети», и Safari давал фото вылезти на имя) */
+.pf-ava { position: relative; aspect-ratio: 1; }
+.pf-ava > img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.pf-ava > i { z-index: 1; }
