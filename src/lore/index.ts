@@ -1,3 +1,5 @@
+import { getLang, onLangChange } from '../app/learn/lang';
+import { localizePacks } from './tr';
 // Реестр пакетов эпох и рассказчик.
 
 import { GENGHIS_PACK } from './packs/genghis';
@@ -13,6 +15,12 @@ export type { LoreFact, LorePack, NarrationKey } from './types';
 export { CLASSIC_PACK, GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK };
 
 export const LORE_PACKS: LorePack[] = [CLASSIC_PACK, GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK];
+
+// Тексты эпох — на языке интерфейса (перевод накладывается на месте при смене языка)
+if (typeof window !== 'undefined') {
+  localizePacks(LORE_PACKS, getLang());
+  onLangChange(() => localizePacks(LORE_PACKS, getLang()));
+}
 
 /** Пакет по id; если такого нет — первый в списке. */
 export function getLorePack(id?: string | null): LorePack {

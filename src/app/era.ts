@@ -7,6 +7,7 @@ import { getLorePack } from '../lore';
 import { DEV_CARD_NAME, RESOURCE_NAME, ROBBER, TERRAIN_NAME } from '../i18n/ru';
 import { RESOURCE_ICON } from '../ui/theme';
 import { playEraMusic } from '../fx/music';
+import { getLang, useLang } from './learn/lang';
 
 const BASE = {
   res: { ...RESOURCE_NAME },
@@ -20,8 +21,10 @@ let applied: string | undefined;
 export let currentEra = 'genghis';
 
 export function applyEra(pack: LorePack | undefined): void {
-  if (applied === (pack?.id ?? '')) return;
-  applied = pack?.id ?? '';
+  // ключ с языком: при смене языка названия ресурсов/карт берутся из переведённого пакета
+  const key = `${pack?.id ?? ''}:${getLang()}`;
+  if (applied === key) return;
+  applied = key;
   if (pack) currentEra = pack.id;
   playEraMusic(pack?.id ?? null);
   ROBBER.name = pack ? pack.robber.name : 'Разбойник';
@@ -43,9 +46,10 @@ export function applyEra(pack: LorePack | undefined): void {
 }
 
 export function useEra(id: string | undefined): LorePack {
+  const [lang] = useLang();
   const pack = useMemo(() => getLorePack(id ?? ''), [id]);
   applyEra(pack);
-  useEffect(() => applyEra(pack), [pack]);
+  useEffect(() => applyEra(pack), [pack, lang]);
   return pack;
 }
 

@@ -7728,3 +7728,8 @@ html.lite .hub-hero-img { animation: none; }
   border-radius: 50%;
 }
 .pf-ava > i { z-index: 1; }
+
+/* лобби: блоки не сжимаются под высоту экрана (иначе на iPhone 12 панели сплющивались,
+   текст налезал друг на друга, а листать было нечего) — колонка просто прокручивается */
+.lobby-col > * { flex-shrink: 0; }
+.lobby-col::after { content: ''; flex: none; height: 1px; }

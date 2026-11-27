@@ -1,5 +1,5 @@
 // Язык обучения и справочника правил: русский, казахский, английский.
-// Переведены: главный экран, обучение и правила. Остальной интерфейс партии пока на русском.
+// Весь интерфейс переводится через L(ru, kz, en) из src/i18n/l.ts; эпохи — через src/lore/tr.
 
 import { useSyncExternalStore } from 'react';
 
@@ -27,8 +27,22 @@ function read(): Lang {
 let lang: Lang = read();
 const subs = new Set<() => void>();
 
+/** Текущий язык — для текстов вне React (функции форматирования, события). */
+export const getLang = (): Lang => lang;
+/** Подписка на смену языка вне React (перевод пакетов эпох). */
+export function onLangChange(f: () => void): () => void {
+  subs.add(f);
+  return () => subs.delete(f);
+}
+
 export function setLang(l: Lang): void {
+  if (l === lang) return;
   lang = l;
+  try {
+    document.documentElement.lang = l === 'kz' ? 'kk' : l;
+  } catch {
+    /* ok */
+  }
   try {
     localStorage.setItem(KEY, l);
   } catch {

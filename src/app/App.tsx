@@ -3,6 +3,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { conn, useConn } from '../client/conn';
 import { Home } from './Home';
+import { useLang } from './learn/lang';
 
 import { InviteToast } from './Social';
 
@@ -17,6 +18,8 @@ const tvMode = params.has('tv');
 export function App() {
   const state = useConn();
   const room = state.room;
+  // Смена языка перерисовывает всё приложение: тексты берутся через L() на каждом рендере
+  useLang();
 
   useEffect(() => {
     conn.start();
