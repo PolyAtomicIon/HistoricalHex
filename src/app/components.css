@@ -7607,28 +7607,25 @@ html.lite .hub-glow { display: none; }
   .hub-hero-img { animation: none; }
 }
 
-/* плашка статуса: длинный текст переносится в 2 строки, таймер всегда виден */
+/* плашка статуса: одна строка с многоточием, по тапу — полный текст в панели; таймер всегда виден */
 .hud-stack .status-pill,
 .hud-stack .status-pill.ticker {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  white-space: normal;
-  text-overflow: clip;
+  white-space: nowrap;
   max-width: calc(100% - 112px);
   line-height: 1.25;
-  text-align: center;
+  cursor: pointer;
 }
 .hud-stack .status-pill .sp-text,
 .hud-stack .status-pill.ticker span {
   min-width: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   overflow: hidden;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
+.status-full { font-size: 17px; line-height: 1.4; margin: 0; }
 .hud-stack .status-pill .tclock { flex: none; }
 
 /* входящий обмен: кто предлагает и подписанные стороны «отдаёшь / получаешь» */

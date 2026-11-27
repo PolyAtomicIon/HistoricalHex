@@ -52,7 +52,7 @@ import { LOOK_DEFAULT, setBoardLook, setFacts, setFxStyle, setPlanNudge, useBoar
 import type { FxStyle } from './prefs';
 
 type BuildMode = 'road' | 'settlement' | 'city';
-type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info';
+type SheetId = null | 'trade' | 'incoming' | 'dev' | 'plenty' | 'monopoly' | 'menu' | 'leave' | 'plan' | 'lore' | 'dice' | 'react' | 'players' | 'fact' | 'pprofile' | 'info' | 'status';
 type PlanPick = null | 'road' | 'settlement' | 'city';
 
 interface Targets {
@@ -538,7 +538,13 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
               <span>{tick.text}</span>
             </div>
           ) : (
-            <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
+            <div
+              key={`s${status}`}
+              className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`}
+              aria-live="polite"
+              role="button"
+              onClick={() => setSheet('status')}
+            >
               <span className="sp-text">{status}</span>
               {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
             </div>
@@ -825,6 +831,21 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             if (ok) setSheet(null);
           }}
         />
+      </Sheet>
+
+      <Sheet open={sheet === 'status'} onClose={() => setSheet(null)} title="Сейчас">
+        <div className="stack">
+          <p className="status-full">{status}</p>
+          <button
+            className="btn wide"
+            onClick={() => {
+              setInfoTab('log');
+              setSheet('info');
+            }}
+          >
+            <Icon name="book" /> История ходов
+          </button>
+        </div>
       </Sheet>
 
       <Sheet open={sheet === 'info'} onClose={() => setSheet(null)} title="Сводка стола">
