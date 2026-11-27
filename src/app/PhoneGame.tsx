@@ -66,9 +66,9 @@ interface Targets {
 const AUTO_ROLL_KEY = 'hh.autoroll';
 const readAuto = () => {
   try {
-    return localStorage.getItem(AUTO_ROLL_KEY) === '1';
+    return localStorage.getItem(AUTO_ROLL_KEY) !== '0';
   } catch {
-    return false;
+    return true;
   }
 };
 
@@ -745,7 +745,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           attacking={attacking}
           cancelCountdown={() => setCountdown(null)}
           physical={physical}
-          serverRoll={!!room.settings.autoRoll && !physical}
+          serverRoll={(!!room.settings.autoRoll || autoRoll) && !physical}
           planCount={plan.length}
           planBroken={broken}
         />
