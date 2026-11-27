@@ -7679,3 +7679,38 @@ html.lite .hub-hero-img { animation: none; }
 /* друзья: имя не упирается в края плитки — свисающие буквы не срезаются */
 .fr { width: 76px; }
 .fr b { box-sizing: border-box; padding: 0 3px; text-align: center; }
+
+/* план: поселение вместе с дорогами к нему — один пункт, дороги свёрнуты под ним */
+.pstep { flex-direction: column; align-items: stretch; gap: 6px; }
+.pstep-row { display: flex; align-items: center; gap: 10px; }
+.pstep-sub-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin-left: 48px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+.pstep-sub-toggle .grow { flex: 1; }
+.pstep-sub { list-style: none; margin: 0 0 0 48px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pstep-subrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 13px;
+}
+.pstep-subrow.ready .pstep-st { color: var(--good); }
+.pstep-subrow.broken .pstep-st { color: var(--bad); }
+.pstep-body.tappable b::after { white-space: nowrap; }

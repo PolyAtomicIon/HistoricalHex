@@ -259,7 +259,9 @@ const wss = new WebSocketServer({
 
 wss.on('error', (e) => console.error('wss error', e));
 
-const alive = new WeakMap<WebSocket, boolean>();
+// Сколько пингов подряд осталось без ответа. На раздаче с телефона пакеты иногда опаздывают —
+// рвём соединение только после двух пропусков подряд (~30–45 с тишины), а не после первого.
+const missed = new WeakMap<WebSocket, number>();
 /** События интерфейса, которые клиент может прислать в журнал. */
 const TRACK = new Set(['tutorialStart', 'tutorialDone', 'tutorialSkip', 'rulesOpen', 'rulesSearch']);
 /** Сколько комнат создало соединение (защита от спама комнатами). */
@@ -270,8 +272,8 @@ wss.on('connection', (ws: WebSocket, req) => {
   let me: string | undefined;
   let created = 0;
   let errs = 0;
-  alive.set(ws, true);
-  ws.on('pong', () => alive.set(ws, true));
+  missed.set(ws, 0);
+  ws.on('pong', () => missed.set(ws, 0));
   ws.on('error', () => ws.terminate());
   let room: Room | undefined;
   let msgCount = 0;
@@ -506,6 +508,7 @@ wss.on('connection', (ws: WebSocket, req) => {
   };
 
   ws.on('message', (raw) => {
+    missed.set(ws, 0); // любое сообщение от клиента — знак, что связь жива
     let msg: ClientMsg;
     try {
       msg = JSON.parse(String(raw));
@@ -550,11 +553,12 @@ setInterval(() => {
 // чтобы игрок считался отключённым и его вовремя заменил бот.
 setInterval(() => {
   for (const ws of wss.clients) {
-    if (alive.get(ws) === false) {
+    const m = missed.get(ws) ?? 0;
+    if (m >= 2) {
       ws.terminate();
       continue;
     }
-    alive.set(ws, false);
+    missed.set(ws, m + 1);
     if (ws.readyState === ws.OPEN) ws.ping();
   }
 }, 15_000);

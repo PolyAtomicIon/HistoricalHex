@@ -18,7 +18,8 @@ import {
 import { RESOURCE_NAME, resourcesText } from '../i18n/ru';
 
 export type PlanStep =
-  | { id: string; kind: 'road'; at: EdgeId }
+  /** for — id поселения, к которому ведёт эта дорога: в списке плана она свёрнута под ним. */
+  | { id: string; kind: 'road'; at: EdgeId; for?: string }
   | { id: string; kind: 'settlement'; at: VertexId }
   | { id: string; kind: 'city'; at: VertexId }
   | { id: string; kind: 'devCard' }
@@ -406,4 +407,96 @@ export function counterIdeas(want: ResourceMap, give: ResourceMap, hand: Resourc
     push({ give: g, get: { ...give }, label: `Вместо — ${RESOURCE_NAME[r]}` });
   }
   return out.slice(0, 3);
+}
+
+
+// ─── группы шагов: поселение вместе с дорогами к нему ───
+
+/** Пункт списка плана: главный шаг и дороги, которые к нему ведут (в плане они стоят перед ним). */
+export interface PlanUnit {
+  main: CheckedStep;
+  roads: CheckedStep[];
+  status: StepStatus;
+  missing: Partial<ResourceMap>;
+  reason?: string;
+}
+
+const rank: Record<StepStatus, number> = { ready: 0, short: 1, broken: 2 };
+
+/** Собрать проверенный план в пункты: дорога с for прячется под своё поселение. */
+export function planUnits(checked: CheckedStep[]): PlanUnit[] {
+  const ids = new Set(checked.map((c) => c.step.id));
+  const under = new Map<string, CheckedStep[]>();
+  for (const c of checked) {
+    if (c.step.kind === 'road' && c.step.for && ids.has(c.step.for)) {
+      const list = under.get(c.step.for) ?? [];
+      list.push(c);
+      under.set(c.step.for, list);
+    }
+  }
+  const out: PlanUnit[] = [];
+  for (const c of checked) {
+    if (c.step.kind === 'road' && c.step.for && ids.has(c.step.for)) continue;
+    const roads = under.get(c.step.id) ?? [];
+    const all = [...roads, c];
+    const worst = all.reduce((w, x) => (rank[x.status] > rank[w.status] ? x : w), c);
+    const missing: Partial<ResourceMap> = {};
+    for (const x of all) for (const r of RESOURCES) if (x.missing?.[r]) missing[r] = (missing[r] ?? 0) + x.missing[r]!;
+    out.push({ main: c, roads, status: worst.status, missing, reason: worst.reason });
+  }
+  return out;
+}
+
+/** Шаги пункта в порядке выполнения: сначала дороги, потом само поселение. */
+const unitSteps = (u: PlanUnit): PlanStep[] => [...u.roads.map((r) => r.step), u.main.step];
+
+/** Переставить пункт (вместе с его дорогами) на место другого. */
+export function moveUnit(units: PlanUnit[], from: number, to: number): PlanStep[] {
+  const a = [...units];
+  const [x] = a.splice(from, 1);
+  a.splice(to, 0, x);
+  return a.flatMap(unitSteps);
+}
+
+/** Убрать пункт целиком: поселение уходит вместе с дорогами к нему. */
+export function removeUnit(plan: PlanStep[], u: PlanUnit): PlanStep[] {
+  const drop = new Set(unitSteps(u).map((s) => s.id));
+  return plan.filter((s) => !drop.has(s.id));
+}
+
+/**
+ * Упорядочить план: сначала то, что можно сделать прямо сейчас (обмены с банком — раньше стройки,
+ * которой они дают ресурс), потом остальное в прежнем порядке. Пункт берётся, только если после
+ * уже выбранных он целиком «готов» — так дорога не встанет раньше той, от которой она идёт.
+ * Возвращает null, если порядок и так лучший.
+ */
+export function smartOrder(plan: PlanStep[], pub: PublicState, priv: PrivateView, me: PlayerId): PlanStep[] | null {
+  const units = planUnits(checkPlan(plan, pub, priv, me));
+  if (units.length < 2) return null;
+  const left = [...units];
+  const picked: PlanStep[] = [];
+  const readyAfter = (u: PlanUnit) => {
+    const steps = unitSteps(u);
+    const c = checkPlan([...picked, ...steps], pub, priv, me);
+    return c.slice(picked.length).every((x) => x.status === 'ready');
+  };
+  for (;;) {
+    // банк — первым, если он сам по силам и после него что-то из оставшегося становится готовым
+    let i = left.findIndex((u) => u.main.step.kind === 'bank' && readyAfter(u));
+    if (i < 0) i = left.findIndex((u) => u.main.step.kind !== 'offer' && readyAfter(u));
+    if (i < 0) break;
+    picked.push(...unitSteps(left[i]));
+    left.splice(i, 1);
+  }
+  const next = [...picked, ...left.flatMap(unitSteps)];
+  const score = (p: PlanStep[]) => {
+    const c = checkPlan(p, pub, priv, me);
+    let n = 0;
+    while (n < c.length && c[n].status === 'ready') n++;
+    return { lead: n, broken: c.filter((x) => x.status === 'broken').length };
+  };
+  const a = score(plan);
+  const b = score(next);
+  if (b.broken > a.broken || b.lead <= a.lead) return null;
+  return next;
 }

@@ -45,7 +45,7 @@ import { ArmyRace, MarketTab, NumbersTab } from './TableInfo';
 import { TRADE_UI_LABEL, TradeCard, TradeCaravan, setTradeUi, useTradeUi } from './TradeOffer';
 import type { TradeUi } from './TradeOffer';
 import type { LogEntry } from './gameLog';
-import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, newStepId, savePlan, stepAction } from './planner';
+import { STEP_ICON, STEP_LABEL, STEP_SHORT, checkPlan, doneSteps, settlementRoutes, goalHints, loadPlan, moveUnit, newStepId, planUnits, removeUnit, savePlan, smartOrder, stepAction } from './planner';
 import { Fact, FactsList, useRotatingFact } from './Facts';
 import { useLearn } from './learn/Learn';
 import { LOOK_DEFAULT, setBoardLook, setFacts, setFxStyle, setPlanNudge, useBoardLook, useFacts, useFxStyle, usePlanNudge } from './prefs';
@@ -354,7 +354,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
       // к дальнему поселению — сначала нужные дороги
       const roads: PlanStep[] =
         planPick === 'settlement' && 'routes' in planTargets && planTargets.routes
-          ? (planTargets.routes.get(id) ?? []).map((e) => ({ id: newStepId(), kind: 'road' as const, at: e }))
+          ? (planTargets.routes.get(id) ?? []).map((e) => ({ id: newStepId(), kind: 'road' as const, at: e, for: step.id }))
           : [];
       setPlan([...plan, ...roads, step]);
       setPlanPick(null);
@@ -2241,6 +2241,7 @@ function PlanSheet({
   me?: PlayerId;
 }) {
   const [adding, setAdding] = useState<null | 'bank' | 'offer'>(null);
+  const [openUnit, setOpenUnit] = useState<string | null>(null);
   const [give, setGive] = useState<Resource | null>(null);
   const [offerGive, setOfferGive] = useState<ResourceMap>(emptyResources());
   const [offerWant, setOfferWant] = useState<ResourceMap>(emptyResources());
@@ -2300,11 +2301,13 @@ function PlanSheet({
     );
   }
 
-  const ready = checked.filter((c) => c.status === 'ready').length;
+  const units = planUnits(checked);
+  const sorted = units.length > 1 ? smartOrder(plan, pub, priv, me ?? '') : null;
+  const ready = units.filter((u) => u.status === 'ready').length;
   const missing: Partial<ResourceMap> = {};
   for (const c of checked) if (c.status === 'short' && c.missing) for (const r of RESOURCES) missing[r] = (missing[r] ?? 0) + (c.missing[r] ?? 0);
   const points = plan.filter((s) => s.kind === 'settlement' || s.kind === 'city').length;
-  const brokenN = checked.filter((c) => c.status === 'broken').length;
+  const brokenN = units.filter((u) => u.status === 'broken').length;
 
   return (
     <div className="stack">
@@ -2313,7 +2316,7 @@ function PlanSheet({
         <div className={`plan-sum ${brokenN ? 'bad' : ready === checked.length ? 'good' : ''}`}>
           <div className="ps-main">
             <b>
-              Готово {ready} из {checked.length}
+              Готово {ready} из {units.length}
             </b>
             {points > 0 && <span className="ps-vp">+{points} очк.</span>}
           </div>
@@ -2328,43 +2331,87 @@ function PlanSheet({
         <p className="muted small">Пусто. Добавь стройку — план перепроверяется после каждого чужого хода.</p>
       )}
 
-      {checked.length > 0 && (
+      {units.length > 0 && (
         <ol className="plan-steps">
-          {checked.map((c, i) => (
-            <li key={c.step.id} className={`pstep ${c.status}`}>
-              <span className="pstep-ic">
-                <Icon name={STEP_ICON[c.step.kind]} size={20} />
-              </span>
-              <div
-                className={`pstep-body ${'at' in c.step && onShow ? 'tappable' : ''}`}
-                role={'at' in c.step && onShow ? 'button' : undefined}
-                onClick={'at' in c.step && onShow ? () => onShow((c.step as { at: string }).at) : undefined}
-              >
-                <b>
-                  <span className="pstep-n">{i + 1}</span>
-                  {STEP_LABEL[c.step.kind]}
-                </b>
-                <span className="pstep-st">
-                  {c.status === 'ready' && (c.step.kind === 'bank' || c.step.kind === 'offer' ? <StepTerms step={c.step} /> : 'готово')}
-                  {c.status === 'short' && (
-                    <>
-                      не хватает <ResChips value={c.missing ?? {}} />
-                    </>
-                  )}
-                  {c.status === 'broken' && (c.reason ?? 'место занято')}
-                </span>
-              </div>
-              <div className="pstep-ctl">
-                <button className="pstep-btn" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(move(plan, i, i - 1))}>
-                  <Icon name="up" size={16} />
-                </button>
-                <button className="pstep-btn" aria-label="Убрать" onClick={() => setPlan(plan.filter((s) => s.id !== c.step.id))}>
-                  <Icon name="close" size={16} />
-                </button>
-              </div>
-            </li>
-          ))}
+          {units.map((u, i) => {
+            const c = u.main;
+            const at = 'at' in c.step ? (c.step as { at: string }).at : undefined;
+            const open = openUnit === c.step.id;
+            return (
+              <li key={c.step.id} className={`pstep ${u.status}`}>
+                <div className="pstep-row">
+                  <span className="pstep-ic">
+                    <Icon name={STEP_ICON[c.step.kind]} size={20} />
+                  </span>
+                  <div
+                    className={`pstep-body ${at && onShow ? 'tappable' : ''}`}
+                    role={at && onShow ? 'button' : undefined}
+                    onClick={at && onShow ? () => onShow(at) : undefined}
+                  >
+                    <b>
+                      <span className="pstep-n">{i + 1}</span>
+                      {STEP_LABEL[c.step.kind]}
+                    </b>
+                    <span className="pstep-st">
+                      {u.status === 'ready' && (c.step.kind === 'bank' || c.step.kind === 'offer' ? <StepTerms step={c.step} /> : 'готово')}
+                      {u.status === 'short' && (
+                        <>
+                          не хватает <ResChips value={u.missing} />
+                        </>
+                      )}
+                      {u.status === 'broken' && (u.reason ?? 'место занято')}
+                    </span>
+                  </div>
+                  <div className="pstep-ctl">
+                    <button className="pstep-btn" aria-label="Выше" disabled={i === 0} onClick={() => setPlan(moveUnit(units, i, i - 1))}>
+                      <Icon name="up" size={16} />
+                    </button>
+                    <button className="pstep-btn" aria-label="Убрать" onClick={() => setPlan(removeUnit(plan, u))}>
+                      <Icon name="close" size={16} />
+                    </button>
+                  </div>
+                </div>
+                {u.roads.length > 0 && (
+                  <button className="pstep-sub-toggle" aria-expanded={open} onClick={() => setOpenUnit(open ? null : c.step.id)}>
+                    <Icon name="road" size={14} />
+                    <span className="grow">
+                      {u.roads.length === 1 ? '+1 дорога к нему' : `+${u.roads.length} дороги к нему`}
+                    </span>
+                    <Icon name={open ? 'less' : 'down'} size={14} />
+                  </button>
+                )}
+                {open && u.roads.length > 0 && (
+                  <ul className="pstep-sub">
+                    {u.roads.map((rd, k) => (
+                      <li
+                        key={rd.step.id}
+                        className={`pstep-subrow ${rd.status}`}
+                        role={onShow ? 'button' : undefined}
+                        onClick={onShow ? () => onShow((rd.step as { at: string }).at) : undefined}
+                      >
+                        <span>Дорога {k + 1}</span>
+                        <span className="pstep-st">
+                          {rd.status === 'ready' && 'готово'}
+                          {rd.status === 'short' && (
+                            <>
+                              не хватает <ResChips value={rd.missing ?? {}} />
+                            </>
+                          )}
+                          {rd.status === 'broken' && (rd.reason ?? 'место занято')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </ol>
+      )}
+      {sorted && (
+        <button className="btn ghost wide" onClick={() => setPlan(sorted)}>
+          <Icon name="sort" size={18} /> Упорядочить: сначала то, на что хватает
+        </button>
       )}
 
       <div className="label">Добавить шаг</div>
@@ -2464,12 +2511,6 @@ function StepTerms({ step }: { step: PlanStep }) {
   return null;
 }
 
-function move<T>(a: T[], from: number, to: number): T[] {
-  const b = [...a];
-  const [x] = b.splice(from, 1);
-  b.splice(to, 0, x);
-  return b;
-}
 
 function HostTools({ room, pub, onKick }: { room: RoomView; pub: PublicState; onKick: () => void }) {
   if (pub.phase === 'finished') return null;

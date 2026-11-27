@@ -5,6 +5,9 @@ import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  ArrowDownUp,
+  ChevronDown,
+  ChevronUp,
   ChartNoAxesColumn,
   Undo2,
   Pause,
@@ -79,6 +82,9 @@ export type IconName =
   | 'ban'
   | 'play'
   | 'up'
+  | 'sort'
+  | 'down'
+  | 'less'
   | 'feather'
   | 'music'
   | 'bell'
@@ -121,6 +127,9 @@ const L: Record<IconName, LucideIcon> = {
   ban: Ban,
   play: Play,
   up: ArrowUp,
+  sort: ArrowDownUp,
+  down: ChevronDown,
+  less: ChevronUp,
   feather: Pencil,
   music: Music,
   bell: Bell,

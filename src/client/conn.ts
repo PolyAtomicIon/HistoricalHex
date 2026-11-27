@@ -86,6 +86,9 @@ class Connection {
   private pending = new Map<string, (r: { ok: boolean; error?: string }) => void>();
   private outbox: ClientMsg[] = [];
   private retry = 0;
+  /** Когда последний раз что-то пришло от сервера — по этому видно «тихо умершее» соединение. */
+  private lastHeard = 0;
+  private beat?: ReturnType<typeof setInterval>;
   private seq = 0;
   /** Что повторить после переподключения. */
   private resume?: ClientMsg;
@@ -123,14 +126,38 @@ class Connection {
     this.ws = ws;
     ws.onopen = () => {
       this.retry = 0;
+      this.lastHeard = Date.now();
+      // Пульс: каждые 10 с короткий ping. Держит NAT раздачи с телефона «тёплым», а если сервер
+      // молчит дольше 25 с — соединение мёртвое, хоть браузер этого и не заметил: рвём и
+      // переподключаемся сразу, не дожидаясь системного таймаута.
+      clearInterval(this.beat);
+      this.beat = setInterval(() => {
+        if (this.ws !== ws || ws.readyState !== WebSocket.OPEN) return clearInterval(this.beat);
+        if (Date.now() - this.lastHeard > 25_000) {
+          clearInterval(this.beat);
+          this.retry = 0;
+          ws.close();
+          ws.onclose?.(new CloseEvent('close'));
+          return;
+        }
+        try {
+          ws.send(JSON.stringify({ t: 'ping' } satisfies ClientMsg));
+        } catch {
+          /* закроется само */
+        }
+      }, 10_000);
       ws.send(JSON.stringify({ t: 'hello', secret: secret() } satisfies ClientMsg));
       if (this.resume) ws.send(JSON.stringify(this.resume));
       for (const m of this.outbox.splice(0)) ws.send(JSON.stringify(m));
       this.patch({ status: 'online' });
     };
-    ws.onmessage = (e) => this.onMessage(JSON.parse(String(e.data)) as ServerMsg);
+    ws.onmessage = (e) => {
+      this.lastHeard = Date.now();
+      this.onMessage(JSON.parse(String(e.data)) as ServerMsg);
+    };
     ws.onclose = () => {
       if (this.ws !== ws) return;
+      clearInterval(this.beat);
       this.patch({ status: 'offline' });
       for (const [, done] of this.pending) done({ ok: false, error: 'Нет связи' });
       this.pending.clear();
