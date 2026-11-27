@@ -16,8 +16,8 @@ function read<T extends string>(key: string, ok: readonly T[], def: T): T {
   }
 }
 
-let fxStyle: FxStyle = read(FX_KEY, ['auto', 'full', 'mini'] as const, 'auto');
-let facts: 'on' | 'off' = read(FACTS_KEY, ['on', 'off'] as const, 'on');
+let fxStyle: FxStyle = read(FX_KEY, ['auto', 'full', 'mini'] as const, 'mini');
+let facts: 'on' | 'off' = read(FACTS_KEY, ['on', 'off'] as const, 'off');
 const subs = new Set<() => void>();
 const save = (k: string, v: string) => {
   try {

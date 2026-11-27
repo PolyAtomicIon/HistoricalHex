@@ -66,9 +66,9 @@ interface Targets {
 const AUTO_ROLL_KEY = 'hh.autoroll';
 const readAuto = () => {
   try {
-    return localStorage.getItem(AUTO_ROLL_KEY) !== '0';
+    return localStorage.getItem(AUTO_ROLL_KEY) === '1';
   } catch {
-    return true;
+    return false;
   }
 };
 

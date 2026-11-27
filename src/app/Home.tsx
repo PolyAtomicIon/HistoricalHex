@@ -1,7 +1,7 @@
 // Главная: выбор эпохи, «Создать игру» или вход по PIN.
 
 import { useEffect, useRef, useState } from 'react';
-import { LORE_PACKS } from '../lore';
+import { GENGHIS_PACK, LORE_PACKS } from '../lore';
 import { conn, useConn } from '../client/conn';
 import { applyEra, eraCoverMd, eraThumb, eraIcon } from './era';
 import { ArtIcon, Icon } from './icons';
@@ -66,7 +66,7 @@ const SOON = [
 
 export function Home({ initialPin }: { initialPin?: string }) {
   const { status, fatal, profile, friends } = useConn();
-  const [era, setEra] = useState(LORE_PACKS[0].id);
+  const [era, setEra] = useState(GENGHIS_PACK.id);
   const startPin = initialPin ?? tgStartPin();
   const [pin, setPin] = useState(startPin ?? '');
   const [profileOpen, setProfileOpen] = useState<null | 'me' | 'top'>(null);

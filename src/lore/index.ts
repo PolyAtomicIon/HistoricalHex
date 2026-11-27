@@ -6,16 +6,17 @@ import { WW2_PACK } from './packs/ww2';
 import { KHANATE_PACK } from './packs/khanate';
 import { SILK_PACK } from './packs/silk';
 import { SAKA_PACK } from './packs/saka';
+import { CLASSIC_PACK } from './packs/classic';
 import type { LorePack, NarrationKey } from './types';
 
 export type { LoreFact, LorePack, NarrationKey } from './types';
-export { GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK };
+export { CLASSIC_PACK, GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK };
 
-export const LORE_PACKS: LorePack[] = [GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK];
+export const LORE_PACKS: LorePack[] = [CLASSIC_PACK, GENGHIS_PACK, JAPAN_PACK, WW2_PACK, KHANATE_PACK, SILK_PACK, SAKA_PACK];
 
 /** Пакет по id; если такого нет — первый в списке. */
 export function getLorePack(id?: string | null): LorePack {
-  return LORE_PACKS.find((p) => p.id === id) ?? LORE_PACKS[0];
+  return LORE_PACKS.find((p) => p.id === id) ?? GENGHIS_PACK;
 }
 
 export type NarrationVars = Partial<Record<'player' | 'victim' | 'res' | 'count' | 'n', string | number>> &

@@ -30,6 +30,11 @@ describe('lore packs', () => {
       });
 
       it('has at least 20 sourced facts, 8 of them about Kazakhstan', () => {
+        // «Классика» — без истории: вместо фактов подсказки по правилам
+        if (p.id === 'classic') {
+          expect(p.facts.length).toBeGreaterThanOrEqual(10);
+          return;
+        }
         expect(p.facts.length).toBeGreaterThanOrEqual(20);
         expect(p.facts.filter((f) => f.kz).length).toBeGreaterThanOrEqual(8);
         for (const f of p.facts) expect(f.source).toBeTruthy();
