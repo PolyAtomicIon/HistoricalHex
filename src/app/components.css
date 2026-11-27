@@ -4404,7 +4404,7 @@ html.lite .home .era-card.on .era-cover {
 }
 .tro-side.get { background: rgba(47, 158, 87, 0.16); }
 .tro-side small { font-size: 12px; color: var(--ink-2); }
-.tro-side.get small, .tro-side.get .tro-cap { color: #9fe0b6; }
+.tro-side.get small, .tro-side.get .tro-cap { color: var(--good-text); }
 .tro-cap { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 .tro-arrow {
   width: 32px;
@@ -4498,8 +4498,8 @@ html.lite .home .era-card.on .era-cover {
 .trc-btn:disabled { opacity: 0.35; }
 .trc-ans { font-size: 13px; font-weight: 800; color: var(--ink-2); padding: 0 8px; }
 .trc-verdict { padding: 0 6px 2px; font-size: 12px; font-weight: 700; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.trc-verdict.good { color: #9fe0b6; }
-.trc-verdict.bad { color: #ff9a8a; }
+.trc-verdict.good { color: var(--good-text); }
+.trc-verdict.bad { color: var(--bad-text); }
 
 /* C · Весы сделки — во весь экран */
 .tro-scales {
@@ -4552,7 +4552,7 @@ html.lite .home .era-card.on .era-cover {
 .trs-pan.left { left: -20px; }
 .trs-pan.right { right: -20px; }
 .trs-labels { width: 300px; display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: rgba(var(--ink-rgb), 0.8); }
-.trs-labels .get { color: #9fe0b6; }
+.trs-labels .get { color: var(--good-text); }
 .trs-meter { width: 100%; max-width: 420px; margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
 .trs-meter-ends { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: rgba(var(--ink-rgb), 0.6); }
 .trs-bar { position: relative; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #a2412f, #6b6346 50%, #2f9e57); }
@@ -6611,7 +6611,7 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
 }
 .fc-ban.on {
   background: rgba(255, 69, 58, 0.2);
-  color: #ff6b5b;
+  color: var(--bad);
 }
 
 /* Входящее предложение — мини-плашка */
@@ -7648,7 +7648,7 @@ html.lite .hub-glow { display: none; }
   min-width: 0;
 }
 .deal-mini .dm-lbl { font-size: 12px; color: var(--ink-3); font-weight: 600; }
-.deal-mini .dm-res.get .dm-lbl { color: #7fe0a8; }
+.deal-mini .dm-res.get .dm-lbl { color: var(--good-text); }
 .deal-mini .dm-items { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .deal-mini .dm-r { gap: 4px; font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
 .deal-mini .dm-res.dm-compact { flex-direction: row; align-items: center; padding: 2px 6px; gap: 2px; border-radius: 10px; }
@@ -7800,3 +7800,20 @@ html.lite .hub-hero-img { animation: none; }
 
 /* «Твой ход»: подпись всегда читается на цвете игрока и стоит выше кубиков */
 .tb-plate { top: 20%; color: var(--me-ink, #fff); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
+
+/* счётчики на кнопках нижней панели (План, Обмен, Карты) — кружок, как на обычных кнопках */
+.tool .cnt {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(var(--fg-rgb), 0.9);
+  color: var(--on-fg);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+}
+.tool .cnt.hot { background: var(--accent); color: var(--accent-ink); }
+.tool .cnt.bad { background: var(--bad); color: #fff; }

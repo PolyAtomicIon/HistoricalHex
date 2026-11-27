@@ -29,6 +29,9 @@
   --fg-rgb: 255, 255, 255;
   /* текст на сплошной «fg»-заливке (выбранный сегмент, светлая кнопка) */
   --on-fg: #111;
+  /* зелёный/красный для текста (оценки обмена, «получаешь») */
+  --good-text: #9fe0b6;
+  --bad-text: #ff9a8a;
   /* сплошная поверхность шторок и карточек */
   --surface: #121a24;
   /* акцент как цвет текста: в светлой теме темнее, чтобы читался на светлом */
@@ -57,16 +60,18 @@ html[data-theme='light'] {
   --ink-3: rgba(22, 27, 34, 0.58);
   --fg-rgb: 22, 27, 34;
   --on-fg: #fff;
+  --good-text: #17803f;
+  --bad-text: #c2321f;
   --surface: #ffffff;
   --accent-text: color-mix(in oklab, var(--accent) 60%, #000);
   --hub-top: #dfe7ee;
-  --glass: rgba(255, 255, 255, 0.66);
-  --glass-strong: rgba(250, 251, 252, 0.9);
+  --glass: rgba(255, 255, 255, 0.84);
+  --glass-strong: rgba(250, 251, 252, 0.95);
   --glass-border: rgba(22, 27, 34, 0.1);
   --glass-hi: rgba(255, 255, 255, 0.9);
   --glass-shadow: 0 10px 34px rgba(22, 27, 34, 0.14), 0 1px 0 rgba(255, 255, 255, 0.7) inset;
-  --good: #1f9d55;
-  --bad: #d9402f;
+  --good: #17803f;
+  --bad: #c62f20;
   --sd1: 244, 246, 248;
   --sd2: 250, 251, 252;
   --sd3: 255, 255, 255;
@@ -934,6 +939,8 @@ html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .cine
   --surface: #121a24;
   --good: #58d68d;
   --bad: #ff6b5b;
+  --good-text: #9fe0b6;
+  --bad-text: #ff9a8a;
   color-scheme: dark;
   color: var(--ink);
 }
@@ -960,3 +967,9 @@ html[data-theme='light'] .ld-place.p2 { color: #5b6472; }
 html[data-theme='light'] .p3 .hub-step { color: #8a4f22; }
 html[data-theme='light'] :is(.trc-verdict.good, .deal-mini .dm-res.get .dm-lbl) { color: var(--good); }
 html[data-theme='light'] .trc-verdict.bad { color: var(--bad); }
+
+/* партия: фон под картой — цвета моря (iOS красит им размытый край под часами) */
+html.in-game,
+html.in-game body {
+  background: var(--sea-deep, #1c4a6e);
+}

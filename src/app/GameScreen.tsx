@@ -1,5 +1,6 @@
 // Экран партии (телефон / ТВ) и пауза — отдельный чанк: на главной этот код не нужен.
 
+import { useEffect } from 'react';
 import type { RoomView } from '../proto';
 import { conn } from '../client/conn';
 import { PhoneGame, setPieceNames } from './PhoneGame';
@@ -15,6 +16,19 @@ const tvMode = new URLSearchParams(location.search).has('tv');
 
 export default function InGame({ room }: { room: RoomView }) {
   const pack = useEra(room.settings.lore);
+  // В партии фон страницы и строка состояния — цвета моря: в приложении с главного экрана iOS сама
+  // размывает край под часами фоном страницы, и в светлой теме сверху над картой был молочный туман.
+  useEffect(() => {
+    const root = document.documentElement;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name=theme-color]');
+    const before = meta?.content;
+    root.classList.add('in-game');
+    meta?.setAttribute('content', pack.palette.seaDeep);
+    return () => {
+      root.classList.remove('in-game');
+      if (meta && before) meta.setAttribute('content', before);
+    };
+  }, [pack.palette.seaDeep]);
   setPieceNames(pack.pieces);
   // Заставка эпохи — один раз на комнату, пока партия не закончилась
   const factsShown = useFacts();
