@@ -29,7 +29,10 @@ export interface Board {
 
 const RED_NUMBERS = new Set([6, 8]);
 const MAX_ATTEMPTS = 5000;
-const TERRAIN_ATTEMPTS = 3000;
+/** Попыток разложить местность: на обычном поле почти всегда находится раскладка без слипшихся ресурсов. */
+const TERRAIN_ATTEMPTS: Record<LayoutKind, number> = { standard: 3000, extended: 600 };
+/** Сколько подходящих (6/8 не рядом) раскладок чисел сравнить, прежде чем взять лучшую. */
+const NUMBER_CANDIDATES = 400;
 
 export function generateBoard(layout: LayoutKind, rng: Rng): { board: Board; robberHex: HexId } {
   const spec = LAYOUTS[layout];
@@ -49,7 +52,7 @@ export function generateBoard(layout: LayoutKind, rng: Rng): { board: Board; rob
   const byId = new Map(hexes.map((h) => [h.id, h]));
   let best: Terrain[] = terrainPool;
   let bestScore = Infinity;
-  for (let attempt = 0; attempt < TERRAIN_ATTEMPTS && bestScore > 0; attempt++) {
+  for (let attempt = 0; attempt < TERRAIN_ATTEMPTS[layout] && bestScore > 0; attempt++) {
     const t = shuffle(rng, terrainPool);
     hexes.forEach((h, i) => (h.terrain = t[i]));
     const score = terrainClumps(hexes, nbr, byId);
@@ -66,10 +69,12 @@ export function generateBoard(layout: LayoutKind, rng: Rng): { board: Board; rob
   // не больше одного красного числа — желательно (берём раскладку с наименьшим числом нарушений).
   let bestNums: number[] | null = null;
   let bestSoft = Infinity;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS && bestSoft > 0; attempt++) {
+  let candidates = 0;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS && bestSoft > 0 && candidates < NUMBER_CANDIDATES; attempt++) {
     const numbers = shuffle(rng, spec.numbers);
     land.forEach((h, i) => (h.number = numbers[i]));
     if (!redNumbersApart(hexes, layout)) continue;
+    candidates++;
     const soft = numberClumps(hexes, nbr, byId);
     if (soft < bestSoft) {
       bestSoft = soft;
