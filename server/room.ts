@@ -678,12 +678,12 @@ export class Room {
       }).catch((e) => console.error('takeover failed', this.pin, e));
     }
     const state = this.state;
-    // Автобросок: сервер бросает за человека через пару секунд (карты развития — только после броска)
+    // Автобросок: сервер бросает за человека сразу в начале хода (кнопки броска у него нет) (карты развития — только после броска)
     if (this.settings.autoRoll && this.settings.dice !== 'physical' && state.phase === 'roll') {
       const pid = state.order[state.current];
       const since = this.waitingSince.get(pid);
       const from = since === undefined ? undefined : Math.max(since, this.attackUntil);
-      if (!state.players[pid]?.bot && from !== undefined && now - from > 2500 * this.paceK) {
+      if (!state.players[pid]?.bot && from !== undefined && now - from > 700 * this.paceK) {
         void this.enqueue(() => this.autoMove(pid, 'roll')).catch((e) => console.error('autoroll failed', this.pin, e));
         return;
       }

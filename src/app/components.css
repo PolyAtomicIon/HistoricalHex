@@ -7606,3 +7606,52 @@ html.lite .hub-glow { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .hub-hero-img { animation: none; }
 }
+
+/* плашка статуса: длинный текст переносится в 2 строки, таймер всегда виден */
+.hud-stack .status-pill,
+.hud-stack .status-pill.ticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: normal;
+  text-overflow: clip;
+  max-width: calc(100% - 112px);
+  line-height: 1.25;
+  text-align: center;
+}
+.hud-stack .status-pill .sp-text,
+.hud-stack .status-pill.ticker span {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.hud-stack .status-pill .tclock { flex: none; }
+
+/* входящий обмен: кто предлагает и подписанные стороны «отдаёшь / получаешь» */
+.deal-mini .dm-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.deal-mini .dm-who small { font-size: 13px; color: var(--ink-3); }
+.deal-mini .dm-swap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+}
+.deal-mini .dm-arrow { align-self: center; color: var(--ink-3); }
+.deal-mini .dm-res {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  min-width: 0;
+}
+.deal-mini .dm-lbl { font-size: 12px; color: var(--ink-3); font-weight: 600; }
+.deal-mini .dm-res.get .dm-lbl { color: #7fe0a8; }
+.deal-mini .dm-items { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.deal-mini .dm-r { gap: 4px; font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.deal-mini .dm-res.dm-compact { flex-direction: row; align-items: center; padding: 2px 6px; gap: 2px; border-radius: 10px; }

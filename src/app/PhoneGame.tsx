@@ -418,6 +418,13 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
   }, [nudgeWanted]);
   const nudgeOn = usePlanNudge();
   const showNudge = nudgeOn && nudgeWanted && nudgeDue;
+  // Игрок ставит постройку — никаких карточек поверх карты; награды и т. п. ждут и сами уходят через 7 с
+  const placing = !!build || !!selected || !!planPick || (myTurn && (pub.phase === 'setup' || pub.phase === 'roadBuilding'));
+  useEffect(() => {
+    if (!notice || placing) return;
+    const t = setTimeout(() => markSeen(notice.key), 7000);
+    return () => clearTimeout(t);
+  }, [notice?.key, placing]); // eslint-disable-line react-hooks/exhaustive-deps
   const planHead = myTurn && pub.phase === 'main' && checked.length > 0 && checked[0].status !== 'ready' ? checked[0] : null;
   // Мои постройки у захваченного гекса — показать явно и подсказать, как убрать
   const blocked = useMemo(() => {
@@ -532,7 +539,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
             </div>
           ) : (
             <div key={`s${status}`} className={`status-pill glass ${myTurn ? 'mine' : ''} ${deadline && pub.phase !== 'finished' ? 'has-clock' : ''}`} aria-live="polite">
-              {status}
+              <span className="sp-text">{status}</span>
               {deadline && pub.phase !== 'finished' && <TurnClock until={deadline - conn.getState().clockSkew} mine={myTurn} />}
             </div>
           )
@@ -554,7 +561,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           </button>
         )}
 
-        {askPush && (
+        {askPush && !myTurn && (
           <div className="push-ask glass strong">
             <span className="pa-ic">
               <Icon name="bell" size={18} />
@@ -678,7 +685,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
         </button>
       )}
 
-      {notice && (
+      {notice && !placing && (
         <div key={notice.key} className="fact-pop notice-card glass strong" role="alert">
           <span className="nc-ic" style={{ ['--pc' as string]: notice.who && pub.players[notice.who] ? PLAYER_HEX[pub.players[notice.who].color] : 'var(--accent)' }}>
             <Icon name={notice.icon ?? 'crown'} size={20} />
@@ -708,7 +715,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           onClose={() => setNudgeOff(true)}
         />
       )}
-      <FactPopup pack={pack} allowed={factsShown && showFact && !sheet && !showNudge && !notice} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />
+      <FactPopup pack={pack} allowed={factsShown && showFact && !sheet && !showNudge && !notice && !placing} onRead={(f) => { setOpenFact(f); setSheet('fact'); }} />
 
       {planReady && !build && !selected && !planPick && (
         <button className="plan-run glass" disabled={busy} onClick={() => void runPlan()}>
@@ -738,6 +745,7 @@ export function PhoneGame({ room, pack }: { room: RoomView; pack: LorePack }) {
           attacking={attacking}
           cancelCountdown={() => setCountdown(null)}
           physical={physical}
+          serverRoll={!!room.settings.autoRoll && !physical}
           planCount={plan.length}
           planBroken={broken}
         />
@@ -1721,11 +1729,21 @@ function Actions(props: {
   attacking: boolean;
   cancelCountdown: () => void;
   physical: boolean;
+  serverRoll: boolean;
   planCount: number;
   planBroken: number;
 }) {
   const { pub, priv, me, myTurn, build, setBuild, busy, send, openSheet, countdown, attacking, cancelCountdown, physical } = props;
   const meP = pub.players[me];
+  // После броска «Конец хода» встаёт на место кнопки броска: короткая пауза, чтобы случайное
+  // второе касание не закончило ход.
+  const [armed, setArmed] = useState(true);
+  useEffect(() => {
+    if (!myTurn || pub.phase !== 'main') return;
+    setArmed(false);
+    const t = setTimeout(() => setArmed(true), 900);
+    return () => clearTimeout(t);
+  }, [myTurn, pub.phase, pub.turn]);
   const playable = priv.devCards.filter((c) => c.playable && c.type !== 'victoryPoint').length;
   const canPlayNow = myTurn && (pub.phase === 'roll' || pub.phase === 'main') && !pub.devCardPlayed && playable > 0;
   const cardsBtn = (
@@ -1767,6 +1785,8 @@ function Actions(props: {
     case 'roadBuilding':
       return <p className="dock-note">Нажми на светящееся место на карте</p>;
     case 'roll':
+      // Автобросок у ведущего: кубики бросает сервер, кнопки нет совсем
+      if (props.serverRoll) return <p className="dock-note">{attacking ? 'Идёт атака…' : 'Бросаем кубики…'}</p>;
       return (
         <div className="actions">
           {countdown !== null ? (
@@ -1820,7 +1840,7 @@ function Actions(props: {
             <button className="btn" onClick={() => openSheet('trade')}>
               <Icon name="trade" /> Обмен{(pub.trades?.length ?? (pub.trade ? 1 : 0)) > 0 ? ` · ${pub.trades?.length ?? 1}` : ''}
             </button>
-            <button className="btn primary" disabled={busy} onClick={() => void send({ type: 'endTurn' })}>
+            <button className="btn primary" disabled={busy || !armed} onClick={() => void send({ type: 'endTurn' })}>
               Конец хода <Icon name="next" />
             </button>
           </div>

@@ -82,7 +82,7 @@ export function useBoardLook(): BoardLook {
 
 // ─── Плашка «Пока ждёшь — наметь ход» (кому-то помогает, кого-то раздражает) ───
 const NUDGE_KEY = 'hh.planNudge';
-let nudge: 'on' | 'off' = read(NUDGE_KEY, ['on', 'off'] as const, 'on');
+let nudge: 'on' | 'off' = read(NUDGE_KEY, ['on', 'off'] as const, 'off');
 export function setPlanNudge(on: boolean): void {
   nudge = on ? 'on' : 'off';
   save(NUDGE_KEY, nudge);

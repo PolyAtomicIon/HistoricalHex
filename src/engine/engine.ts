@@ -218,9 +218,12 @@ const HANDLERS: Handlers = {
     requireTurn(c);
     requirePhase(c, 'roll');
     const { s, actor } = c;
-    const dice = throwDice(s, c.rng);
+    const dice = throwDice(s, c.rng, actor);
     const total = dice[0] + dice[1];
     s.dice = dice;
+    (s.rollCounts ??= {})[actor] ??= new Array(13).fill(0);
+    s.rollCounts[actor][total]++;
+    (s.lastRoll ??= {})[actor] = total;
     c.events.push({ type: 'diceRolled', player: actor, dice, total });
     if (total !== 7) {
       produce(s, total, c.events);
@@ -556,10 +559,21 @@ function validateTradeTerms(giveRaw: unknown, wantRaw: unknown): { give: Resourc
 // ───────────────────────── кубики ─────────────────────────
 
 /** Обычные кубики — честный случай; сбалансированные — следующий бросок из колоды 36 комбинаций. */
-function throwDice(s: GameState, rng: Rng): [number, number] {
+function throwDice(s: GameState, rng: Rng, actor: PlayerId): [number, number] {
   if (!s.settings.balancedDice) return [rollDie(rng), rollDie(rng)];
   if (!s.diceDeck || s.diceDeck.length <= DICE_DECK_RESHUFFLE_AT) s.diceDeck = newDiceDeck(rng);
-  const [a, b] = s.diceDeck.pop()!;
+  const deck = s.diceDeck;
+  const top = deck.length - 1;
+  // Семёрка тому же игроку второй раз подряд — меняем её местами со случайной не-семёркой из колоды.
+  // Колода остаётся той же (все 36 комбинаций), просто семёрка достанется кому-то позже.
+  if (deck[top][0] + deck[top][1] === 7 && s.lastRoll?.[actor] === 7) {
+    const others = deck.map((d, i) => i).filter((i) => i !== top && deck[i][0] + deck[i][1] !== 7);
+    if (others.length) {
+      const j = others[Math.floor(rng() * others.length)];
+      [deck[top], deck[j]] = [deck[j], deck[top]];
+    }
+  }
+  const [a, b] = deck.pop()!;
   return [a, b];
 }
 

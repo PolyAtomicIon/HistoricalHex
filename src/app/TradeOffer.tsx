@@ -15,6 +15,7 @@ import { ResIcon } from './ResIcon';
 import { counterIdeas, tradeVerdict } from './planner';
 import type { CounterIdea } from './planner';
 import { Sheet } from './Sheet';
+import { RESOURCE_NAME } from '../i18n/ru';
 
 export type TradeUi = 'card' | 'caravan';
 export const TRADE_UI_LABEL: Record<TradeUi, string> = { card: 'Сделка', caravan: 'Караван' };
@@ -164,12 +165,15 @@ export function TradeCard(p: Props) {
         <span className="deal-ava" style={{ background: PLAYER_HEX[from.color] }}>
           {from.name.charAt(0).toUpperCase()}
         </span>
-        <b className="dm-name">{from.name}</b>
-        <span className="dm-terms">
-          <MiniRes res={t.want} />
-          <Icon name="next" size={14} />
-          <MiniRes res={t.give} get />
+        <span className="dm-who">
+          <b className="dm-name">{from.name}</b>
+          <small>предлагает обмен</small>
         </span>
+      </div>
+      <div className="dm-swap">
+        <MiniRes res={t.want} label="Ты отдаёшь" />
+        <Icon name="trade" size={18} className="dm-arrow" />
+        <MiniRes res={t.give} get label="Ты получаешь" />
       </div>
       {!answered && from.bot && <span key={`tm${t.id}`} className="dm-timer" aria-hidden />}
       {(answered || !v.canAccept) && (
@@ -186,7 +190,7 @@ export function TradeCard(p: Props) {
                 Своё
               </button>
               <button className="btn deal-yes" disabled={p.busy || !v.canAccept} onClick={() => void p.send({ type: 'respondTrade', tradeId: t.id, kind: 'accept' })}>
-                Да
+                Обменять
               </button>
             </>
           ) : (
@@ -198,16 +202,33 @@ export function TradeCard(p: Props) {
   );
 }
 
-/** Ресурсы в мини-плашке: значок + количество; «получаешь» — зелёным. */
-function MiniRes({ res, get }: { res: ResourceMap; get?: boolean }) {
+/** Одна сторона сделки. С подписью — колонка «Ты отдаёшь/получаешь» с названиями; без неё — компактно, значки ×n. */
+function MiniRes({ res, get, label }: { res: ResourceMap; get?: boolean; label?: string }) {
+  if (!label)
+    return (
+      <span className={`dm-res dm-compact ${get ? 'get' : 'give'}`}>
+        {list(res).map((r) => (
+          <span key={r} className="dm-r">
+            <ResIcon r={r} size={22} />
+            {(res[r] ?? 0) > 1 && <small>×{res[r]}</small>}
+          </span>
+        ))}
+      </span>
+    );
   return (
     <span className={`dm-res ${get ? 'get' : 'give'}`}>
-      {list(res).map((r) => (
-        <span key={r} className="dm-r">
-          <ResIcon r={r} size={26} />
-          {(res[r] ?? 0) > 1 && <small>×{res[r]}</small>}
-        </span>
-      ))}
+      <small className="dm-lbl">{label}</small>
+      <span className="dm-items">
+        {list(res).map((r) => (
+          <span key={r} className="dm-r">
+            <ResIcon r={r} size={24} />
+            <span>
+              {(res[r] ?? 0) > 1 ? `${res[r]} ` : ''}
+              {RESOURCE_NAME[r]}
+            </span>
+          </span>
+        ))}
+      </span>
     </span>
   );
 }

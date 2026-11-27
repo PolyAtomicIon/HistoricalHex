@@ -225,7 +225,12 @@ const http = createServer((req, res) => {
   res.writeHead(404).end();
 });
 
-const wss = new WebSocketServer({ server: http, maxPayload: 64 * 1024 });
+// Состояние партии — JSON по 10–20 КБ на каждое изменение; сжатие уменьшает его в 5–10 раз (заметно на мобильном интернете)
+const wss = new WebSocketServer({
+  server: http,
+  maxPayload: 64 * 1024,
+  perMessageDeflate: { threshold: 1024, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: false, clientNoContextTakeover: true },
+});
 
 wss.on('error', (e) => console.error('wss error', e));
 
