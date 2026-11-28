@@ -915,7 +915,7 @@ html {
 html[data-theme='light'] .hub-glow { filter: blur(60px) saturate(1.2) brightness(1.15); opacity: 0.4; }
 
 /* светлая тема: поверх фото и тёмного поля текст остаётся светлым — возвращаем тёмные токены внутри */
-html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .cine, .splash, .tv, .tro-scales, .nc-card, .fx-mini-card, .resume-card, .pf-era, .era-card, .tut) {
+html[data-theme='light'] :is(.hub-hero, .era-intro, .ei-cover, .era-cover, .cine, .splash, .tv, .tro-scales, .nc-card, .fx-mini-card, .resume-card, .pf-era, .era-card, .tut, .blocked-chip) {
   --ink: #f6f3ec;
   --ink-rgb: 246, 243, 236;
   --ink-2: rgba(246, 243, 236, 0.72);

@@ -1286,7 +1286,7 @@ export function PlayersBar({
             key={id}
             role="listitem"
             className={`pcell ${turn ? 'turn' : ''} ${turn && deadline ? 'timed' : ''} ${focused === id ? 'focused' : ''} ${!room.online[id] && !p.bot ? 'off' : ''}`}
-            style={{ ['--pc' as string]: PLAYER_HEX[p.color] }}
+            style={{ ['--pc' as string]: PLAYER_HEX[p.color], ['--pc-ink' as string]: inkOn(PLAYER_HEX[p.color]) }}
             onClick={() => onFocus?.(id)}
             aria-label={L('{name}: {n} очков{aw}. Показать постройки', '{name}: {n} ұпай{aw}. Құрылыстарды көрсету', '{name}: {n} points{aw}. Show buildings', { name: p.name, n: p.points, aw: awardsOf(pub, id).map((a) => `, ${a === 'road' ? pack?.bonuses.longestRoad ?? L('самая длинная дорога', 'ең ұзын жол', 'longest road') : pack?.bonuses.largestArmy ?? L('самая большая армия', 'ең үлкен әскер', 'largest army')}`).join('') })}
           >
@@ -1662,7 +1662,7 @@ function inkOn(hex: string): string {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
   if (!m) return '#fff';
   const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16) / 255);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#111' : '#fff';
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55 ? '#111' : '#fff';
 }
 
 function TurnBanner({ color }: { color: string }) {
