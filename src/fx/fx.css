@@ -698,7 +698,7 @@ body.fx-shake > *:not([data-fx-portal]):not(script):not(style) {
   border-radius: 18px;
   background: rgba(7, 11, 16, 0.86);
   color: #f6f3ec;
-  font: 700 17px/1.35 Manrope, system-ui, sans-serif;
+  font: 700 17px/1.35 var(--f-body);
   text-align: center;
   text-wrap: balance;
   animation: fx-explain-in 0.5s 0.25s var(--fx-spring) both;

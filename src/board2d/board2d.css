@@ -105,7 +105,7 @@
   stroke-width: 3;
 }
 .b2d .tk-num {
-  font-family: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  font-family: var(--f-display);
   font-size: 30px;
   font-weight: 700;
   fill: #2b2118;
@@ -149,13 +149,13 @@
   stroke-width: 3;
 }
 .b2d .hb-any {
-  font-family: 'Unbounded', system-ui, sans-serif;
+  font-family: var(--f-display);
   font-size: 26px;
   font-weight: 700;
   fill: #2b2118;
 }
 .b2d .hb-ratio {
-  font-family: 'Manrope', system-ui, sans-serif;
+  font-family: var(--f-body);
   font-size: 15px;
   font-weight: 800;
   fill: #2b2118;
@@ -469,7 +469,7 @@ html.lite .b2d .ship.sailing { animation: ship-sail 3.2s ease-in-out forwards; }
   fill: rgba(18, 12, 12, 0.88);
 }
 .b2d .rb-num {
-  font-family: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  font-family: var(--f-display);
   font-size: 22px;
   font-weight: 700;
   fill: #f6f3ec;

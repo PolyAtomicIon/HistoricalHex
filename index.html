@@ -37,8 +37,8 @@
         #splash svg{width:96px;height:96px;overflow:visible}
         #splash .e{fill:none;stroke-width:7;stroke-linecap:round;stroke-dasharray:60;stroke-dashoffset:60;animation:sp-draw 1.6s cubic-bezier(.6,0,.2,1) infinite}
         #splash .e:nth-child(2){animation-delay:.1s}#splash .e:nth-child(3){animation-delay:.2s}#splash .e:nth-child(4){animation-delay:.3s}#splash .e:nth-child(5){animation-delay:.4s}#splash .e:nth-child(6){animation-delay:.5s}
-        #splash .t{font:800 22px/1 Unbounded,Manrope,system-ui,sans-serif;letter-spacing:-.02em;color:#f6f3ec;opacity:.92}
-        #splash .s{font:600 13px/1.2 Manrope,system-ui,sans-serif;color:rgba(246,243,236,.55)}
+        #splash .t{font:800 22px/1 Unbounded,Manrope,system-ui,sans-serif}html:lang(kk) #splash .t{font-family:Montserrat,Onest,system-ui,sans-serif}#splash .t{letter-spacing:-.02em;color:#f6f3ec;opacity:.92}
+        #splash .s{font:600 13px/1.2 Manrope,system-ui,sans-serif}html:lang(kk) #splash .s{font-family:Onest,system-ui,sans-serif}#splash .s{color:rgba(246,243,236,.55)}
         @keyframes sp-draw{0%{stroke-dashoffset:60;opacity:1}45%,70%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:-60;opacity:.2}}
         @media (prefers-reduced-motion:reduce){#splash .e{animation:none;stroke-dashoffset:0}}
         html[data-theme=light] #splash{background:radial-gradient(120% 80% at 50% 40%,#f6f8fa 0%,#e9edf1 70%)}
@@ -62,6 +62,7 @@
             var l = localStorage.getItem('hh.lang') || ((navigator.language || '').toLowerCase().indexOf('kk') === 0 ? 'kz' : 'ru');
             var t = { kz: 'Дәуірді жинап жатырмыз…', en: 'Building the era…' }[l];
             if (t) document.getElementById('splash-s').textContent = t;
+            document.documentElement.lang = l === 'kz' ? 'kk' : l;
           } catch (e) {}
         </script>
       </div>

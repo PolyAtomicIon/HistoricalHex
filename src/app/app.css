@@ -2,6 +2,8 @@
    Карта на весь экран, поверх — стеклянные панели. Всё движение — transform/opacity. */
 
 :root {
+  --f-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-display: 'Unbounded', 'Manrope', system-ui, sans-serif;
   --accent: #f2b544;
   --accent-rgb: 242, 181, 68;
   --accent-ink: #1b1306;
@@ -97,7 +99,7 @@ body,
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--f-body);
   font-feature-settings: 'tnum' 1;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
@@ -118,7 +120,7 @@ textarea {
   font-family: inherit;
 }
 .display {
-  font-family: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  font-family: var(--f-display);
   letter-spacing: -0.02em;
 }
 .muted {
@@ -972,4 +974,11 @@ html[data-theme='light'] .trc-verdict.bad { color: var(--bad); }
 html.in-game,
 html.in-game body {
   background: var(--sea-deep, #1c4a6e);
+}
+
+/* Казахский: в Unbounded и Manrope нет букв ә ғ қ ң ө ұ ү һ і, iOS подставлял системный шрифт посреди слова.
+   Весь интерфейс на казахском переходит на шрифты с полной кириллицей. */
+html:lang(kk) {
+  --f-body: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-display: 'Montserrat', 'Onest', system-ui, sans-serif;
 }

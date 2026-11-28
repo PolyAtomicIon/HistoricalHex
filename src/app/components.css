@@ -1681,7 +1681,7 @@
   margin-bottom: 6px;
 }
 .fact-card .yr {
-  font-family: 'Unbounded', 'Manrope', sans-serif;
+  font-family: var(--f-display);
   font-size: 13px;
 }
 .fact-card .fc-text {
@@ -2993,7 +2993,7 @@ ol.list {
   gap: 6px;
 }
 .fp-year {
-  font-family: 'Unbounded', 'Manrope', sans-serif;
+  font-family: var(--f-display);
   font-size: 13px;
   font-weight: 700;
   color: var(--accent-text, var(--accent));
@@ -3970,7 +3970,7 @@ html.lite .home .era-card.on .era-cover {
   height: 40px;
 }
 .home .era-title {
-  font-family: 'Unbounded', 'Manrope', system-ui, sans-serif;
+  font-family: var(--f-display);
   font-size: 19px;
   line-height: 1.12;
   letter-spacing: -0.01em;
@@ -4518,7 +4518,7 @@ html.lite .home .era-card.on .era-cover {
 .trs-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(60% 40% at 50% 36%, rgba(243, 200, 120, 0.16), transparent 70%); }
 .trs-head { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
 .trs-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.3em; text-transform: uppercase; color: #f3d9a4; }
-.trs-head h2 { margin: 0; font-family: 'Unbounded', 'Manrope', sans-serif; font-size: 24px; line-height: 1.15; }
+.trs-head h2 { margin: 0; font-family: var(--f-display); font-size: 24px; line-height: 1.15; }
 .trs-head p { margin: 0; font-size: 14px; color: rgba(var(--ink-rgb), 0.72); }
 .trs-scale { position: relative; width: 300px; height: 190px; margin-top: 18px; flex: none; }
 .trs-post { position: absolute; left: 50%; top: 34px; bottom: 0; width: 10px; margin-left: -5px; border-radius: 4px; background: #8a6a3a; box-shadow: 0 0 0 0 transparent; }
@@ -4872,7 +4872,7 @@ html.lite .home .era-card.on .era-cover {
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-family: 'Unbounded', 'Manrope', sans-serif;
+  font-family: var(--f-display);
   font-size: 15px;
   line-height: 1;
 }
@@ -4881,7 +4881,7 @@ html.lite .home .era-card.on .era-cover {
   font-size: 9px;
   letter-spacing: -1px;
   color: var(--ink-3);
-  font-family: 'Manrope', sans-serif;
+  font-family: var(--f-body);
 }
 .th-n.hot {
   color: var(--bad);
@@ -5911,7 +5911,7 @@ div.lb-seat.empty { cursor: default; }
   border-radius: 14px;
 }
 .ti-nums li.hit { background: rgba(var(--accent-rgb), 0.14); }
-.ti-n { flex: none; width: 34px; display: flex; flex-direction: column; align-items: center; font: 800 18px/1 Unbounded, Manrope, sans-serif; font-variant-numeric: tabular-nums; }
+.ti-n { flex: none; width: 34px; display: flex; flex-direction: column; align-items: center; font: 800 18px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 .ti-n i { font-style: normal; font-size: 9px; line-height: 1; letter-spacing: 1px; color: var(--ink-3); }
 .ti-n.hot { color: var(--bad); }
 .ti-gets { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -6102,7 +6102,7 @@ div.lb-seat.empty { cursor: default; }
 .steal-pop.won .sp-kicker { color: var(--good); }
 .steal-pop.lost .sp-kicker { color: var(--bad); }
 .sp-art { display: grid; place-items: center; min-height: 100px; animation: deal-pop 520ms var(--spring) 120ms both; }
-.sp-title { font: 800 30px/1.1 Unbounded, Manrope, sans-serif; letter-spacing: -0.02em; }
+.sp-title { font: 800 30px/1.1 var(--f-display); letter-spacing: -0.02em; }
 .steal-pop.won .sp-title { color: var(--good); }
 .steal-pop.lost .sp-title { color: var(--bad); }
 .steal-pop.saw .sp-title { font-size: 22px; }
@@ -6947,7 +6947,7 @@ body:has(.steal-pop.dock-pop) .fact-chip { opacity: 0; pointer-events: none; tra
   100% { opacity: 0; transform: translateY(-4px) scale(0.96); }
 }
 .l3-pct {
-  font: 800 34px/1 Unbounded, Manrope, sans-serif;
+  font: 800 34px/1 var(--f-display);
   font-variant-numeric: tabular-nums;
   color: #fff;
 }
